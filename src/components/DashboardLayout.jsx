@@ -2,15 +2,16 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   LayoutDashboard, Users, FileText, Camera,
-  Settings, LogOut, Menu, X
+  Calendar, Settings, LogOut, Menu
 } from 'lucide-react'
 import { useState } from 'react'
 
 const navItems = [
-  { to: '/',        icon: LayoutDashboard, label: 'Дашборд',      end: true },
-  { to: '/clients', icon: Users,           label: 'Клиенты' },
-  { to: '/content', icon: FileText,        label: 'Контент-план' },
-  { to: '/shoots',  icon: Camera,          label: 'Съёмки' },
+  { to: '/',         icon: LayoutDashboard, label: 'Дашборд',      end: true },
+  { to: '/clients',  icon: Users,           label: 'Клиенты' },
+  { to: '/content',  icon: FileText,        label: 'Контент-план' },
+  { to: '/calendar', icon: Calendar,        label: 'Календарь' },
+  { to: '/shoots',   icon: Camera,          label: 'Съёмки' },
 ]
 
 export default function DashboardLayout({ session }) {
@@ -26,12 +27,10 @@ export default function DashboardLayout({ session }) {
 
   return (
     <div style={styles.wrap}>
-      {/* Mobile overlay */}
       {sidebarOpen && (
         <div style={styles.overlay} onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* SIDEBAR */}
       <aside style={{ ...styles.sidebar, ...(sidebarOpen ? styles.sidebarOpen : {}) }}>
         <div style={styles.logo}>
           <div style={styles.logoMark} className="bebas">1M</div>
@@ -74,9 +73,7 @@ export default function DashboardLayout({ session }) {
         </div>
       </aside>
 
-      {/* MAIN */}
       <div style={styles.main}>
-        {/* Mobile topbar */}
         <div style={styles.mobileTopbar}>
           <button style={styles.menuBtn} onClick={() => setSidebarOpen(true)}>
             <Menu size={20} />
@@ -92,140 +89,48 @@ export default function DashboardLayout({ session }) {
 }
 
 const styles = {
-  wrap: {
-    display: 'flex',
-    minHeight: '100vh',
-    background: 'var(--black)',
-  },
-  overlay: {
-    position: 'fixed', inset: 0,
-    background: 'rgba(0,0,0,0.6)',
-    zIndex: 40,
-  },
+  wrap: { display: 'flex', minHeight: '100vh', background: 'var(--black)' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 },
   sidebar: {
-    width: 240,
-    background: 'var(--surface)',
-    borderRight: '1px solid var(--border)',
-    display: 'flex',
-    flexDirection: 'column',
-    flexShrink: 0,
-    position: 'sticky',
-    top: 0,
-    height: '100vh',
-    zIndex: 50,
+    width: 240, background: 'var(--surface)', borderRight: '1px solid var(--border)',
+    display: 'flex', flexDirection: 'column', flexShrink: 0,
+    position: 'sticky', top: 0, height: '100vh', zIndex: 50,
     transition: 'transform 0.25s ease',
   },
-  sidebarOpen: {
-    position: 'fixed',
-    transform: 'translateX(0)',
-  },
-  logo: {
-    padding: '28px 24px 22px',
-    borderBottom: '1px solid var(--border)',
-  },
-  logoMark: {
-    fontSize: 40,
-    color: 'var(--gold)',
-    lineHeight: 1,
-    letterSpacing: 2,
-    textShadow: '0 0 30px rgba(232,184,75,0.3)',
-  },
-  logoSub: {
-    fontSize: 10,
-    letterSpacing: 4,
-    textTransform: 'uppercase',
-    color: 'var(--text3)',
-    marginTop: 2,
-  },
+  sidebarOpen: { position: 'fixed', transform: 'translateX(0)' },
+  logo: { padding: '28px 24px 22px', borderBottom: '1px solid var(--border)' },
+  logoMark: { fontSize: 40, color: 'var(--gold)', lineHeight: 1, letterSpacing: 2, textShadow: '0 0 30px rgba(232,184,75,0.3)' },
+  logoSub: { fontSize: 10, letterSpacing: 4, textTransform: 'uppercase', color: 'var(--text3)', marginTop: 2 },
   nav: { flex: 1, padding: '14px 0', overflowY: 'auto' },
-  navLabel: {
-    fontSize: 10,
-    letterSpacing: 3,
-    textTransform: 'uppercase',
-    color: 'var(--text3)',
-    padding: '12px 24px 6px',
-    fontWeight: 700,
-  },
+  navLabel: { fontSize: 10, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--text3)', padding: '12px 24px 6px', fontWeight: 700 },
   navItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 11,
-    padding: '10px 24px',
-    fontSize: 13.5,
-    fontWeight: 500,
-    color: 'var(--text2)',
-    textDecoration: 'none',
-    borderLeft: '2px solid transparent',
-    transition: 'all 0.15s',
-    cursor: 'pointer',
+    display: 'flex', alignItems: 'center', gap: 11,
+    padding: '10px 24px', fontSize: 13.5, fontWeight: 500,
+    color: 'var(--text2)', textDecoration: 'none',
+    borderLeft: '2px solid transparent', transition: 'all 0.15s', cursor: 'pointer',
   },
-  navItemActive: {
-    color: 'var(--gold)',
-    background: 'var(--gold-dim)',
-    borderLeftColor: 'var(--gold)',
-  },
-  sidebarFooter: {
-    padding: '16px 20px',
-    borderTop: '1px solid var(--border)',
-  },
-  userCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 10,
-  },
+  navItemActive: { color: 'var(--gold)', background: 'var(--gold-dim)', borderLeftColor: 'var(--gold)' },
+  sidebarFooter: { padding: '16px 20px', borderTop: '1px solid var(--border)' },
+  userCard: { display: 'flex', alignItems: 'center', gap: 10 },
   avatar: {
-    width: 34, height: 34,
-    borderRadius: 9,
+    width: 34, height: 34, borderRadius: 9,
     background: 'linear-gradient(135deg, var(--gold), #B8860B)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: 13, fontWeight: 800, color: 'var(--black)',
-    flexShrink: 0,
+    fontSize: 13, fontWeight: 800, color: 'var(--black)', flexShrink: 0,
   },
   userName: { fontSize: 12, fontWeight: 700, color: 'var(--text)' },
   userRole: { fontSize: 11, color: 'var(--text3)' },
-  logoutBtn: {
-    marginLeft: 'auto',
-    background: 'none',
-    border: 'none',
-    color: 'var(--text3)',
-    cursor: 'pointer',
-    padding: 4,
-    display: 'flex',
-    alignItems: 'center',
-    transition: 'color 0.15s',
-  },
-  main: {
-    flex: 1,
-    overflow: 'auto',
-    minWidth: 0,
-  },
+  logoutBtn: { marginLeft: 'auto', background: 'none', border: 'none', color: 'var(--text3)', cursor: 'pointer', padding: 4, display: 'flex', alignItems: 'center' },
+  main: { flex: 1, overflow: 'auto', minWidth: 0 },
   mobileTopbar: {
-    display: 'none',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '14px 20px',
-    background: 'var(--surface)',
-    borderBottom: '1px solid var(--border)',
+    display: 'none', alignItems: 'center', justifyContent: 'space-between',
+    padding: '14px 20px', background: 'var(--surface)', borderBottom: '1px solid var(--border)',
     position: 'sticky', top: 0, zIndex: 30,
   },
-  menuBtn: {
-    background: 'none', border: 'none',
-    color: 'var(--text2)',
-    display: 'flex', alignItems: 'center',
-  },
-  mobileLogo: {
-    fontSize: 26, color: 'var(--gold)',
-    letterSpacing: 2,
-  },
+  menuBtn: { background: 'none', border: 'none', color: 'var(--text2)', display: 'flex', alignItems: 'center' },
+  mobileLogo: { fontSize: 26, color: 'var(--gold)', letterSpacing: 2 },
 }
 
-// Mobile styles via a style tag
 const mobileStyle = document.createElement('style')
-mobileStyle.textContent = `
-  @media (max-width: 768px) {
-    aside { transform: translateX(-100%); position: fixed !important; }
-    aside.open { transform: translateX(0); }
-    [data-mobile-topbar] { display: flex !important; }
-  }
-`
+mobileStyle.textContent = `@media (max-width: 768px) { aside { transform: translateX(-100%); position: fixed !important; } [data-mobile-topbar] { display: flex !important; } }`
 document.head.appendChild(mobileStyle)
