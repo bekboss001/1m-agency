@@ -48,11 +48,15 @@ export default function ClientsPage() {
   }
 
   // Save cell edit
-  async function saveEdit(id, field) {
-    let val = editValue
-    if (field === 'published_posts') val = parseInt(editValue) || 0
-    if (field === 'total_posts') val = parseInt(editValue) || 0
-    if (field === 'last_post_date') val = editValue || null
+  async function saveEdit(id, field, directValue) {
+    let val = directValue !== undefined ? directValue : editValue
+    if (field === 'published_posts') val = parseInt(val) || 0
+    if (field === 'total_posts') val = parseInt(val) || 0
+    if (field === 'last_post_date') val = val || null
+    if (field === 'contract_start') val = val || null
+    if (field === 'contract_end') val = val || null
+    if (field === 'smm_id') val = val || null
+    if (field === 'operator_id') val = val || null
 
     await supabase.from('clients').update({ [field]: val }).eq('id', id)
     setEditingCell(null)
@@ -158,8 +162,29 @@ export default function ClientsPage() {
                       </div>
                     </td>
 
-                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 12 }}>{formatDate(c.contract_start)}</td>
-                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 12 }}>{formatDate(c.contract_end)}</td>
+                    {/* Начало — редактируемое */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'contract_start', c.contract_start || '')}>
+                      {editingCell?.id === c.id && editingCell?.field === 'contract_start' ? (
+                        <input autoFocus style={styles.cellInput} type="date" value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => saveEdit(c.id, 'contract_start')}
+                          onKeyDown={e => handleKeyDown(e, c.id, 'contract_start')} />
+                      ) : (
+                        <span style={{ fontSize: 12, color: 'var(--text2)' }}>{formatDate(c.contract_start)}</span>
+                      )}
+                    </td>
+
+                    {/* Окончание — редактируемое */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'contract_end', c.contract_end || '')}>
+                      {editingCell?.id === c.id && editingCell?.field === 'contract_end' ? (
+                        <input autoFocus style={styles.cellInput} type="date" value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => saveEdit(c.id, 'contract_end')}
+                          onKeyDown={e => handleKeyDown(e, c.id, 'contract_end')} />
+                      ) : (
+                        <span style={{ fontSize: 12, color: urgent ? 'var(--red)' : 'var(--text2)' }}>{formatDate(c.contract_end)}</span>
+                      )}
+                    </td>
 
                     <td style={styles.td}>
                       {dl !== null ? (
@@ -167,8 +192,39 @@ export default function ClientsPage() {
                       ) : <span style={{ color: 'var(--text3)' }}>—</span>}
                     </td>
 
-                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 13 }}>{c.smm?.name || '—'}</td>
-                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 13 }}>{c.operator?.name || '—'}</td>
+                    {/* СММ — выпадающий список */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'smm_id', c.smm_id || '')}>
+                      {editingCell?.id === c.id && editingCell?.field === 'smm_id' ? (
+                        <select autoFocus style={styles.cellInput}
+                          value={editValue}
+                          onChange={e => saveEdit(c.id, 'smm_id', e.target.value)}
+                          onBlur={() => { setEditingCell(null); setEditValue('') }}>
+                          <option value="">— нет —</option>
+                          {employees.filter(e => e.role === 'smm').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                      ) : (
+                        <span style={{ fontSize: 13, color: c.smm?.name ? 'var(--text2)' : 'var(--text3)' }}>
+                          {c.smm?.name || '— нажми —'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Оператор — выпадающий список */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'operator_id', c.operator_id || '')}>
+                      {editingCell?.id === c.id && editingCell?.field === 'operator_id' ? (
+                        <select autoFocus style={styles.cellInput}
+                          value={editValue}
+                          onChange={e => saveEdit(c.id, 'operator_id', e.target.value)}
+                          onBlur={() => { setEditingCell(null); setEditValue('') }}>
+                          <option value="">— нет —</option>
+                          {employees.filter(e => e.role === 'operator').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                        </select>
+                      ) : (
+                        <span style={{ fontSize: 13, color: c.operator?.name ? 'var(--text2)' : 'var(--text3)' }}>
+                          {c.operator?.name || '— нажми —'}
+                        </span>
+                      )}
+                    </td>
 
                     {/* Всего постов — редактируемое */}
                     <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'total_posts', c.total_posts)}>
