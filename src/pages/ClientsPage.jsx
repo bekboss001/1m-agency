@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Plus, Search, X } from 'lucide-react'
+import { Plus, Search } from 'lucide-react'
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([])
@@ -11,6 +11,8 @@ export default function ClientsPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ number: '', name: '', color: '#7B9FE8', contract_start: '', contract_end: '', smm_id: '', operator_id: '', total_posts: 12, notes: '' })
   const [saving, setSaving] = useState(false)
+  const [editingCell, setEditingCell] = useState(null) // { id, field }
+  const [editValue, setEditValue] = useState('')
 
   useEffect(() => { load() }, [])
 
@@ -39,10 +41,38 @@ export default function ClientsPage() {
     load()
   }
 
+  // Start editing a cell
+  function startEdit(id, field, value) {
+    setEditingCell({ id, field })
+    setEditValue(value ?? '')
+  }
+
+  // Save cell edit
+  async function saveEdit(id, field) {
+    let val = editValue
+    if (field === 'published_posts') val = parseInt(editValue) || 0
+    if (field === 'total_posts') val = parseInt(editValue) || 0
+    if (field === 'last_post_date') val = editValue || null
+
+    await supabase.from('clients').update({ [field]: val }).eq('id', id)
+    setEditingCell(null)
+    setEditValue('')
+    load()
+  }
+
+  function handleKeyDown(e, id, field) {
+    if (e.key === 'Enter') saveEdit(id, field)
+    if (e.key === 'Escape') { setEditingCell(null); setEditValue('') }
+  }
+
   const today = new Date()
   const daysLeft = (d) => d ? Math.max(0, Math.round((new Date(d) - today) / 86400000)) : null
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'
-  const daysSince = (d) => d ? Math.round((today - new Date(d)) / 86400000) : null
+  const daysSince = (d) => {
+    if (!d) return null
+    const diff = Math.round((today - new Date(d)) / 86400000)
+    return diff
+  }
 
   const smms = [...new Set(employees.filter(e => e.role === 'smm').map(e => e.name))]
 
@@ -84,15 +114,15 @@ export default function ClientsPage() {
             />
           </div>
           <div style={styles.chips}>
-            <button className={`chip ${!filterSmm ? 'chip-active' : ''}`} style={styles.chip(! filterSmm)} onClick={() => setFilterSmm('')}>
-              Все ({clients.length})
-            </button>
+            <button style={styles.chip(!filterSmm)} onClick={() => setFilterSmm('')}>Все ({clients.length})</button>
             {smms.map(s => (
-              <button key={s} style={styles.chip(filterSmm === s)} onClick={() => setFilterSmm(filterSmm === s ? '' : s)}>
-                {s}
-              </button>
+              <button key={s} style={styles.chip(filterSmm === s)} onClick={() => setFilterSmm(filterSmm === s ? '' : s)}>{s}</button>
             ))}
           </div>
+        </div>
+
+        <div style={styles.hint}>
+          Нажми на ячейку чтобы редактировать · Enter — сохранить · Esc — отмена
         </div>
 
         {/* Table */}
@@ -100,7 +130,7 @@ export default function ClientsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                {['№', 'Клиент', 'Начало', 'Окончание', 'Дней осталось', 'СММ', 'Оператор', 'Постов', 'Посл. пост', 'Комментарий'].map(h => (
+                {['№', 'Клиент', 'Начало', 'Окончание', 'Дней осталось', 'СММ', 'Оператор', 'Всего', 'Выпущено', 'Осталось', 'Дней назад', 'Последний пост', 'Комментарий'].map(h => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -109,47 +139,127 @@ export default function ClientsPage() {
               {filtered.map((c, i) => {
                 const dl = daysLeft(c.contract_end)
                 const urgent = dl !== null && dl < 30
+                const published = c.published_posts || 0
+                const remaining = (c.total_posts || 0) - published
+                const ds = daysSince(c.last_post_date)
+                const isEditingPublished = editingCell?.id === c.id && editingCell?.field === 'published_posts'
+                const isEditingTotal = editingCell?.id === c.id && editingCell?.field === 'total_posts'
+                const isEditingLastPost = editingCell?.id === c.id && editingCell?.field === 'last_post_date'
+                const isEditingNotes = editingCell?.id === c.id && editingCell?.field === 'notes'
+
                 return (
                   <tr key={c.id} style={{ ...styles.tr, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                    <td style={{ ...styles.td, color: 'var(--text3)', fontWeight: 700, width: 40 }}>{c.number}</td>
+                    <td style={{ ...styles.td, color: 'var(--text3)', fontWeight: 700, width: 36 }}>{c.number}</td>
+
                     <td style={styles.td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 130 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 120 }}>
                         <span style={{ width: 11, height: 11, borderRadius: 3, background: c.color || '#888', flexShrink: 0 }} />
                         <span style={{ fontWeight: 700, fontSize: 13.5 }}>{c.name}</span>
                       </div>
                     </td>
+
                     <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 12 }}>{formatDate(c.contract_start)}</td>
                     <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 12 }}>{formatDate(c.contract_end)}</td>
+
                     <td style={styles.td}>
                       {dl !== null ? (
-                        <span className="bebas" style={{ fontSize: 22, color: urgent ? 'var(--red)' : dl < 60 ? 'var(--gold)' : 'var(--text2)' }}>
-                          {dl}
+                        <span className="bebas" style={{ fontSize: 22, color: urgent ? 'var(--red)' : dl < 60 ? 'var(--gold)' : 'var(--text2)' }}>{dl}</span>
+                      ) : <span style={{ color: 'var(--text3)' }}>—</span>}
+                    </td>
+
+                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 13 }}>{c.smm?.name || '—'}</td>
+                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 13 }}>{c.operator?.name || '—'}</td>
+
+                    {/* Всего постов — редактируемое */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'total_posts', c.total_posts)}>
+                      {isEditingTotal ? (
+                        <input
+                          autoFocus
+                          style={styles.cellInput}
+                          type="number"
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => saveEdit(c.id, 'total_posts')}
+                          onKeyDown={e => handleKeyDown(e, c.id, 'total_posts')}
+                        />
+                      ) : (
+                        <span style={{ fontWeight: 700, color: 'var(--text2)' }}>{c.total_posts || 0}</span>
+                      )}
+                    </td>
+
+                    {/* Выпущено — редактируемое */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'published_posts', published)}>
+                      {isEditingPublished ? (
+                        <input
+                          autoFocus
+                          style={styles.cellInput}
+                          type="number"
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => saveEdit(c.id, 'published_posts')}
+                          onKeyDown={e => handleKeyDown(e, c.id, 'published_posts')}
+                        />
+                      ) : (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span className="bebas" style={{ fontSize: 20, color: published === 0 ? 'var(--red)' : published >= (c.total_posts || 0) ? 'var(--green)' : 'var(--gold)' }}>
+                            {published}
+                          </span>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Осталось — автоматически */}
+                    <td style={styles.td}>
+                      <span className="bebas" style={{ fontSize: 20, color: remaining === 0 ? 'var(--green)' : remaining > 5 ? 'var(--text2)' : 'var(--red)' }}>
+                        {remaining}
+                      </span>
+                    </td>
+
+                    {/* Дней назад — автоматически из last_post_date */}
+                    <td style={styles.td}>
+                      {ds !== null ? (
+                        <span className="bebas" style={{ fontSize: 20, color: ds === 0 ? 'var(--green)' : ds <= 3 ? 'var(--gold)' : 'var(--red)' }}>
+                          {ds}
                         </span>
                       ) : <span style={{ color: 'var(--text3)' }}>—</span>}
                     </td>
-                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 13 }}>{c.smm?.name || <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-                    <td style={{ ...styles.td, color: 'var(--text2)', fontSize: 13 }}>{c.operator?.name || <span style={{ color: 'var(--text3)' }}>—</span>}</td>
-                    <td style={styles.td}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 100 }}>
-                        <div style={{ flex: 1, height: 5, background: 'var(--surface3)', borderRadius: 3, overflow: 'hidden' }}>
-                          <div style={{ height: '100%', width: `${Math.min(100, ((c.published_posts || 0) / c.total_posts) * 100)}%`, background: 'var(--green)', borderRadius: 3 }} />
-                        </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text2)', whiteSpace: 'nowrap' }}>
-                          {c.published_posts || 0}/{c.total_posts}
-                        </span>
-                      </div>
-                    </td>
-                    <td style={styles.td}>
-                      {c.last_post_date ? (
+
+                    {/* Дата последней публикации — редактируемое */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'last_post_date', c.last_post_date || '')}>
+                      {isEditingLastPost ? (
+                        <input
+                          autoFocus
+                          style={styles.cellInput}
+                          type="date"
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => saveEdit(c.id, 'last_post_date')}
+                          onKeyDown={e => handleKeyDown(e, c.id, 'last_post_date')}
+                        />
+                      ) : (
                         <span style={{ fontSize: 12, color: 'var(--text2)' }}>
-                          {formatDate(c.last_post_date)}{' '}
-                          <span style={{ color: daysSince(c.last_post_date) > 4 ? 'var(--red)' : 'var(--green)', fontWeight: 700 }}>
-                            {daysSince(c.last_post_date)}д
-                          </span>
+                          {c.last_post_date ? formatDate(c.last_post_date) : <span style={{ color: 'var(--text3)' }}>— нажми —</span>}
                         </span>
-                      ) : <span style={{ color: 'var(--text3)', fontSize: 12 }}>—</span>}
+                      )}
                     </td>
-                    <td style={{ ...styles.td, color: 'var(--text3)', fontSize: 12, maxWidth: 160 }}>{c.notes || '—'}</td>
+
+                    {/* Комментарий — редактируемое */}
+                    <td style={{ ...styles.td, ...styles.editableCell, maxWidth: 180 }} onClick={() => startEdit(c.id, 'notes', c.notes || '')}>
+                      {isEditingNotes ? (
+                        <input
+                          autoFocus
+                          style={styles.cellInput}
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => saveEdit(c.id, 'notes')}
+                          onKeyDown={e => handleKeyDown(e, c.id, 'notes')}
+                        />
+                      ) : (
+                        <span style={{ fontSize: 12, color: c.notes ? 'var(--text2)' : 'var(--text3)' }}>
+                          {c.notes || '— нажми —'}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -164,55 +274,33 @@ export default function ClientsPage() {
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.modalTitle} className="bebas">Новый клиент</div>
-              <button style={styles.closeBtn} onClick={() => setShowForm(false)}>
-                <X size={18} />
-              </button>
+              <button style={styles.closeBtn} onClick={() => setShowForm(false)}>✕</button>
             </div>
             <form onSubmit={saveClient} style={styles.form}>
               <div style={styles.formGrid}>
-                <Field label="№" required>
-                  <input style={styles.input} type="number" value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} required />
-                </Field>
-                <Field label="Название" required>
-                  <input style={styles.input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required />
-                </Field>
-                <Field label="Цвет">
-                  <input style={{ ...styles.input, padding: '8px', height: 44, cursor: 'pointer' }} type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} />
-                </Field>
-                <Field label="Постов">
-                  <input style={styles.input} type="number" value={form.total_posts} onChange={e => setForm({ ...form, total_posts: e.target.value })} />
-                </Field>
-                <Field label="Начало договора">
-                  <input style={styles.input} type="date" value={form.contract_start} onChange={e => setForm({ ...form, contract_start: e.target.value })} />
-                </Field>
-                <Field label="Конец договора">
-                  <input style={styles.input} type="date" value={form.contract_end} onChange={e => setForm({ ...form, contract_end: e.target.value })} />
-                </Field>
+                <Field label="№" required><input style={styles.input} type="number" value={form.number} onChange={e => setForm({ ...form, number: e.target.value })} required /></Field>
+                <Field label="Название" required><input style={styles.input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></Field>
+                <Field label="Цвет"><input style={{ ...styles.input, padding: '8px', height: 44, cursor: 'pointer' }} type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} /></Field>
+                <Field label="Постов"><input style={styles.input} type="number" value={form.total_posts} onChange={e => setForm({ ...form, total_posts: e.target.value })} /></Field>
+                <Field label="Начало договора"><input style={styles.input} type="date" value={form.contract_start} onChange={e => setForm({ ...form, contract_start: e.target.value })} /></Field>
+                <Field label="Конец договора"><input style={styles.input} type="date" value={form.contract_end} onChange={e => setForm({ ...form, contract_end: e.target.value })} /></Field>
                 <Field label="СММ">
                   <select style={styles.input} value={form.smm_id} onChange={e => setForm({ ...form, smm_id: e.target.value })}>
                     <option value="">— выбрать —</option>
-                    {employees.filter(e => e.role === 'smm').map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
+                    {employees.filter(e => e.role === 'smm').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Оператор">
                   <select style={styles.input} value={form.operator_id} onChange={e => setForm({ ...form, operator_id: e.target.value })}>
                     <option value="">— выбрать —</option>
-                    {employees.filter(e => e.role === 'operator').map(e => (
-                      <option key={e.id} value={e.id}>{e.name}</option>
-                    ))}
+                    {employees.filter(e => e.role === 'operator').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </Field>
               </div>
-              <Field label="Комментарий">
-                <textarea style={{ ...styles.input, height: 72, resize: 'vertical' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} />
-              </Field>
+              <Field label="Комментарий"><textarea style={{ ...styles.input, height: 72, resize: 'vertical' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></Field>
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Отмена</button>
-                <button type="submit" className="btn btn-gold" style={{ flex: 1 }} disabled={saving}>
-                  {saving ? 'Сохранение...' : 'Сохранить'}
-                </button>
+                <button type="submit" className="btn btn-gold" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
               </div>
             </form>
           </div>
@@ -237,14 +325,12 @@ const styles = {
   wrap: { minHeight: '100vh' },
   topbar: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 32px',
-    background: 'var(--surface)',
-    borderBottom: '1px solid var(--border)',
+    padding: '20px 32px', background: 'var(--surface)', borderBottom: '1px solid var(--border)',
     position: 'sticky', top: 0, zIndex: 10,
   },
   pageTitle: { fontSize: 28, letterSpacing: 2 },
   content: { padding: '24px 32px' },
-  filtersRow: { display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap', alignItems: 'center' },
+  filtersRow: { display: 'flex', gap: 12, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' },
   searchWrap: {
     display: 'flex', alignItems: 'center', gap: 10,
     background: 'var(--surface)', border: '1px solid var(--border)',
@@ -259,6 +345,12 @@ const styles = {
     color: active ? 'var(--gold)' : 'var(--text2)',
     cursor: 'pointer', transition: 'all 0.15s',
   }),
+  hint: {
+    fontSize: 11, color: 'var(--text3)', marginBottom: 12,
+    padding: '8px 12px', background: 'var(--surface2)',
+    borderRadius: 8, border: '1px solid var(--border)',
+    display: 'inline-block',
+  },
   tableWrap: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'auto' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: {
@@ -268,25 +360,37 @@ const styles = {
     background: 'var(--surface2)', borderBottom: '1px solid var(--border)',
     whiteSpace: 'nowrap',
   },
-  td: { padding: '12px 14px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' },
+  td: { padding: '11px 14px', borderBottom: '1px solid var(--border)', verticalAlign: 'middle' },
   tr: { transition: 'background 0.1s' },
+  editableCell: {
+    cursor: 'pointer',
+    position: 'relative',
+  },
+  cellInput: {
+    background: 'var(--black)',
+    border: '1px solid var(--gold)',
+    borderRadius: 6,
+    padding: '5px 8px',
+    fontSize: 13,
+    color: 'var(--text)',
+    outline: 'none',
+    width: '100%',
+    minWidth: 80,
+  },
   modalOverlay: {
-    position: 'fixed', inset: 0,
-    background: 'rgba(0,0,0,0.7)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    zIndex: 100, padding: 20,
+    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20,
   },
   modal: {
     background: 'var(--surface)', border: '1px solid var(--border)',
-    borderRadius: 20, width: '100%', maxWidth: 560,
-    maxHeight: '90vh', overflow: 'auto',
+    borderRadius: 20, width: '100%', maxWidth: 560, maxHeight: '90vh', overflow: 'auto',
   },
   modalHeader: {
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     padding: '22px 28px', borderBottom: '1px solid var(--border)',
   },
   modalTitle: { fontSize: 22, letterSpacing: 2 },
-  closeBtn: { background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', padding: 4 },
+  closeBtn: { background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', fontSize: 16 },
   form: { padding: '24px 28px' },
   formGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 },
   input: {
