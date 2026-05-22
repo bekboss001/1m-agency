@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search, Trash2 } from 'lucide-react'
 
 export default function ClientsPage() {
   const [clients, setClients] = useState([])
@@ -61,6 +61,12 @@ export default function ClientsPage() {
     await supabase.from('clients').update({ [field]: val }).eq('id', id)
     setEditingCell(null)
     setEditValue('')
+    load()
+  }
+
+  async function deleteClient(id, name) {
+    if (!window.confirm(`Удалить клиента "${name}"?`)) return
+    await supabase.from('clients').update({ is_active: false }).eq('id', id)
     load()
   }
 
@@ -134,7 +140,7 @@ export default function ClientsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                {['№', 'Клиент', 'Начало', 'Окончание', 'Дней осталось', 'СММ', 'Оператор', 'Всего', 'Выпущено', 'Осталось', 'Дней назад', 'Последний пост', 'Комментарий'].map(h => (
+                {['№', 'Клиент', 'Начало', 'Окончание', 'Дней осталось', 'СММ', 'Оператор', 'Всего', 'Выпущено', 'Осталось', 'Дней назад', 'Последний пост', 'Комментарий', ''].map(h => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -316,6 +322,17 @@ export default function ClientsPage() {
                         </span>
                       )}
                     </td>
+
+                    {/* Удалить */}
+                    <td style={styles.td}>
+                      <button
+                        style={styles.deleteBtn}
+                        onClick={() => deleteClient(c.id, c.name)}
+                        title="Удалить клиента"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
                   </tr>
                 )
               })}
@@ -453,5 +470,16 @@ const styles = {
     width: '100%', background: 'var(--black)',
     border: '1px solid var(--border)', borderRadius: 9,
     padding: '11px 13px', fontSize: 13, color: 'var(--text)', outline: 'none',
+  },
+  deleteBtn: {
+    background: 'rgba(255,64,96,0.1)',
+    border: '1px solid rgba(255,64,96,0.2)',
+    borderRadius: 7,
+    padding: '6px 8px',
+    color: 'var(--red)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'all 0.15s',
   },
 }
