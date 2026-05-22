@@ -1,0 +1,99 @@
+:root {
+  --black: #080810;
+  --surface: #0F0F1A;
+  --surface2: #161625;
+  --surface3: #1E1E30;
+  --border: #2A2A40;
+  --border2: #333350;
+  --gold: #E8B84B;
+  --gold2: #F5D070;
+  --gold-dim: rgba(232,184,75,0.12);
+  --text: #F0F0F8;
+  --text2: #8888AA;
+  --text3: #555570;
+  --red: #FF4060;
+  --green: #2ECC8A;
+  --blue: #4A7CFF;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Manrope', sans-serif;
+  background: var(--black);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--surface); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+button { cursor: pointer; font-family: 'Manrope', sans-serif; }
+input, select, textarea { font-family: 'Manrope', sans-serif; }
+
+.bebas { font-family: 'Bebas Neue', sans-serif; }
+
+/* Badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge-red    { background: rgba(255,64,96,0.15);   color: var(--red); }
+.badge-green  { background: rgba(46,204,138,0.15);  color: var(--green); }
+.badge-gold   { background: var(--gold-dim);         color: var(--gold); }
+.badge-blue   { background: rgba(74,124,255,0.15);  color: var(--blue); }
+.badge-dim    { background: var(--surface3);         color: var(--text3); }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 20px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  border: none;
+  transition: all 0.2s;
+}
+.btn-gold {
+  background: var(--gold);
+  color: var(--black);
+}
+.btn-gold:hover { background: var(--gold2); transform: translateY(-1px); }
+.btn-ghost {
+  background: var(--surface2);
+  color: var(--text2);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { border-color: var(--border2); color: var(--text); }
+
+/* Progress bar */
+.prog-wrap { display: flex; align-items: center; gap: 8px; }
+.prog-bar { flex: 1; height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; min-width: 60px; }
+.prog-fill { height: 100%; border-radius: 3px; }
+.prog-label { font-size: 12px; font-weight: 700; min-width: 32px; text-align: right; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fadeUp 0.3s ease forwards; }
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
