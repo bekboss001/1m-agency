@@ -2,9 +2,12 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function LoginPage() {
+  const [mode, setMode] = useState('login') // 'login' | 'register'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [name, setName] = useState('')
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
   async function handleLogin(e) {
@@ -13,6 +16,25 @@ export default function LoginPage() {
     setError('')
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) setError('Неверный email или пароль')
+    setLoading(false)
+  }
+
+  async function handleRegister(e) {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    setSuccess('')
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: name } }
+    })
+    if (error) {
+      setError(error.message)
+    } else {
+      setSuccess('Аккаунт создан! Проверьте email для подтверждения.')
+      setMode('login')
+    }
     setLoading(false)
   }
 
@@ -27,9 +49,25 @@ export default function LoginPage() {
           <div style={styles.logoSub}>Marketing Agency</div>
         </div>
 
-        <div style={styles.title} className="bebas">Войти в систему</div>
+        <div style={styles.title} className="bebas">
+          {mode === 'login' ? 'Войти в систему' : 'Регистрация'}
+        </div>
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={mode === 'login' ? handleLogin : handleRegister}>
+          {mode === 'register' && (
+            <div style={styles.field}>
+              <label style={styles.label}>Имя</label>
+              <input
+                style={styles.input}
+                type="text"
+                placeholder="Ваше имя"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                required
+              />
+            </div>
+          )}
+
           <div style={styles.field}>
             <label style={styles.label}>Email</label>
             <input
@@ -41,6 +79,7 @@ export default function LoginPage() {
               required
             />
           </div>
+
           <div style={styles.field}>
             <label style={styles.label}>Пароль</label>
             <input
@@ -50,18 +89,34 @@ export default function LoginPage() {
               value={password}
               onChange={e => setPassword(e.target.value)}
               required
+              minLength={6}
             />
           </div>
 
           {error && <div style={styles.error}>{error}</div>}
+          {success && <div style={styles.successMsg}>{success}</div>}
 
           <button style={styles.btnLogin} type="submit" disabled={loading} className="bebas">
-            {loading ? 'ВХОДИМ...' : 'ВОЙТИ'}
+            {loading ? 'ЗАГРУЗКА...' : mode === 'login' ? 'ВОЙТИ' : 'ЗАРЕГИСТРИРОВАТЬСЯ'}
           </button>
         </form>
 
-        <div style={styles.hint}>
-          Забыли пароль? <span style={{ color: 'var(--gold)', cursor: 'pointer' }}>Восстановить</span>
+        <div style={styles.switchRow}>
+          {mode === 'login' ? (
+            <>
+              <span style={styles.hint}>Нет аккаунта?</span>
+              <span style={styles.link} onClick={() => { setMode('register'); setError(''); setSuccess('') }}>
+                Зарегистрироваться
+              </span>
+            </>
+          ) : (
+            <>
+              <span style={styles.hint}>Уже есть аккаунт?</span>
+              <span style={styles.link} onClick={() => { setMode('login'); setError(''); setSuccess('') }}>
+                Войти
+              </span>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -158,6 +213,15 @@ const styles = {
     color: 'var(--red)',
     marginBottom: 12,
   },
+  successMsg: {
+    background: 'rgba(46,204,138,0.1)',
+    border: '1px solid rgba(46,204,138,0.3)',
+    borderRadius: 8,
+    padding: '10px 14px',
+    fontSize: 13,
+    color: 'var(--green)',
+    marginBottom: 12,
+  },
   btnLogin: {
     width: '100%',
     padding: '15px',
@@ -171,11 +235,19 @@ const styles = {
     marginTop: 8,
     boxShadow: '0 8px 24px rgba(232,184,75,0.25)',
     transition: 'all 0.2s',
+    cursor: 'pointer',
   },
-  hint: {
-    textAlign: 'center',
+  switchRow: {
+    display: 'flex',
+    justifyContent: 'center',
+    gap: 8,
     marginTop: 20,
-    fontSize: 12,
-    color: 'var(--text3)',
+    fontSize: 13,
+  },
+  hint: { color: 'var(--text3)' },
+  link: {
+    color: 'var(--gold)',
+    cursor: 'pointer',
+    fontWeight: 700,
   },
 }
