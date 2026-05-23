@@ -177,7 +177,7 @@ export default function TargetPage() {
               <table style={styles.table}>
                 <thead>
                   <tr>
-                    {['Название', 'Статус', 'Охват', 'Показы', 'Клики', 'CTR', 'Потрачено', 'Лиды', 'CPL'].map(h => (
+                    {['Название', 'Статус', 'Охват', 'Показы', 'Клики', 'CTR', 'Потрачено', 'Лиды', 'CPL', 'Переписки', 'Цена/перепис.'].map(h => (
                       <th key={h} style={styles.th}>{h}</th>
                     ))}
                   </tr>
@@ -187,6 +187,8 @@ export default function TargetPage() {
                     const ins = c.insights?.data?.[0]
                     const cLeads = ins ? extractLeads(ins.actions) : null
                     const cCpl = ins ? extractCpl(ins.cost_per_action_type) : null
+                    const cMessaging = ins ? extractMessaging(ins.actions) : null
+                    const cCpmMsg = ins ? calcCpm(ins.spend, cMessaging) : null
                     const isActive = c.status === 'ACTIVE'
                     return (
                       <tr key={c.id}>
@@ -205,6 +207,8 @@ export default function TargetPage() {
                         <td style={{ ...styles.td, color: 'var(--red)' }}>{formatMoney(ins?.spend)}</td>
                         <td style={{ ...styles.td, color: 'var(--green)' }}>{cLeads !== null ? formatNum(cLeads) : '—'}</td>
                         <td style={{ ...styles.td, color: 'var(--gold)' }}>{cCpl !== null ? formatMoney(cCpl) : '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--blue)' }}>{cMessaging !== null ? formatNum(cMessaging) : '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--gold)' }}>{cCpmMsg !== null ? formatMoney(cCpmMsg) : '—'}</td>
                       </tr>
                     )
                   })}
