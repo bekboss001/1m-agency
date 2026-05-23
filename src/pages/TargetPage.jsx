@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { TrendingUp, Eye, MousePointer, DollarSign, Users, Zap, RefreshCw } from 'lucide-react'
+import { TrendingUp, Eye, MousePointer, DollarSign, Users, Zap, RefreshCw, MessageCircle } from 'lucide-react'
 
 const TOKEN = import.meta.env.VITE_META_ACCESS_TOKEN
 const ACCOUNT_ID = import.meta.env.VITE_META_AD_ACCOUNT_ID
@@ -36,6 +36,12 @@ function formatCtr(n) {
   return num.toFixed(2) + '%'
 }
 
+const MESSAGING_TYPES = [
+  'onsite_conversion.messaging_conversation_started_7d',
+  'onsite_conversion.total_messaging_connection',
+  'omni_initiated_checkout',
+]
+
 function extractLeads(actions) {
   if (!Array.isArray(actions)) return null
   const leads = actions.find(a => a.action_type === 'lead' || a.action_type === 'offsite_conversion.fb_pixel_lead')
@@ -46,6 +52,17 @@ function extractCpl(costPerAction) {
   if (!Array.isArray(costPerAction)) return null
   const cpl = costPerAction.find(a => a.action_type === 'lead' || a.action_type === 'offsite_conversion.fb_pixel_lead')
   return cpl ? parseFloat(cpl.value) : null
+}
+
+function extractMessaging(actions) {
+  if (!Array.isArray(actions)) return null
+  const match = actions.find(a => MESSAGING_TYPES.includes(a.action_type))
+  return match ? parseFloat(match.value) : 0
+}
+
+function calcCpm(spend, messaging) {
+  if (!spend || !messaging || messaging === 0) return null
+  return parseFloat(spend) / messaging
 }
 
 export default function TargetPage() {
@@ -92,6 +109,8 @@ export default function TargetPage() {
 
   const leads = stats ? extractLeads(stats.actions) : null
   const cpl = stats ? extractCpl(stats.cost_per_action_type) : null
+  const messaging = stats ? extractMessaging(stats.actions) : null
+  const cpmMsg = stats ? calcCpm(stats.spend, messaging) : null
 
   const metricCards = [
     { label: 'Охват', value: formatNum(stats?.reach), icon: <Users size={18} />, color: 'var(--blue)' },
@@ -101,6 +120,8 @@ export default function TargetPage() {
     { label: 'Потрачено', value: formatMoney(stats?.spend), icon: <DollarSign size={18} />, color: 'var(--red)' },
     { label: 'Лиды', value: leads !== null ? formatNum(leads) : '—', icon: <Zap size={18} />, color: 'var(--green)' },
     { label: 'CPL', value: cpl !== null ? formatMoney(cpl) : '—', icon: <DollarSign size={18} />, color: 'var(--gold)' },
+    { label: 'Переписки', value: messaging !== null ? formatNum(messaging) : '—', icon: <MessageCircle size={18} />, color: 'var(--blue)' },
+    { label: 'Цена за переписку', value: cpmMsg !== null ? formatMoney(cpmMsg) : '—', icon: <DollarSign size={18} />, color: 'var(--gold)' },
   ]
 
   return (
