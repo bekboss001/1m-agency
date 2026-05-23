@@ -57,6 +57,7 @@ export default function ClientsPage() {
     if (field === 'contract_end') val = val || null
     if (field === 'smm_id') val = val || null
     if (field === 'operator_id') val = val || null
+    if (field === 'meta_account_id') val = val || null
 
     await supabase.from('clients').update({ [field]: val }).eq('id', id)
     setEditingCell(null)
@@ -140,7 +141,7 @@ export default function ClientsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                {['№', 'Клиент', 'Начало', 'Окончание', 'Дней осталось', 'СММ', 'Оператор', 'Всего', 'Выпущено', 'Осталось', 'Дней назад', 'Последний пост', 'Комментарий', ''].map(h => (
+                {['№', 'Клиент', 'Начало', 'Окончание', 'Дней осталось', 'СММ', 'Оператор', 'Всего', 'Выпущено', 'Осталось', 'Дней назад', 'Последний пост', 'Комментарий', 'Meta ID', ''].map(h => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
@@ -156,6 +157,7 @@ export default function ClientsPage() {
                 const isEditingTotal = editingCell?.id === c.id && editingCell?.field === 'total_posts'
                 const isEditingLastPost = editingCell?.id === c.id && editingCell?.field === 'last_post_date'
                 const isEditingNotes = editingCell?.id === c.id && editingCell?.field === 'notes'
+                const isEditingMetaId = editingCell?.id === c.id && editingCell?.field === 'meta_account_id'
 
                 return (
                   <tr key={c.id} style={{ ...styles.tr, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
@@ -319,6 +321,25 @@ export default function ClientsPage() {
                       ) : (
                         <span style={{ fontSize: 12, color: c.notes ? 'var(--text2)' : 'var(--text3)' }}>
                           {c.notes || '— нажми —'}
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Meta ID — редактируемое */}
+                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'meta_account_id', c.meta_account_id || '')}>
+                      {isEditingMetaId ? (
+                        <input
+                          autoFocus
+                          style={styles.cellInput}
+                          value={editValue}
+                          onChange={e => setEditValue(e.target.value)}
+                          onBlur={() => saveEdit(c.id, 'meta_account_id')}
+                          onKeyDown={e => handleKeyDown(e, c.id, 'meta_account_id')}
+                          placeholder="ID аккаунта"
+                        />
+                      ) : (
+                        <span style={{ fontSize: 12, color: c.meta_account_id ? 'var(--blue)' : 'var(--text3)', fontFamily: 'monospace' }}>
+                          {c.meta_account_id || '— нажми —'}
                         </span>
                       )}
                     </td>
