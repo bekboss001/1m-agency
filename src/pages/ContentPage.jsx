@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useProfile } from '../lib/useProfile'
 import { Plus, X, Video, Image, AlignLeft, Layers } from 'lucide-react'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
@@ -8,6 +9,7 @@ const TYPE_ICONS = { reels: <Video size={14} />, post: <AlignLeft size={14} />, 
 const TYPE_COLORS = { reels: 'rgba(74,124,255,0.15)', post: 'rgba(46,204,138,0.12)', carousel: 'rgba(232,184,75,0.12)', stories: 'rgba(255,64,96,0.1)' }
 
 export default function ContentPage() {
+  const { profile, loading: profileLoading } = useProfile()
   const [clients, setClients] = useState([])
   const [posts, setPosts] = useState([])
   const [employees, setEmployees] = useState([])
@@ -17,10 +19,20 @@ export default function ContentPage() {
   const [form, setForm] = useState({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
   const [saving, setSaving] = useState(false)
 
+  const isClient = profile?.role === 'client'
+
   useEffect(() => {
+    if (profileLoading) return
     async function load() {
+      let clientsQuery = supabase.from('clients').select('id, name, color, number').eq('is_active', true).order('number')
+
+      if (isClient) {
+        if (!profile.client_id) { setLoading(false); return }
+        clientsQuery = clientsQuery.eq('id', profile.client_id)
+      }
+
       const [{ data: c }, { data: e }] = await Promise.all([
-        supabase.from('clients').select('id, name, color, number').eq('is_active', true).order('number'),
+        clientsQuery,
         supabase.from('employees').select('*').order('name'),
       ])
       setClients(c || [])
@@ -29,7 +41,7 @@ export default function ContentPage() {
       else setLoading(false)
     }
     load()
-  }, [])
+  }, [profileLoading, profile])
 
   async function loadPosts(clientId) {
     setLoading(true)
@@ -72,9 +84,11 @@ export default function ContentPage() {
     <div style={styles.wrap} className="fade-up">
       <div style={styles.topbar}>
         <div style={styles.pageTitle} className="bebas">Контент-план</div>
-        <button className="btn btn-gold" onClick={() => setShowForm(true)} disabled={!selectedClient}>
-          <Plus size={16} /> Добавить пост
-        </button>
+        {!isClient && (
+          <button className="btn btn-gold" onClick={() => setShowForm(true)} disabled={!selectedClient}>
+            <Plus size={16} /> Добавить пост
+          </button>
+        )}
       </div>
 
       <div style={styles.content}>
@@ -126,9 +140,11 @@ export default function ContentPage() {
                 </div>
                 <div style={styles.postActions}>
                   <span className={`badge ${STATUS_COLORS[post.status]}`}>{STATUS_LABELS[post.status]}</span>
-                  <select style={styles.statusSelect} value={post.status} onChange={e => updateStatus(post.id, e.target.value)}>
-                    {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
+                  {!isClient && (
+                    <select style={styles.statusSelect} value={post.status} onChange={e => updateStatus(post.id, e.target.value)}>
+                      {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  )}
                 </div>
               </div>
             ))}
