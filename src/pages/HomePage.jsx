@@ -27,7 +27,7 @@ export default function HomePage() {
 
   const problematic = clients.filter(c => {
     const dl = daysLeft(c.contract_end)
-    return dl !== null && dl < 30
+    return dl !== null && dl < 7
   })
 
   if (loading) return (
@@ -72,7 +72,7 @@ export default function HomePage() {
               <tbody>
                 {clients.map(c => {
                   const dl = daysLeft(c.contract_end)
-                  const urgent = dl !== null && dl < 30
+                  const urgent = dl !== null && dl < 7
                   return (
                     <tr key={c.id} style={styles.tr}>
                       <td style={{ ...styles.td, color: 'var(--text3)', fontWeight: 700 }}>{c.number}</td>

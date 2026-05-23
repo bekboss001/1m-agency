@@ -148,7 +148,7 @@ export default function ClientsPage() {
             <tbody>
               {filtered.map((c, i) => {
                 const dl = daysLeft(c.contract_end)
-                const urgent = dl !== null && dl < 30
+                const urgent = dl !== null && dl < 7
                 const published = c.published_posts || 0
                 const remaining = (c.total_posts || 0) - published
                 const ds = daysSince(c.last_post_date)
