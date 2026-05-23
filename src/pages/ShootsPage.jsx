@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 const STATUS_LABELS = { planned: 'План', confirmed: 'Подтверждено', done: 'Завершено', cancelled: 'Отменено' }
 const STATUS_COLORS = { planned: '#8888AA', confirmed: '#2ECC8A', done: '#4A7CFF', cancelled: '#FF4060' }
@@ -8,6 +9,7 @@ const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
 
 export default function ShootsPage() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -116,12 +118,12 @@ export default function ShootsPage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar} className="page-topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-          <div style={styles.pageTitle} className="bebas">Съёмки</div>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '16px 32px', top: isMobile ? 56 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 20, flexWrap: 'wrap' }}>
+          <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Съёмки</div>
           <div style={styles.monthNav}>
             <button style={styles.navBtn} onClick={prevMonth}><ChevronLeft size={16} /></button>
-            <div style={styles.monthLabel} className="bebas">{MONTHS[month]} {year}</div>
+            <div style={{ ...styles.monthLabel, fontSize: isMobile ? 16 : 22, minWidth: isMobile ? 120 : 180 }} className="bebas">{MONTHS[month]} {year}</div>
             <button style={styles.navBtn} onClick={nextMonth}><ChevronRight size={16} /></button>
           </div>
         </div>
@@ -140,7 +142,7 @@ export default function ShootsPage() {
         </div>
       </div>
 
-      <div style={styles.content} className="page-content">
+      <div style={{ ...styles.content, padding: isMobile ? '16px' : '20px 32px' }}>
         {/* Legend */}
         <div style={styles.legendRow}>
           {Object.entries(STATUS_LABELS).map(([s, l]) => (
@@ -173,6 +175,7 @@ export default function ShootsPage() {
                   key={idx}
                   style={{
                     ...styles.dayCell,
+                    minHeight: isMobile ? 60 : 110,
                     background: isTodayDay ? 'rgba(232,184,75,0.06)' : 'transparent',
                     borderColor: isTodayDay ? 'rgba(232,184,75,0.3)' : 'var(--border)',
                     opacity: day.current ? 1 : 0.3,
@@ -202,7 +205,7 @@ export default function ShootsPage() {
                         onClick={e => { e.stopPropagation(); setSelectedShoot(shoot) }}
                       >
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_COLORS[shoot.status], flexShrink: 0 }} />
-                        <span style={styles.shootChipText}>
+                        <span style={{ ...styles.shootChipText, maxWidth: isMobile ? 60 : 110 }}>
                           {shoot.time_start ? shoot.time_start.slice(0, 5) + ' ' : ''}{shoot.client?.name}
                         </span>
                       </div>
@@ -222,8 +225,8 @@ export default function ShootsPage() {
 
       {/* Shoot detail modal */}
       {selectedShoot && (
-        <div style={styles.overlay} onClick={() => setSelectedShoot(null)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setSelectedShoot(null)}>
+          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={{ ...styles.modalTop, borderBottomColor: selectedShoot.client?.color || 'var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 4, height: 44, borderRadius: 2, background: selectedShoot.client?.color || 'var(--gold)', flexShrink: 0 }} />
@@ -279,8 +282,8 @@ export default function ShootsPage() {
 
       {/* Add shoot modal */}
       {showForm && (
-        <div style={styles.overlay} onClick={() => setShowForm(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowForm(false)}>
+          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalTop}>
               <div style={styles.pageTitle} className="bebas">Новая съёмка</div>
               <button style={styles.closeBtn} onClick={() => setShowForm(false)}><X size={18} /></button>

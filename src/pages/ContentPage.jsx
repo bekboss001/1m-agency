@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
+import { useMediaQuery } from '../lib/useMediaQuery'
 import { Plus, X, Video, Image, AlignLeft, Layers } from 'lucide-react'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
@@ -20,6 +21,7 @@ export default function ContentPage() {
   const [saving, setSaving] = useState(false)
 
   const isClient = profile?.role === 'client'
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   useEffect(() => {
     if (profileLoading) return
@@ -82,8 +84,8 @@ export default function ContentPage() {
 
   return (
     <div style={styles.wrap} className="fade-up">
-      <div style={styles.topbar} className="page-topbar">
-        <div style={styles.pageTitle} className="bebas">Контент-план</div>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
+        <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Контент-план</div>
         {!isClient && (
           <button className="btn btn-gold" onClick={() => setShowForm(true)} disabled={!selectedClient}>
             <Plus size={16} /> Добавить пост
@@ -91,7 +93,7 @@ export default function ContentPage() {
         )}
       </div>
 
-      <div style={styles.content} className="page-content">
+      <div style={{ ...styles.content, padding: isMobile ? '16px' : '24px 32px' }}>
         {/* Client selector */}
         <div style={styles.clientsRow}>
           {clients.map(c => (
@@ -104,7 +106,7 @@ export default function ContentPage() {
 
         {/* Stats */}
         {client && (
-          <div style={styles.statsBar}>
+          <div style={{ ...styles.statsBar, display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: isMobile ? 12 : 24 }}>
             <div style={styles.statItem}><span style={styles.statVal} className="bebas">{posts.length}</span><span style={styles.statLbl}>Всего</span></div>
             <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--green)' }} className="bebas">{published}</span><span style={styles.statLbl}>Опубликовано</span></div>
             <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--gold)' }} className="bebas">{posts.filter(p => p.status === 'review').length}</span><span style={styles.statLbl}>На проверке</span></div>
@@ -154,8 +156,8 @@ export default function ContentPage() {
 
       {/* Add post modal */}
       {showForm && (
-        <div style={styles.overlay} onClick={() => setShowForm(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowForm(false)}>
+          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 20 }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div className="bebas" style={{ fontSize: 22, letterSpacing: 2 }}>Новый пост</div>
               <button style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer' }} onClick={() => setShowForm(false)}><X size={18} /></button>

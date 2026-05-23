@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 const TYPE_COLORS = {
   reels:    '#4A7CFF',
@@ -27,6 +28,7 @@ const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
 
 export default function CalendarPage() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
@@ -118,12 +120,12 @@ export default function CalendarPage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar} className="page-topbar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-          <div style={styles.pageTitle} className="bebas">Календарь</div>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '16px 32px', top: isMobile ? 56 : 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 10 : 20, flexWrap: 'wrap' }}>
+          <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Календарь</div>
           <div style={styles.monthNav}>
             <button style={styles.navBtn} onClick={prevMonth}><ChevronLeft size={16} /></button>
-            <div style={styles.monthLabel} className="bebas">{MONTHS[month]} {year}</div>
+            <div style={{ ...styles.monthLabel, fontSize: isMobile ? 16 : 22, minWidth: isMobile ? 120 : 180 }} className="bebas">{MONTHS[month]} {year}</div>
             <button style={styles.navBtn} onClick={nextMonth}><ChevronRight size={16} /></button>
           </div>
         </div>
@@ -145,7 +147,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div style={styles.content} className="page-content">
+      <div style={{ ...styles.content, padding: isMobile ? '16px' : '20px 32px' }}>
         {/* Client filter */}
         <div style={styles.clientsRow}>
           <button
@@ -207,6 +209,7 @@ export default function CalendarPage() {
                   key={idx}
                   style={{
                     ...styles.dayCell,
+                    minHeight: isMobile ? 60 : 110,
                     background: isTodayDay ? 'rgba(232,184,75,0.06)' : 'transparent',
                     borderColor: isTodayDay ? 'rgba(232,184,75,0.3)' : 'var(--border)',
                     opacity: day.current ? 1 : 0.3,
@@ -239,7 +242,7 @@ export default function CalendarPage() {
                           background: STATUS_COLORS[post.status],
                           flexShrink: 0,
                         }} />
-                        <span style={styles.postChipText}>{post.title}</span>
+                        <span style={{ ...styles.postChipText, maxWidth: isMobile ? 60 : 120 }}>{post.title}</span>
                       </div>
                     ))}
                     {dayPosts.length > 3 && (
@@ -255,8 +258,8 @@ export default function CalendarPage() {
 
       {/* Post detail modal */}
       {selectedPost && (
-        <div style={styles.overlay} onClick={() => setSelectedPost(null)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setSelectedPost(null)}>
+          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={{ ...styles.modalTop, borderBottomColor: TYPE_COLORS[selectedPost.post_type] || 'var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 4, height: 40, borderRadius: 2, background: TYPE_COLORS[selectedPost.post_type] || 'var(--gold)', flexShrink: 0 }} />

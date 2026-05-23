@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Search, Trash2 } from 'lucide-react'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 export default function ClientsPage() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const [clients, setClients] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
@@ -102,8 +104,8 @@ export default function ClientsPage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar} className="page-topbar">
-        <div style={styles.pageTitle} className="bebas">Клиенты</div>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
+        <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Клиенты</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn btn-ghost">Экспорт</button>
           <button className="btn btn-gold" onClick={() => setShowForm(true)}>
@@ -112,7 +114,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <div style={styles.content} className="page-content">
+      <div style={{ ...styles.content, padding: isMobile ? '16px' : '24px 32px' }}>
         {/* Filters */}
         <div style={styles.filtersRow}>
           <div style={styles.searchWrap}>
@@ -364,8 +366,8 @@ export default function ClientsPage() {
 
       {/* Add client modal */}
       {showForm && (
-        <div style={styles.modalOverlay} onClick={() => setShowForm(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ ...styles.modalOverlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowForm(false)}>
+          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 20 }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.modalTitle} className="bebas">Новый клиент</div>
               <button style={styles.closeBtn} onClick={() => setShowForm(false)}>✕</button>
@@ -446,7 +448,7 @@ const styles = {
     display: 'inline-block',
   },
   tableWrap: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 1200 },
   th: {
     padding: '12px 14px', textAlign: 'left',
     fontSize: 10, fontWeight: 700, letterSpacing: 2,

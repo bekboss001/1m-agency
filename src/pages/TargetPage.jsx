@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { TrendingUp, Eye, MousePointer, DollarSign, Users, Zap, RefreshCw, MessageCircle } from 'lucide-react'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 const TOKEN = import.meta.env.VITE_META_ACCESS_TOKEN
 
@@ -85,6 +86,7 @@ async function fetchAccountStats(accountId, datePreset) {
 }
 
 export default function TargetPage() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const [clients, setClients] = useState([])
   const [selectedClient, setSelectedClient] = useState('all')
   const [stats, setStats] = useState(null)
@@ -180,8 +182,8 @@ export default function TargetPage() {
 
   return (
     <div style={styles.wrap} className="fade-up">
-      <div style={styles.topbar} className="page-topbar">
-        <div style={styles.pageTitle} className="bebas">Таргет</div>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
+        <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Таргет</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={styles.presets}>
             {DATE_PRESETS.map(p => (
@@ -197,9 +199,9 @@ export default function TargetPage() {
         </div>
       </div>
 
-      <div style={styles.content} className="page-content">
+      <div style={{ ...styles.content, padding: isMobile ? '16px' : '28px 32px' }}>
         {/* Client chips */}
-        <div style={styles.clientsRow} className="target-chips">
+        <div style={{ ...styles.clientsRow, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 6 : 0, WebkitOverflowScrolling: 'touch' }}>
           <button
             style={styles.clientChip(selectedClient === 'all', null)}
             onClick={() => setSelectedClient('all')}
@@ -276,7 +278,7 @@ export default function TargetPage() {
         {selectedClient !== 'all' && hasMetaId && (
           <>
             {/* Metrics */}
-            <div style={styles.metricsGrid}>
+            <div style={{ ...styles.metricsGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(160px, 1fr))' }}>
               {metricCards.map(m => (
                 <div key={m.label} style={styles.metricCard}>
                   <div style={{ ...styles.metricIcon, color: m.color, background: `${m.color}18` }}>{m.icon}</div>

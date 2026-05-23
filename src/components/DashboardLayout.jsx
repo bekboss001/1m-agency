@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { LayoutDashboard, Users, FileText, Camera, Calendar, Settings, LogOut, Menu, Target } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useProfile } from '../lib/useProfile'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 const ALL_NAV = [
   { to: '/',         icon: LayoutDashboard, label: 'Дашборд',      page: 'dashboard', end: true },
@@ -18,6 +19,7 @@ export default function DashboardLayout({ session }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
   const { profile, can, loading } = useProfile()
+  const isMobile = useMediaQuery('(max-width: 768px)')
 
   useEffect(() => {
     async function loadPending() {
@@ -39,9 +41,9 @@ export default function DashboardLayout({ session }) {
 
   return (
     <div style={styles.wrap}>
-      {sidebarOpen && <div style={styles.overlay} onClick={() => setSidebarOpen(false)} />}
+      {isMobile && sidebarOpen && <div style={styles.overlay} onClick={() => setSidebarOpen(false)} />}
 
-      <aside style={{ ...styles.sidebar, ...(sidebarOpen ? styles.sidebarOpen : {}) }}>
+      <aside style={{ ...styles.sidebar, position: isMobile ? 'fixed' : 'sticky', transform: isMobile && !sidebarOpen ? 'translateX(-100%)' : 'translateX(0)' }}>
         <div style={styles.logo}>
           <div style={styles.logoMark} className="bebas">1M</div>
           <div style={styles.logoSub}>Agency Platform</div>
@@ -87,7 +89,7 @@ export default function DashboardLayout({ session }) {
       </aside>
 
       <div style={styles.main}>
-        <div style={styles.mobileTopbar} className="mobile-topbar">
+        <div style={{ ...styles.mobileTopbar, display: isMobile ? 'flex' : 'none' }}>
           <button style={styles.menuBtn} onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
           <div style={styles.mobileLogo} className="bebas">1M</div>
           <div style={styles.avatar}>{initials}</div>
@@ -101,8 +103,7 @@ export default function DashboardLayout({ session }) {
 const styles = {
   wrap: { display: 'flex', minHeight: '100vh', background: 'var(--black)' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40 },
-  sidebar: { width: 240, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0, position: 'sticky', top: 0, height: '100vh', zIndex: 50, transition: 'transform 0.25s ease' },
-  sidebarOpen: { position: 'fixed', transform: 'translateX(0)' },
+  sidebar: { width: 240, background: 'var(--surface)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', flexShrink: 0, top: 0, height: '100vh', zIndex: 50, transition: 'transform 0.25s ease' },
   logo: { padding: '28px 24px 22px', borderBottom: '1px solid var(--border)' },
   logoMark: { fontSize: 40, color: 'var(--gold)', lineHeight: 1, letterSpacing: 2, textShadow: '0 0 30px rgba(232,184,75,0.3)' },
   logoSub: { fontSize: 10, letterSpacing: 4, textTransform: 'uppercase', color: 'var(--text3)', marginTop: 2 },
@@ -123,6 +124,3 @@ const styles = {
   mobileLogo: { fontSize: 26, color: 'var(--gold)', letterSpacing: 2 },
 }
 
-const mobileStyle = document.createElement('style')
-mobileStyle.textContent = `@media (max-width: 768px) { aside { transform: translateX(-100%); position: fixed !important; } }`
-document.head.appendChild(mobileStyle)

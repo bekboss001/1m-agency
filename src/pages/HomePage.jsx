@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Users, AlertTriangle, CheckCircle, Camera } from 'lucide-react'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 export default function HomePage() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const [clients, setClients] = useState([])
   const [shoots, setShoots] = useState([])
   const [loading, setLoading] = useState(true)
@@ -39,16 +41,16 @@ export default function HomePage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar} className="page-topbar">
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
         <div>
-          <div style={styles.pageTitle} className="bebas">Дашборд</div>
+          <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Дашборд</div>
           <div style={styles.pageDate}>{today.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
         </div>
       </div>
 
-      <div style={styles.content} className="page-content">
+      <div style={{ ...styles.content, padding: isMobile ? '16px' : '28px 32px' }}>
         {/* Stats */}
-        <div style={styles.statsGrid} className="stats-grid">
+        <div style={{ ...styles.statsGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)' }}>
           <StatCard color="gold" icon={<Users size={20} />} value={clients.length} label="Активных клиентов" />
           <StatCard color="red" icon={<AlertTriangle size={20} />} value={problematic.length} label="Заканчивается договор" sub="менее 30 дней" />
           <StatCard color="green" icon={<CheckCircle size={20} />} value={shoots.length} label="Съёмок на неделе" />
@@ -178,7 +180,7 @@ const styles = {
     borderRadius: 16,
     overflow: 'auto',
   },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 800 },
   th: {
     padding: '12px 16px', textAlign: 'left',
     fontSize: 10, fontWeight: 700, letterSpacing: 2,

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, X, Check, Trash2, UserCheck, Users, Shield, Lock, Link } from 'lucide-react'
+import { useMediaQuery } from '../lib/useMediaQuery'
 
 const SYSTEM_ROLE_LABELS = { admin: 'Администратор', smm: 'СММ', operator: 'Оператор', client: 'Клиент', pending: 'Ожидает' }
 const ROLE_COLORS = { admin: 'var(--gold)', smm: 'var(--blue)', operator: 'var(--green)', client: 'var(--text2)', pending: 'var(--red)' }
@@ -15,6 +16,7 @@ const PAGE_LABELS = {
 }
 
 export default function SettingsPage() {
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const [employees, setEmployees] = useState([])
   const [pendingUsers, setPendingUsers] = useState([])
   const [allUsers, setAllUsers] = useState([])
@@ -143,9 +145,9 @@ export default function SettingsPage() {
 
   return (
     <div style={styles.wrap} className="fade-up">
-      <div style={styles.topbar}>
-        <div style={styles.pageTitle} className="bebas">Настройки</div>
-        <div style={{ display: 'flex', gap: 10 }}>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
+        <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Настройки</div>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {activeTab === 'employees' && (
             <button className="btn btn-gold" onClick={() => setShowEmpForm(true)}>
               <Plus size={16} /> Добавить сотрудника
@@ -159,7 +161,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div style={{ ...styles.content, padding: isMobile ? '16px' : '24px 32px' }}>
         {/* Tabs */}
         <div style={styles.tabs}>
           <button style={styles.tab(activeTab === 'employees')} onClick={() => setActiveTab('employees')}>
@@ -263,7 +265,7 @@ export default function SettingsPage() {
 
         {/* CLIENT ASSIGNMENT */}
         {activeTab === 'clients_assign' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '280px 1fr', gap: 20 }}>
             {/* User list */}
             <div>
               <div style={styles.sectionTitle} className="bebas">Пользователи</div>
@@ -383,8 +385,8 @@ export default function SettingsPage() {
 
       {/* Add employee modal */}
       {showEmpForm && (
-        <div style={styles.overlay} onClick={() => setShowEmpForm(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowEmpForm(false)}>
+          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 20 }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div className="bebas" style={{ fontSize: 22, letterSpacing: 2 }}>Новый сотрудник</div>
               <button style={styles.closeBtn} onClick={() => setShowEmpForm(false)}><X size={18} /></button>
@@ -416,8 +418,8 @@ export default function SettingsPage() {
 
       {/* Role form modal */}
       {showRoleForm && (
-        <div style={styles.overlay} onClick={() => setShowRoleForm(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowRoleForm(false)}>
+          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 20 }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div className="bebas" style={{ fontSize: 22, letterSpacing: 2 }}>{editingRole ? 'Редактировать роль' : 'Новая роль'}</div>
               <button style={styles.closeBtn} onClick={() => setShowRoleForm(false)}><X size={18} /></button>
