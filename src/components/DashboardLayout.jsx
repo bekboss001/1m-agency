@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { LayoutDashboard, Users, FileText, Camera, Calendar, Settings, LogOut, Menu } from 'lucide-react'
+import { LayoutDashboard, Users, FileText, Camera, Calendar, Settings, LogOut, Menu, Target } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useProfile } from '../lib/useProfile'
 
@@ -8,6 +8,7 @@ const ALL_NAV = [
   { to: '/',         icon: LayoutDashboard, label: 'Дашборд',      page: 'dashboard', end: true },
   { to: '/clients',  icon: Users,           label: 'Клиенты',      page: 'clients' },
   { to: '/content',  icon: FileText,        label: 'Контент-план',  page: 'content' },
+  { to: '/target',   icon: Target,          label: 'Таргет',        page: 'target' },
   { to: '/calendar', icon: Calendar,        label: 'Календарь',     page: 'calendar' },
   { to: '/shoots',   icon: Camera,          label: 'Съёмки',        page: 'shoots' },
 ]
