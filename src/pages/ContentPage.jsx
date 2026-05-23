@@ -14,7 +14,7 @@ export default function ContentPage() {
   const [selectedClient, setSelectedClient] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', notes: '' })
+  const [form, setForm] = useState({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function ContentPage() {
 
   async function loadPosts(clientId) {
     setLoading(true)
-    const { data } = await supabase.from('posts').select('*, smm:smm_id(name)').eq('client_id', clientId).order('publish_date', { nullsFirst: false })
+    const { data } = await supabase.from('posts').select('*, smm:smm_id(name), operator:operator_id(name)').eq('client_id', clientId).order('publish_date', { nullsFirst: false })
     setPosts(data || [])
     setLoading(false)
   }
@@ -48,11 +48,12 @@ export default function ContentPage() {
     setSaving(true)
     const payload = { ...form, client_id: selectedClient }
     if (!payload.smm_id) delete payload.smm_id
+    if (!payload.operator_id) delete payload.operator_id
     if (!payload.publish_date) delete payload.publish_date
     await supabase.from('posts').insert(payload)
     setSaving(false)
     setShowForm(false)
-    setForm({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', notes: '' })
+    setForm({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
     loadPosts(selectedClient)
   }
 
@@ -64,6 +65,8 @@ export default function ContentPage() {
   const client = clients.find(c => c.id === selectedClient)
   const published = posts.filter(p => p.status === 'published').length
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'
+  const smms = employees.filter(e => e.role === 'smm')
+  const operators = employees.filter(e => e.role === 'operator')
 
   return (
     <div style={styles.wrap} className="fade-up">
@@ -85,25 +88,13 @@ export default function ContentPage() {
           ))}
         </div>
 
-        {/* Stats bar */}
+        {/* Stats */}
         {client && (
           <div style={styles.statsBar}>
-            <div style={styles.statItem}>
-              <span style={styles.statVal} className="bebas">{posts.length}</span>
-              <span style={styles.statLbl}>Всего постов</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={{ ...styles.statVal, color: 'var(--green)' }} className="bebas">{published}</span>
-              <span style={styles.statLbl}>Опубликовано</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={{ ...styles.statVal, color: 'var(--gold)' }} className="bebas">{posts.filter(p => p.status === 'review').length}</span>
-              <span style={styles.statLbl}>На проверке</span>
-            </div>
-            <div style={styles.statItem}>
-              <span style={{ ...styles.statVal, color: 'var(--red)' }} className="bebas">{posts.filter(p => p.status === 'in_progress').length}</span>
-              <span style={styles.statLbl}>В работе</span>
-            </div>
+            <div style={styles.statItem}><span style={styles.statVal} className="bebas">{posts.length}</span><span style={styles.statLbl}>Всего</span></div>
+            <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--green)' }} className="bebas">{published}</span><span style={styles.statLbl}>Опубликовано</span></div>
+            <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--gold)' }} className="bebas">{posts.filter(p => p.status === 'review').length}</span><span style={styles.statLbl}>На проверке</span></div>
+            <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--red)' }} className="bebas">{posts.filter(p => p.status === 'in_progress').length}</span><span style={styles.statLbl}>В работе</span></div>
           </div>
         )}
 
@@ -128,20 +119,15 @@ export default function ContentPage() {
                   <div style={styles.postMeta}>
                     {post.post_type && <span style={{ textTransform: 'capitalize' }}>{post.post_type}</span>}
                     {post.publish_date && <span> · {formatDate(post.publish_date)}</span>}
-                    {post.smm?.name && <span> · {post.smm.name}</span>}
+                    {post.smm?.name && <span style={{ color: 'var(--blue)' }}> · СММ: {post.smm.name}</span>}
+                    {post.operator?.name && <span style={{ color: 'var(--green)' }}> · Опер: {post.operator.name}</span>}
                   </div>
                   {post.notes && <div style={styles.postNotes}>{post.notes}</div>}
                 </div>
                 <div style={styles.postActions}>
                   <span className={`badge ${STATUS_COLORS[post.status]}`}>{STATUS_LABELS[post.status]}</span>
-                  <select
-                    style={styles.statusSelect}
-                    value={post.status}
-                    onChange={e => updateStatus(post.id, e.target.value)}
-                  >
-                    {Object.entries(STATUS_LABELS).map(([v, l]) => (
-                      <option key={v} value={v}>{l}</option>
-                    ))}
+                  <select style={styles.statusSelect} value={post.status} onChange={e => updateStatus(post.id, e.target.value)}>
+                    {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                   </select>
                 </div>
               </div>
@@ -156,9 +142,7 @@ export default function ContentPage() {
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div className="bebas" style={{ fontSize: 22, letterSpacing: 2 }}>Новый пост</div>
-              <button style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer' }} onClick={() => setShowForm(false)}>
-                <X size={18} />
-              </button>
+              <button style={{ background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer' }} onClick={() => setShowForm(false)}><X size={18} /></button>
             </div>
             <form onSubmit={savePost} style={{ padding: '24px 28px' }}>
               <div style={{ marginBottom: 14 }}>
@@ -189,7 +173,14 @@ export default function ContentPage() {
                   <label style={styles.label}>СММ</label>
                   <select style={styles.input} value={form.smm_id} onChange={e => setForm({ ...form, smm_id: e.target.value })}>
                     <option value="">— выбрать —</option>
-                    {employees.filter(e => e.role === 'smm').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                    {smms.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={styles.label}>Оператор</label>
+                  <select style={styles.input} value={form.operator_id} onChange={e => setForm({ ...form, operator_id: e.target.value })}>
+                    <option value="">— выбрать —</option>
+                    {operators.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
               </div>
@@ -211,37 +202,17 @@ export default function ContentPage() {
 
 const styles = {
   wrap: { minHeight: '100vh' },
-  topbar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '20px 32px', background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-    position: 'sticky', top: 0, zIndex: 10,
-  },
+  topbar: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 32px', background: 'var(--surface)', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, zIndex: 10 },
   pageTitle: { fontSize: 28, letterSpacing: 2 },
   content: { padding: '24px 32px' },
   clientsRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 },
-  clientChip: (active, color) => ({
-    display: 'flex', alignItems: 'center', gap: 8,
-    padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-    border: `1px solid ${active ? color || 'var(--gold)' : 'var(--border)'}`,
-    background: active ? `${color}22` || 'var(--gold-dim)' : 'var(--surface)',
-    color: active ? color || 'var(--gold)' : 'var(--text2)',
-    cursor: 'pointer', transition: 'all 0.15s',
-  }),
-  statsBar: {
-    display: 'flex', gap: 24, marginBottom: 24,
-    background: 'var(--surface)', border: '1px solid var(--border)',
-    borderRadius: 14, padding: '16px 24px',
-  },
+  clientChip: (active, color) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${active ? color || 'var(--gold)' : 'var(--border)'}`, background: active ? `${color}22` || 'var(--gold-dim)' : 'var(--surface)', color: active ? color || 'var(--gold)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
+  statsBar: { display: 'flex', gap: 24, marginBottom: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 24px' },
   statItem: { display: 'flex', alignItems: 'center', gap: 10 },
   statVal: { fontSize: 32, color: 'var(--text)', lineHeight: 1 },
   statLbl: { fontSize: 12, color: 'var(--text3)', fontWeight: 600 },
   postsList: { display: 'flex', flexDirection: 'column', gap: 8 },
-  postCard: {
-    background: 'var(--surface)', border: '1px solid var(--border)',
-    borderRadius: 14, padding: '16px 18px',
-    display: 'flex', alignItems: 'flex-start', gap: 14,
-    transition: 'border-color 0.15s',
-  },
+  postCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 14, transition: 'border-color 0.15s' },
   postNum: { fontSize: 26, color: 'var(--text3)', lineHeight: 1, minWidth: 28, textAlign: 'center', flexShrink: 0, paddingTop: 2 },
   postTypeIcon: { width: 34, height: 34, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text2)', flexShrink: 0 },
   postBody: { flex: 1, minWidth: 0 },
