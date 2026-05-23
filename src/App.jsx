@@ -8,6 +8,7 @@ import ClientsPage from './pages/ClientsPage'
 import ContentPage from './pages/ContentPage'
 import ShootsPage from './pages/ShootsPage'
 import CalendarPage from './pages/CalendarPage'
+import SettingsPage from './pages/SettingsPage'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="content" element={<ContentPage />} />
         <Route path="shoots" element={<ShootsPage />} />
         <Route path="calendar" element={<CalendarPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
   )

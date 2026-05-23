@@ -1,10 +1,7 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import {
-  LayoutDashboard, Users, FileText, Camera,
-  Calendar, Settings, LogOut, Menu
-} from 'lucide-react'
-import { useState } from 'react'
+import { LayoutDashboard, Users, FileText, Camera, Calendar, Settings, LogOut, Menu } from 'lucide-react'
+import { useState, useEffect } from 'react'
 
 const navItems = [
   { to: '/',         icon: LayoutDashboard, label: 'Дашборд',      end: true },
@@ -17,6 +14,17 @@ const navItems = [
 export default function DashboardLayout({ session }) {
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
+
+  useEffect(() => {
+    async function loadPending() {
+      const { count } = await supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('is_approved', false)
+      setPendingCount(count || 0)
+    }
+    loadPending()
+    const interval = setInterval(loadPending, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
   async function handleLogout() {
     await supabase.auth.signOut()
@@ -27,9 +35,7 @@ export default function DashboardLayout({ session }) {
 
   return (
     <div style={styles.wrap}>
-      {sidebarOpen && (
-        <div style={styles.overlay} onClick={() => setSidebarOpen(false)} />
-      )}
+      {sidebarOpen && <div style={styles.overlay} onClick={() => setSidebarOpen(false)} />}
 
       <aside style={{ ...styles.sidebar, ...(sidebarOpen ? styles.sidebarOpen : {}) }}>
         <div style={styles.logo}>
@@ -41,9 +47,7 @@ export default function DashboardLayout({ session }) {
           <div style={styles.navLabel}>Главное</div>
           {navItems.map(({ to, icon: Icon, label, end }) => (
             <NavLink
-              key={to}
-              to={to}
-              end={end}
+              key={to} to={to} end={end}
               style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}
               onClick={() => setSidebarOpen(false)}
             >
@@ -53,10 +57,17 @@ export default function DashboardLayout({ session }) {
           ))}
 
           <div style={{ ...styles.navLabel, marginTop: 16 }}>Управление</div>
-          <div style={styles.navItem}>
+          <NavLink
+            to="/settings"
+            style={({ isActive }) => ({ ...styles.navItem, ...(isActive ? styles.navItemActive : {}) })}
+            onClick={() => setSidebarOpen(false)}
+          >
             <Settings size={17} strokeWidth={2} />
             <span>Настройки</span>
-          </div>
+            {pendingCount > 0 && (
+              <span style={styles.pendingBadge}>{pendingCount}</span>
+            )}
+          </NavLink>
         </nav>
 
         <div style={styles.sidebarFooter}>
@@ -81,7 +92,6 @@ export default function DashboardLayout({ session }) {
           <div style={styles.mobileLogo} className="bebas">1M</div>
           <div style={styles.avatar}>{initials}</div>
         </div>
-
         <Outlet />
       </div>
     </div>
@@ -110,6 +120,10 @@ const styles = {
     borderLeft: '2px solid transparent', transition: 'all 0.15s', cursor: 'pointer',
   },
   navItemActive: { color: 'var(--gold)', background: 'var(--gold-dim)', borderLeftColor: 'var(--gold)' },
+  pendingBadge: {
+    marginLeft: 'auto', background: 'var(--red)', color: '#fff',
+    fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20,
+  },
   sidebarFooter: { padding: '16px 20px', borderTop: '1px solid var(--border)' },
   userCard: { display: 'flex', alignItems: 'center', gap: 10 },
   avatar: {
@@ -132,5 +146,5 @@ const styles = {
 }
 
 const mobileStyle = document.createElement('style')
-mobileStyle.textContent = `@media (max-width: 768px) { aside { transform: translateX(-100%); position: fixed !important; } [data-mobile-topbar] { display: flex !important; } }`
+mobileStyle.textContent = `@media (max-width: 768px) { aside { transform: translateX(-100%); position: fixed !important; } }`
 document.head.appendChild(mobileStyle)
