@@ -116,7 +116,7 @@ export default function ShootsPage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar}>
+      <div style={styles.topbar} className="page-topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
           <div style={styles.pageTitle} className="bebas">Съёмки</div>
           <div style={styles.monthNav}>
@@ -140,7 +140,7 @@ export default function ShootsPage() {
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="page-content">
         {/* Legend */}
         <div style={styles.legendRow}>
           {Object.entries(STATUS_LABELS).map(([s, l]) => (
@@ -162,7 +162,7 @@ export default function ShootsPage() {
             ))}
           </div>
 
-          <div style={styles.daysGrid}>
+          <div style={styles.daysGrid} className="calendar-grid">
             {days.map((day, idx) => {
               const dayShootsList = getShootsForDay(day.date)
               const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6

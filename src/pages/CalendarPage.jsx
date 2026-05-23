@@ -118,7 +118,7 @@ export default function CalendarPage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar}>
+      <div style={styles.topbar} className="page-topbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
           <div style={styles.pageTitle} className="bebas">Календарь</div>
           <div style={styles.monthNav}>
@@ -145,7 +145,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="page-content">
         {/* Client filter */}
         <div style={styles.clientsRow}>
           <button
@@ -196,7 +196,7 @@ export default function CalendarPage() {
           </div>
 
           {/* Days grid */}
-          <div style={styles.daysGrid}>
+          <div style={styles.daysGrid} className="calendar-grid">
             {days.map((day, idx) => {
               const dayPosts = getPostsForDay(day.date)
               const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6

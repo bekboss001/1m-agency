@@ -39,16 +39,16 @@ export default function HomePage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar}>
+      <div style={styles.topbar} className="page-topbar">
         <div>
           <div style={styles.pageTitle} className="bebas">Дашборд</div>
           <div style={styles.pageDate}>{today.toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</div>
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="page-content">
         {/* Stats */}
-        <div style={styles.statsGrid}>
+        <div style={styles.statsGrid} className="stats-grid">
           <StatCard color="gold" icon={<Users size={20} />} value={clients.length} label="Активных клиентов" />
           <StatCard color="red" icon={<AlertTriangle size={20} />} value={problematic.length} label="Заканчивается договор" sub="менее 30 дней" />
           <StatCard color="green" icon={<CheckCircle size={20} />} value={shoots.length} label="Съёмок на неделе" />

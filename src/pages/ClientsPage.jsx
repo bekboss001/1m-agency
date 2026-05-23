@@ -102,9 +102,9 @@ export default function ClientsPage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={styles.topbar}>
+      <div style={styles.topbar} className="page-topbar">
         <div style={styles.pageTitle} className="bebas">Клиенты</div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn btn-ghost">Экспорт</button>
           <button className="btn btn-gold" onClick={() => setShowForm(true)}>
             <Plus size={16} /> Добавить
@@ -112,7 +112,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="page-content">
         {/* Filters */}
         <div style={styles.filtersRow}>
           <div style={styles.searchWrap}>
@@ -137,8 +137,8 @@ export default function ClientsPage() {
         </div>
 
         {/* Table */}
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
+        <div style={styles.tableWrap} className="resp-table-wrap">
+          <table style={styles.table} className="resp-table">
             <thead>
               <tr>
                 {['№', 'Клиент', 'Начало', 'Окончание', 'Дней осталось', 'СММ', 'Оператор', 'Всего', 'Выпущено', 'Осталось', 'Дней назад', 'Последний пост', 'Комментарий', 'Meta ID', ''].map(h => (
@@ -161,9 +161,9 @@ export default function ClientsPage() {
 
                 return (
                   <tr key={c.id} style={{ ...styles.tr, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
-                    <td style={{ ...styles.td, color: 'var(--text3)', fontWeight: 700, width: 36 }}>{c.number}</td>
+                    <td data-label="№" style={{ ...styles.td, color: 'var(--text3)', fontWeight: 700, width: 36 }}>{c.number}</td>
 
-                    <td style={styles.td}>
+                    <td data-label="Клиент" style={styles.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 120 }}>
                         <span style={{ width: 11, height: 11, borderRadius: 3, background: c.color || '#888', flexShrink: 0 }} />
                         <span style={{ fontWeight: 700, fontSize: 13.5 }}>{c.name}</span>
@@ -171,7 +171,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Начало — редактируемое */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'contract_start', c.contract_start || '')}>
+                    <td data-label="Начало" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'contract_start', c.contract_start || '')}>
                       {editingCell?.id === c.id && editingCell?.field === 'contract_start' ? (
                         <input autoFocus style={styles.cellInput} type="date" value={editValue}
                           onChange={e => setEditValue(e.target.value)}
@@ -183,7 +183,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Окончание — редактируемое */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'contract_end', c.contract_end || '')}>
+                    <td data-label="Окончание" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'contract_end', c.contract_end || '')}>
                       {editingCell?.id === c.id && editingCell?.field === 'contract_end' ? (
                         <input autoFocus style={styles.cellInput} type="date" value={editValue}
                           onChange={e => setEditValue(e.target.value)}
@@ -194,14 +194,14 @@ export default function ClientsPage() {
                       )}
                     </td>
 
-                    <td style={styles.td}>
+                    <td data-label="Дней осталось" style={styles.td}>
                       {dl !== null ? (
                         <span className="bebas" style={{ fontSize: 22, color: urgent ? 'var(--red)' : dl < 60 ? 'var(--gold)' : 'var(--text2)' }}>{dl}</span>
                       ) : <span style={{ color: 'var(--text3)' }}>—</span>}
                     </td>
 
                     {/* СММ — выпадающий список */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'smm_id', c.smm_id || '')}>
+                    <td data-label="СММ" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'smm_id', c.smm_id || '')}>
                       {editingCell?.id === c.id && editingCell?.field === 'smm_id' ? (
                         <select autoFocus style={styles.cellInput}
                           value={editValue}
@@ -218,7 +218,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Оператор — выпадающий список */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'operator_id', c.operator_id || '')}>
+                    <td data-label="Оператор" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'operator_id', c.operator_id || '')}>
                       {editingCell?.id === c.id && editingCell?.field === 'operator_id' ? (
                         <select autoFocus style={styles.cellInput}
                           value={editValue}
@@ -235,7 +235,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Всего постов — редактируемое */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'total_posts', c.total_posts)}>
+                    <td data-label="Всего" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'total_posts', c.total_posts)}>
                       {isEditingTotal ? (
                         <input
                           autoFocus
@@ -252,7 +252,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Выпущено — редактируемое */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'published_posts', published)}>
+                    <td data-label="Выпущено" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'published_posts', published)}>
                       {isEditingPublished ? (
                         <input
                           autoFocus
@@ -273,14 +273,14 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Осталось — автоматически */}
-                    <td style={styles.td}>
+                    <td data-label="Осталось" style={styles.td}>
                       <span className="bebas" style={{ fontSize: 20, color: remaining === 0 ? 'var(--green)' : remaining > 5 ? 'var(--text2)' : 'var(--red)' }}>
                         {remaining}
                       </span>
                     </td>
 
                     {/* Дней назад — автоматически из last_post_date */}
-                    <td style={styles.td}>
+                    <td data-label="Дней назад" style={styles.td}>
                       {ds !== null ? (
                         <span className="bebas" style={{ fontSize: 20, color: ds === 0 ? 'var(--green)' : ds <= 3 ? 'var(--gold)' : 'var(--red)' }}>
                           {ds}
@@ -289,7 +289,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Дата последней публикации — редактируемое */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'last_post_date', c.last_post_date || '')}>
+                    <td data-label="Последний пост" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'last_post_date', c.last_post_date || '')}>
                       {isEditingLastPost ? (
                         <input
                           autoFocus
@@ -308,7 +308,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Комментарий — редактируемое */}
-                    <td style={{ ...styles.td, ...styles.editableCell, maxWidth: 180 }} onClick={() => startEdit(c.id, 'notes', c.notes || '')}>
+                    <td data-label="Комментарий" style={{ ...styles.td, ...styles.editableCell, maxWidth: 180 }} onClick={() => startEdit(c.id, 'notes', c.notes || '')}>
                       {isEditingNotes ? (
                         <input
                           autoFocus
@@ -326,7 +326,7 @@ export default function ClientsPage() {
                     </td>
 
                     {/* Meta ID — редактируемое */}
-                    <td style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'meta_account_id', c.meta_account_id || '')}>
+                    <td data-label="Meta ID" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'meta_account_id', c.meta_account_id || '')}>
                       {isEditingMetaId ? (
                         <input
                           autoFocus

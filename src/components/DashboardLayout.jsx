@@ -87,7 +87,7 @@ export default function DashboardLayout({ session }) {
       </aside>
 
       <div style={styles.main}>
-        <div style={styles.mobileTopbar}>
+        <div style={styles.mobileTopbar} className="mobile-topbar">
           <button style={styles.menuBtn} onClick={() => setSidebarOpen(true)}><Menu size={20} /></button>
           <div style={styles.mobileLogo} className="bebas">1M</div>
           <div style={styles.avatar}>{initials}</div>

@@ -82,7 +82,7 @@ export default function ContentPage() {
 
   return (
     <div style={styles.wrap} className="fade-up">
-      <div style={styles.topbar}>
+      <div style={styles.topbar} className="page-topbar">
         <div style={styles.pageTitle} className="bebas">Контент-план</div>
         {!isClient && (
           <button className="btn btn-gold" onClick={() => setShowForm(true)} disabled={!selectedClient}>
@@ -91,7 +91,7 @@ export default function ContentPage() {
         )}
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="page-content">
         {/* Client selector */}
         <div style={styles.clientsRow}>
           {clients.map(c => (

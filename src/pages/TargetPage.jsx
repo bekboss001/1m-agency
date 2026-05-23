@@ -180,7 +180,7 @@ export default function TargetPage() {
 
   return (
     <div style={styles.wrap} className="fade-up">
-      <div style={styles.topbar}>
+      <div style={styles.topbar} className="page-topbar">
         <div style={styles.pageTitle} className="bebas">Таргет</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={styles.presets}>
@@ -197,9 +197,9 @@ export default function TargetPage() {
         </div>
       </div>
 
-      <div style={styles.content}>
+      <div style={styles.content} className="page-content">
         {/* Client chips */}
-        <div style={styles.clientsRow}>
+        <div style={styles.clientsRow} className="target-chips">
           <button
             style={styles.clientChip(selectedClient === 'all', null)}
             onClick={() => setSelectedClient('all')}

@@ -97,3 +97,101 @@ input, select, textarea { font-family: 'Manrope', sans-serif; }
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
+
+/* ===== MOBILE ADAPTATION (≤768px) ===== */
+@media (max-width: 768px) {
+
+  /* DashboardLayout: show mobile topbar */
+  .mobile-topbar {
+    display: flex !important;
+  }
+
+  /* All page topbars: compact padding */
+  .page-topbar {
+    padding: 12px 16px !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  /* All page content areas: reduce padding */
+  .page-content {
+    padding: 16px !important;
+  }
+
+  /* HomePage stats grid: 4 cols → 2 cols */
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* Calendar / Shoots day cells: compact height */
+  .calendar-grid > div {
+    min-height: 60px !important;
+    padding: 4px !important;
+  }
+
+  /* TargetPage client chips: horizontal scroll */
+  .target-chips {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+
+  /* ClientsPage table → card layout */
+  .resp-table-wrap {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+  }
+
+  .resp-table thead {
+    display: none;
+  }
+
+  .resp-table tbody tr {
+    display: block !important;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 10px;
+    padding: 4px 0;
+  }
+
+  .resp-table td {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px !important;
+    border-bottom: 1px solid var(--border) !important;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .resp-table td:last-child {
+    border-bottom: none !important;
+  }
+
+  .resp-table td[data-label]::before {
+    content: attr(data-label);
+    color: var(--text3);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+    margin-right: 10px;
+    white-space: nowrap;
+  }
+
+  /* Hide secondary columns in card view */
+  .resp-table td[data-label="Дней назад"],
+  .resp-table td[data-label="Последний пост"],
+  .resp-table td[data-label="Комментарий"],
+  .resp-table td[data-label="Meta ID"],
+  .resp-table td[data-label="Всего"],
+  .resp-table td[data-label="Выпущено"],
+  .resp-table td[data-label="Осталось"] {
+    display: none !important;
+  }
+}
