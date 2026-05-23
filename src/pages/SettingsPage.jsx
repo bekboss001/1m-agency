@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Plus, X, Check, Trash2, UserCheck, Users, Shield, Lock } from 'lucide-react'
+import { Plus, X, Check, Trash2, UserCheck, Users, Shield, Lock, Link } from 'lucide-react'
 
 const SYSTEM_ROLE_LABELS = { admin: 'Администратор', smm: 'СММ', operator: 'Оператор', client: 'Клиент', pending: 'Ожидает' }
 const ROLE_COLORS = { admin: 'var(--gold)', smm: 'var(--blue)', operator: 'var(--green)', client: 'var(--text2)', pending: 'var(--red)' }
@@ -19,6 +19,9 @@ export default function SettingsPage() {
   const [pendingUsers, setPendingUsers] = useState([])
   const [allUsers, setAllUsers] = useState([])
   const [roles, setRoles] = useState([])
+  const [clients, setClients] = useState([])
+  const [clientUsers, setClientUsers] = useState([])
+  const [selectedUser, setSelectedUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('employees')
   const [showEmpForm, setShowEmpForm] = useState(false)
@@ -32,16 +35,20 @@ export default function SettingsPage() {
 
   async function loadData() {
     setLoading(true)
-    const [{ data: e }, { data: p }, { data: a }, { data: r }] = await Promise.all([
+    const [{ data: e }, { data: p }, { data: a }, { data: r }, { data: c }, { data: cu }] = await Promise.all([
       supabase.from('employees').select('*').order('role').order('name'),
       supabase.from('profiles').select('*').eq('is_approved', false).order('created_at'),
       supabase.from('profiles').select('*').eq('is_approved', true).order('role').order('created_at'),
       supabase.from('roles').select('*').order('is_system', { ascending: false }).order('label'),
+      supabase.from('clients').select('id, name, color, number').eq('is_active', true).order('number'),
+      supabase.from('client_users').select('*'),
     ])
     setEmployees(e || [])
     setPendingUsers(p || [])
     setAllUsers(a || [])
     setRoles(r || [])
+    setClients(c || [])
+    setClientUsers(cu || [])
     setLoading(false)
   }
 
@@ -110,8 +117,23 @@ export default function SettingsPage() {
     setShowRoleForm(true)
   }
 
+  // Client assignment
+  function getUserClients(userId) {
+    return clientUsers.filter(cu => cu.user_id === userId).map(cu => cu.client_id)
+  }
+
+  async function toggleClientUser(clientId, userId, isAssigned) {
+    if (isAssigned) {
+      await supabase.from('client_users').delete().eq('client_id', clientId).eq('user_id', userId)
+    } else {
+      await supabase.from('client_users').insert({ client_id: clientId, user_id: userId })
+    }
+    loadData()
+  }
+
   const smms = employees.filter(e => e.role === 'smm')
   const operators = employees.filter(e => e.role === 'operator')
+  const clientRoleUsers = allUsers.filter(u => u.role === 'client')
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -149,6 +171,9 @@ export default function SettingsPage() {
           </button>
           <button style={styles.tab(activeTab === 'users')} onClick={() => setActiveTab('users')}>
             <Shield size={15} /> Пользователи
+          </button>
+          <button style={styles.tab(activeTab === 'clients_assign')} onClick={() => setActiveTab('clients_assign')}>
+            <Link size={15} /> Назначить клиентов
           </button>
           <button style={styles.tab(activeTab === 'roles')} onClick={() => setActiveTab('roles')}>
             <Lock size={15} /> Роли и права
@@ -192,7 +217,7 @@ export default function SettingsPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <select style={styles.roleSelect} defaultValue="smm" id={`role-${user.id}`}>
+                      <select style={styles.roleSelect} defaultValue="client" id={`role-${user.id}`}>
                         {roles.filter(r => r.name !== 'pending').map(r => (
                           <option key={r.id} value={r.name}>{r.label}</option>
                         ))}
@@ -236,6 +261,95 @@ export default function SettingsPage() {
           </div>
         )}
 
+        {/* CLIENT ASSIGNMENT */}
+        {activeTab === 'clients_assign' && (
+          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 20 }}>
+            {/* User list */}
+            <div>
+              <div style={styles.sectionTitle} className="bebas">Пользователи</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {allUsers.map(user => (
+                  <div
+                    key={user.id}
+                    style={{
+                      ...styles.userCard,
+                      cursor: 'pointer',
+                      borderColor: selectedUser?.id === user.id ? 'var(--gold)' : 'var(--border)',
+                      background: selectedUser?.id === user.id ? 'var(--gold-dim)' : 'var(--surface)',
+                    }}
+                    onClick={() => setSelectedUser(user)}
+                  >
+                    <div style={{ ...styles.userAvatar, background: selectedUser?.id === user.id ? 'var(--gold)' : 'var(--surface3)', color: selectedUser?.id === user.id ? 'var(--black)' : 'var(--text)' }}>
+                      {(user.full_name || user.email)?.[0]?.toUpperCase()}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: selectedUser?.id === user.id ? 'var(--gold)' : 'var(--text)' }}>
+                        {user.full_name || 'Без имени'}
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', flexShrink: 0 }}>
+                      {getUserClients(user.id).length} кл.
+                    </div>
+                  </div>
+                ))}
+                {allUsers.length === 0 && <EmptyCard text="Нет пользователей" />}
+              </div>
+            </div>
+
+            {/* Client checkboxes */}
+            <div>
+              {!selectedUser ? (
+                <div style={styles.emptyState}>
+                  <div style={{ fontSize: 32, opacity: 0.2, marginBottom: 12 }}>←</div>
+                  <div style={{ color: 'var(--text3)' }}>Выберите пользователя</div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                    <div style={styles.sectionTitle} className="bebas">
+                      Клиенты для {selectedUser.full_name || selectedUser.email}
+                    </div>
+                    <span className="badge badge-dim">{getUserClients(selectedUser.id).length} назначено</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8 }}>
+                    {clients.map(client => {
+                      const isAssigned = getUserClients(selectedUser.id).includes(client.id)
+                      return (
+                        <div
+                          key={client.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 12,
+                            padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
+                            border: `1px solid ${isAssigned ? client.color || 'var(--gold)' : 'var(--border)'}`,
+                            background: isAssigned ? `${client.color || 'var(--gold)'}15` : 'var(--surface)',
+                            transition: 'all 0.15s',
+                          }}
+                          onClick={() => toggleClientUser(client.id, selectedUser.id, isAssigned)}
+                        >
+                          <div style={{
+                            width: 20, height: 20, borderRadius: 6,
+                            border: `2px solid ${isAssigned ? client.color || 'var(--gold)' : 'var(--border)'}`,
+                            background: isAssigned ? client.color || 'var(--gold)' : 'transparent',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            flexShrink: 0, transition: 'all 0.15s',
+                          }}>
+                            {isAssigned && <Check size={12} color="var(--black)" strokeWidth={3} />}
+                          </div>
+                          <span style={{ width: 10, height: 10, borderRadius: 3, background: client.color || '#888', flexShrink: 0 }} />
+                          <span style={{ fontSize: 13, fontWeight: 600, color: isAssigned ? 'var(--text)' : 'var(--text2)' }}>
+                            {client.name}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ROLES */}
         {activeTab === 'roles' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -256,13 +370,9 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <button className="btn btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => openEditRole(role)}>
-                    Редактировать
-                  </button>
+                  <button className="btn btn-ghost" style={{ fontSize: 12, padding: '7px 14px' }} onClick={() => openEditRole(role)}>Редактировать</button>
                   {!role.is_system && (
-                    <button style={styles.rejectBtn} onClick={() => deleteRole(role.id, role.label)}>
-                      <Trash2 size={14} />
-                    </button>
+                    <button style={styles.rejectBtn} onClick={() => deleteRole(role.id, role.label)}><Trash2 size={14} /></button>
                   )}
                 </div>
               </div>
@@ -328,12 +438,7 @@ export default function SettingsPage() {
                 <div style={styles.permissionsGrid}>
                   {Object.entries(PAGE_LABELS).map(([key, label]) => (
                     <label key={key} style={{ ...styles.permToggle, background: roleForm.permissions[key] ? 'rgba(46,204,138,0.12)' : 'var(--surface2)', borderColor: roleForm.permissions[key] ? 'rgba(46,204,138,0.4)' : 'var(--border)', cursor: 'pointer' }}>
-                      <input
-                        type="checkbox"
-                        style={{ display: 'none' }}
-                        checked={!!roleForm.permissions[key]}
-                        onChange={e => setRoleForm({ ...roleForm, permissions: { ...roleForm.permissions, [key]: e.target.checked } })}
-                      />
+                      <input type="checkbox" style={{ display: 'none' }} checked={!!roleForm.permissions[key]} onChange={e => setRoleForm({ ...roleForm, permissions: { ...roleForm.permissions, [key]: e.target.checked } })} />
                       <span style={{ width: 8, height: 8, borderRadius: '50%', background: roleForm.permissions[key] ? 'var(--green)' : 'var(--text3)', flexShrink: 0 }} />
                       <span style={{ fontSize: 12, color: roleForm.permissions[key] ? 'var(--green)' : 'var(--text2)', fontWeight: 600 }}>{label}</span>
                     </label>
@@ -389,7 +494,7 @@ const styles = {
   sectionTitle: { fontSize: 16, letterSpacing: 2, color: 'var(--text2)', marginBottom: 12 },
   cardsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 },
   pendingCard: { display: 'flex', alignItems: 'center', gap: 14, background: 'var(--surface)', border: '1px solid rgba(255,64,96,0.2)', borderRadius: 14, padding: '16px 18px' },
-  userCard: { display: 'flex', alignItems: 'center', gap: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 18px' },
+  userCard: { display: 'flex', alignItems: 'center', gap: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 18px', transition: 'all 0.15s' },
   userAvatar: { width: 38, height: 38, borderRadius: 10, background: 'var(--surface3)', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: 'var(--text)', flexShrink: 0 },
   roleCard: { display: 'flex', alignItems: 'flex-start', gap: 20, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' },
   permissionsGrid: { display: 'flex', gap: 8, flexWrap: 'wrap' },
