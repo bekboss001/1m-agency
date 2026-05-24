@@ -72,6 +72,16 @@ export default function SettingsPage() {
 
   async function approveUser(userId, role) {
     await supabase.from('profiles').update({ is_approved: true, role }).eq('id', userId)
+    if (role === 'smm' || role === 'operator') {
+      const user = pendingUsers.find(u => u.id === userId)
+      if (user) {
+        await supabase.from('employees').insert({
+          name: user.full_name || user.email.split('@')[0],
+          email: user.email,
+          role,
+        })
+      }
+    }
     loadData()
   }
 
@@ -83,6 +93,21 @@ export default function SettingsPage() {
 
   async function changeUserRole(userId, role) {
     await supabase.from('profiles').update({ role }).eq('id', userId)
+    if (role === 'smm' || role === 'operator') {
+      const user = allUsers.find(u => u.id === userId)
+      if (user) {
+        const { data: existing } = await supabase.from('employees').select('id').eq('email', user.email).maybeSingle()
+        if (!existing) {
+          await supabase.from('employees').insert({
+            name: user.full_name || user.email.split('@')[0],
+            email: user.email,
+            role,
+          })
+        } else {
+          await supabase.from('employees').update({ role }).eq('id', existing.id)
+        }
+      }
+    }
     loadData()
   }
 
