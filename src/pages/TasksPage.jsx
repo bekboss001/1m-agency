@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, X, MessageSquare, Calendar, Trash2 } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { useProfile } from '../lib/useProfile'
 
 const COLUMNS = [
   { id: 'new',         label: 'Новые',       color: 'var(--text3)' },
@@ -19,9 +20,12 @@ const PRIORITY = {
 
 export default function TasksPage() {
   const isMobile = useMediaQuery('(max-width: 768px)')
+  const { profile } = useProfile()
+  const isAdmin = profile?.role === 'admin'
   const [tasks, setTasks] = useState([])
   const [employees, setEmployees] = useState([])
   const [clients, setClients] = useState([])
+  const [myEmployeeId, setMyEmployeeId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [draggedId, setDraggedId] = useState(null)
   const [dragOver, setDragOver] = useState(null)
@@ -34,18 +38,37 @@ export default function TasksPage() {
   const [newComment, setNewComment] = useState('')
   const [addingComment, setAddingComment] = useState(false)
 
-  useEffect(() => { loadData() }, [])
+  useEffect(() => { if (profile !== null) loadData() }, [profile])
 
   async function loadData() {
     setLoading(true)
+
+    // Найти employee-запись текущего пользователя по email
+    let empId = null
+    if (!isAdmin && profile?.email) {
+      const { data: emp } = await supabase.from('employees').select('id').eq('email', profile.email).maybeSingle()
+      empId = emp?.id || null
+      setMyEmployeeId(empId)
+    }
+
+    let tasksQuery = supabase
+      .from('tasks')
+      .select('*, assignee:assignee_id(id, name, role), client:client_id(id, name, color)')
+      .order('created_at', { ascending: false })
+
+    // Не-админ видит только свои задачи
+    if (!isAdmin) {
+      if (empId) tasksQuery = tasksQuery.eq('assignee_id', empId)
+      else tasksQuery = tasksQuery.eq('assignee_id', '00000000-0000-0000-0000-000000000000') // никаких задач если нет записи сотрудника
+    }
+
     const [{ data: t }, { data: e }, { data: c }, { data: cc }] = await Promise.all([
-      supabase.from('tasks')
-        .select('*, assignee:assignee_id(id, name, role), client:client_id(id, name, color)')
-        .order('created_at', { ascending: false }),
+      tasksQuery,
       supabase.from('employees').select('*').order('name'),
       supabase.from('clients').select('id, name, color').eq('is_active', true).order('number'),
       supabase.from('task_comments').select('task_id'),
     ])
+
     const counts = {}
     cc?.forEach(r => { counts[r.task_id] = (counts[r.task_id] || 0) + 1 })
     setTasks((t || []).map(task => ({ ...task, comment_count: counts[task.id] || 0 })))
@@ -88,7 +111,7 @@ export default function TasksPage() {
 
   // ── Task CRUD ──────────────────────────────────────────────
   function openForm(colId) {
-    setForm({ title: '', description: '', priority: 'medium', assignee_id: '', client_id: '', deadline: '' })
+    setForm({ title: '', description: '', priority: 'medium', assignee_id: isAdmin ? '' : (myEmployeeId || ''), client_id: '', deadline: '' })
     setShowForm(colId)
   }
 
