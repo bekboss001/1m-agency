@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 
 const STATUS_LABELS = { planned: 'План', confirmed: 'Подтверждено', done: 'Завершено', cancelled: 'Отменено' }
-const STATUS_COLORS = { planned: '#8888AA', confirmed: '#2ECC8A', done: '#4A7CFF', cancelled: '#FF4060' }
+const STATUS_COLORS = { planned: '#888888', confirmed: '#3ddc84', done: '#ffffff', cancelled: '#ff4444' }
 const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
 
@@ -136,7 +136,7 @@ export default function ShootsPage() {
             <span style={{ color: 'var(--text3)', fontSize: 11 }}>Подтверждено</span>
             <span style={{ color: 'var(--green)', fontWeight: 800 }} className="bebas">{confirmedShoots}</span>
           </div>
-          <button className="btn btn-gold" onClick={() => { setForm({ client_id: '', operator_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' }); setShowForm(true) }}>
+          <button className="btn btn-white" onClick={() => { setForm({ client_id: '', operator_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' }); setShowForm(true) }}>
             <Plus size={16} /> Добавить
           </button>
         </div>
@@ -176,8 +176,8 @@ export default function ShootsPage() {
                   style={{
                     ...styles.dayCell,
                     minHeight: isMobile ? 60 : 110,
-                    background: isTodayDay ? 'rgba(232,184,75,0.06)' : 'transparent',
-                    borderColor: isTodayDay ? 'rgba(232,184,75,0.3)' : 'var(--border)',
+                    background: isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    borderColor: isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)',
                     opacity: day.current ? 1 : 0.3,
                     cursor: day.current ? 'pointer' : 'default',
                   }}
@@ -185,8 +185,8 @@ export default function ShootsPage() {
                 >
                   <div style={{
                     ...styles.dayNum,
-                    color: isTodayDay ? 'var(--gold)' : isWeekend ? 'var(--red)' : 'var(--text2)',
-                    background: isTodayDay ? 'rgba(232,184,75,0.15)' : 'transparent',
+                    color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)',
+                    background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent',
                     borderRadius: isTodayDay ? 6 : 0,
                     padding: isTodayDay ? '2px 6px' : '2px 0',
                   }} className="bebas">
@@ -229,7 +229,7 @@ export default function ShootsPage() {
           <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={{ ...styles.modalTop, borderBottomColor: selectedShoot.client?.color || 'var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 4, height: 44, borderRadius: 2, background: selectedShoot.client?.color || 'var(--gold)', flexShrink: 0 }} />
+                <div style={{ width: 4, height: 44, borderRadius: 2, background: selectedShoot.client?.color || 'var(--text2)', flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>Съёмка</div>
                   <div style={{ fontWeight: 800, fontSize: 18 }}>{selectedShoot.client?.name}</div>
@@ -333,7 +333,7 @@ export default function ShootsPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Отмена</button>
-                <button type="submit" className="btn btn-gold" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Добавить'}</button>
+                <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Добавить'}</button>
               </div>
             </form>
           </div>

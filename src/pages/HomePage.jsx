@@ -51,10 +51,10 @@ export default function HomePage() {
       <div style={{ ...styles.content, padding: isMobile ? '16px' : '28px 32px' }}>
         {/* Stats */}
         <div style={{ ...styles.statsGrid, gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)' }}>
-          <StatCard color="gold" icon={<Users size={20} />} value={clients.length} label="Активных клиентов" />
+          <StatCard color="white" icon={<Users size={20} />} value={clients.length} label="Активных клиентов" />
           <StatCard color="red" icon={<AlertTriangle size={20} />} value={problematic.length} label="Заканчивается договор" sub="менее 30 дней" />
           <StatCard color="green" icon={<CheckCircle size={20} />} value={shoots.length} label="Съёмок на неделе" />
-          <StatCard color="blue" icon={<Camera size={20} />} value={clients.length} label="Всего клиентов" sub="в базе" />
+          <StatCard color="white" icon={<Camera size={20} />} value={clients.length} label="Всего клиентов" sub="в базе" />
         </div>
 
         {/* Clients table */}
@@ -89,7 +89,7 @@ export default function HomePage() {
                       </td>
                       <td style={styles.td}>
                         {dl !== null ? (
-                          <span className="bebas" style={{ fontSize: 22, color: urgent ? 'var(--red)' : dl < 60 ? 'var(--gold)' : 'var(--text2)' }}>
+                          <span className="bebas" style={{ fontSize: 22, color: urgent ? 'var(--red)' : dl < 60 ? 'var(--orange)' : 'var(--text2)' }}>
                             {dl}
                           </span>
                         ) : <span style={{ color: 'var(--text3)' }}>—</span>}
@@ -125,7 +125,7 @@ export default function HomePage() {
                       {shootDate(s.shoot_date)} · {s.time_start || '—'} · {s.operator?.name || '—'}
                     </div>
                   </div>
-                  <span className={`badge badge-${s.status === 'confirmed' ? 'green' : s.status === 'done' ? 'dim' : 'gold'}`}>
+                  <span className={`badge badge-${s.status === 'confirmed' ? 'green' : s.status === 'done' ? 'dim' : 'orange'}`}>
                     {{ planned: 'План', confirmed: 'Подтв.', done: 'Готово', cancelled: 'Отмена' }[s.status]}
                   </span>
                 </div>
@@ -139,7 +139,7 @@ export default function HomePage() {
 }
 
 function StatCard({ color, icon, value, label, sub }) {
-  const colors = { gold: 'var(--gold)', red: 'var(--red)', green: 'var(--green)', blue: 'var(--blue)' }
+  const colors = { white: 'var(--accent)', red: 'var(--red)', green: 'var(--green)', orange: 'var(--orange)' }
   const c = colors[color]
   return (
     <div style={{ ...styles.statCard, borderColor: `${c}22` }}>

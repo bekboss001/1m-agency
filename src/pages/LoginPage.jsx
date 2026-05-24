@@ -146,7 +146,7 @@ const styles = {
   glow: {
     position: 'absolute',
     width: 600, height: 600,
-    background: 'radial-gradient(circle, rgba(232,184,75,0.07) 0%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 70%)',
     top: '50%', left: '50%',
     transform: 'translate(-50%, -50%)',
     pointerEvents: 'none',
@@ -165,10 +165,9 @@ const styles = {
   logo: {
     fontFamily: "'Bebas Neue', sans-serif",
     fontSize: 72,
-    color: 'var(--gold)',
+    color: 'var(--accent)',
     lineHeight: 1,
     letterSpacing: 4,
-    textShadow: '0 0 60px rgba(232,184,75,0.4)',
   },
   logoSub: {
     fontSize: 11,
@@ -225,7 +224,7 @@ const styles = {
   btnLogin: {
     width: '100%',
     padding: '15px',
-    background: 'var(--gold)',
+    background: 'var(--accent)',
     color: 'var(--black)',
     border: 'none',
     borderRadius: 12,
@@ -233,7 +232,6 @@ const styles = {
     fontSize: 20,
     letterSpacing: 4,
     marginTop: 8,
-    boxShadow: '0 8px 24px rgba(232,184,75,0.25)',
     transition: 'all 0.2s',
     cursor: 'pointer',
   },
@@ -246,8 +244,8 @@ const styles = {
   },
   hint: { color: 'var(--text3)' },
   link: {
-    color: 'var(--gold)',
+    color: 'var(--accent)',
     cursor: 'pointer',
-    fontWeight: 700,
+    fontWeight: 600,
   },
 }

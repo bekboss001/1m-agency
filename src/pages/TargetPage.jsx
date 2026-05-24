@@ -169,15 +169,15 @@ export default function TargetPage() {
   const cpmMsg = stats ? calcCpmMsg(stats.spend, messaging) : null
 
   const metricCards = [
-    { label: 'Охват', value: formatNum(stats?.reach), icon: <Users size={18} />, color: 'var(--blue)' },
+    { label: 'Охват', value: formatNum(stats?.reach), icon: <Users size={18} />, color: 'var(--text2)' },
     { label: 'Показы', value: formatNum(stats?.impressions), icon: <Eye size={18} />, color: 'var(--text2)' },
     { label: 'Клики', value: formatNum(stats?.clicks), icon: <MousePointer size={18} />, color: 'var(--green)' },
-    { label: 'CTR', value: formatCtr(stats?.ctr), icon: <TrendingUp size={18} />, color: 'var(--gold)' },
+    { label: 'CTR', value: formatCtr(stats?.ctr), icon: <TrendingUp size={18} />, color: 'var(--orange)' },
     { label: 'Потрачено', value: formatMoney(stats?.spend), icon: <DollarSign size={18} />, color: 'var(--red)' },
     { label: 'Лиды', value: leads !== null ? formatNum(leads) : '—', icon: <Zap size={18} />, color: 'var(--green)' },
-    { label: 'CPL', value: cpl !== null ? formatMoney(cpl) : '—', icon: <DollarSign size={18} />, color: 'var(--gold)' },
-    { label: 'Переписки', value: messaging !== null ? formatNum(messaging) : '—', icon: <MessageCircle size={18} />, color: 'var(--blue)' },
-    { label: 'Цена за переписку', value: cpmMsg !== null ? formatMoney(cpmMsg) : '—', icon: <DollarSign size={18} />, color: 'var(--gold)' },
+    { label: 'CPL', value: cpl !== null ? formatMoney(cpl) : '—', icon: <DollarSign size={18} />, color: 'var(--orange)' },
+    { label: 'Переписки', value: messaging !== null ? formatNum(messaging) : '—', icon: <MessageCircle size={18} />, color: 'var(--text2)' },
+    { label: 'Цена за переписку', value: cpmMsg !== null ? formatMoney(cpmMsg) : '—', icon: <DollarSign size={18} />, color: 'var(--orange)' },
   ]
 
   return (
@@ -206,7 +206,7 @@ export default function TargetPage() {
             style={styles.clientChip(selectedClient === 'all', null)}
             onClick={() => setSelectedClient('all')}
           >
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--gold)', flexShrink: 0 }} />
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: 'var(--text2)', flexShrink: 0 }} />
             Все
           </button>
           {clients.map(c => (
@@ -261,7 +261,7 @@ export default function TargetPage() {
                       <td style={styles.td}>{s ? formatNum(s.impressions) : '—'}</td>
                       <td style={styles.td}>{s ? formatNum(s.clicks) : '—'}</td>
                       <td style={{ ...styles.td, color: 'var(--red)' }}>{s ? formatMoney(s.spend) : '—'}</td>
-                      <td style={{ ...styles.td, color: 'var(--blue)' }}>{s ? formatNum(extractMessaging(s.actions)) : '—'}</td>
+                      <td style={{ ...styles.td, color: 'var(--text2)' }}>{s ? formatNum(extractMessaging(s.actions)) : '—'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -327,9 +327,9 @@ export default function TargetPage() {
                             <td style={styles.td}>{formatCtr(ins?.ctr)}</td>
                             <td style={{ ...styles.td, color: 'var(--red)' }}>{formatMoney(ins?.spend)}</td>
                             <td style={{ ...styles.td, color: 'var(--green)' }}>{cLeads !== null ? formatNum(cLeads) : '—'}</td>
-                            <td style={{ ...styles.td, color: 'var(--gold)' }}>{cCpl !== null ? formatMoney(cCpl) : '—'}</td>
-                            <td style={{ ...styles.td, color: 'var(--blue)' }}>{cMessaging !== null ? formatNum(cMessaging) : '—'}</td>
-                            <td style={{ ...styles.td, color: 'var(--gold)' }}>{cCpmMsg !== null ? formatMoney(cCpmMsg) : '—'}</td>
+                            <td style={{ ...styles.td, color: 'var(--orange)' }}>{cCpl !== null ? formatMoney(cCpl) : '—'}</td>
+                            <td style={{ ...styles.td, color: 'var(--text2)' }}>{cMessaging !== null ? formatNum(cMessaging) : '—'}</td>
+                            <td style={{ ...styles.td, color: 'var(--orange)' }}>{cCpmMsg !== null ? formatMoney(cCpmMsg) : '—'}</td>
                           </tr>
                         )
                       })}
@@ -362,11 +362,11 @@ const styles = {
   pageTitle: { fontSize: 28, letterSpacing: 2 },
   content: { padding: '28px 32px' },
   clientsRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 24 },
-  clientChip: (active, color) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${active ? (color || 'var(--gold)') : 'var(--border)'}`, background: active ? `${color || 'var(--gold)'}22` : 'var(--surface)', color: active ? (color || 'var(--gold)') : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
+  clientChip: (active, color) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: `1px solid ${active ? (color || 'var(--border2)') : 'var(--border)'}`, background: active ? `${color || '#fff'}16` : 'var(--surface)', color: active ? (color || 'var(--text)') : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
   presets: { display: 'flex', gap: 6 },
-  preset: (active) => ({ padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`, background: active ? 'var(--gold-dim)' : 'var(--surface)', color: active ? 'var(--gold)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
-  errorBox: { background: 'rgba(255,64,96,0.08)', border: '1px solid rgba(255,64,96,0.25)', borderRadius: 12, padding: '14px 18px', color: 'var(--red)', fontSize: 13, marginBottom: 24 },
-  warnBox: { background: 'rgba(232,184,75,0.08)', border: '1px solid rgba(232,184,75,0.25)', borderRadius: 12, padding: '14px 18px', color: 'var(--gold)', fontSize: 13, marginBottom: 24 },
+  preset: (active) => ({ padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: `1px solid ${active ? 'var(--accent)' : 'var(--border2)'}`, background: active ? 'var(--accent-dim)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
+  errorBox: { background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.25)', borderRadius: 12, padding: '14px 18px', color: 'var(--red)', fontSize: 13, marginBottom: 24 },
+  warnBox: { background: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.25)', borderRadius: 12, padding: '14px 18px', color: 'var(--orange)', fontSize: 13, marginBottom: 24 },
   noAccount: { textAlign: 'center', padding: '80px 20px', color: 'var(--text2)' },
   metricsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 32 },
   metricCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 8 },

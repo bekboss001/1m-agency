@@ -108,7 +108,7 @@ export default function ClientsPage() {
         <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Клиенты</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn btn-ghost">Экспорт</button>
-          <button className="btn btn-gold" onClick={() => setShowForm(true)}>
+          <button className="btn btn-white" onClick={() => setShowForm(true)}>
             <Plus size={16} /> Добавить
           </button>
         </div>
@@ -198,7 +198,7 @@ export default function ClientsPage() {
 
                     <td data-label="Дней осталось" style={styles.td}>
                       {dl !== null ? (
-                        <span className="bebas" style={{ fontSize: 22, color: urgent ? 'var(--red)' : dl < 60 ? 'var(--gold)' : 'var(--text2)' }}>{dl}</span>
+                        <span className="bebas" style={{ fontSize: 22, color: urgent ? 'var(--red)' : dl < 60 ? 'var(--orange)' : 'var(--text2)' }}>{dl}</span>
                       ) : <span style={{ color: 'var(--text3)' }}>—</span>}
                     </td>
 
@@ -267,7 +267,7 @@ export default function ClientsPage() {
                         />
                       ) : (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span className="bebas" style={{ fontSize: 20, color: published === 0 ? 'var(--red)' : published >= (c.total_posts || 0) ? 'var(--green)' : 'var(--gold)' }}>
+                          <span className="bebas" style={{ fontSize: 20, color: published === 0 ? 'var(--red)' : published >= (c.total_posts || 0) ? 'var(--green)' : 'var(--orange)' }}>
                             {published}
                           </span>
                         </div>
@@ -284,7 +284,7 @@ export default function ClientsPage() {
                     {/* Дней назад — автоматически из last_post_date */}
                     <td data-label="Дней назад" style={styles.td}>
                       {ds !== null ? (
-                        <span className="bebas" style={{ fontSize: 20, color: ds === 0 ? 'var(--green)' : ds <= 3 ? 'var(--gold)' : 'var(--red)' }}>
+                        <span className="bebas" style={{ fontSize: 20, color: ds === 0 ? 'var(--green)' : ds <= 3 ? 'var(--orange)' : 'var(--red)' }}>
                           {ds}
                         </span>
                       ) : <span style={{ color: 'var(--text3)' }}>—</span>}
@@ -340,7 +340,7 @@ export default function ClientsPage() {
                           placeholder="ID аккаунта"
                         />
                       ) : (
-                        <span style={{ fontSize: 12, color: c.meta_account_id ? 'var(--blue)' : 'var(--text3)', fontFamily: 'monospace' }}>
+                        <span style={{ fontSize: 12, color: c.meta_account_id ? 'var(--text2)' : 'var(--text3)', fontFamily: "'DM Mono', monospace" }}>
                           {c.meta_account_id || '— нажми —'}
                         </span>
                       )}
@@ -396,7 +396,7 @@ export default function ClientsPage() {
               <Field label="Комментарий"><textarea style={{ ...styles.input, height: 72, resize: 'vertical' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></Field>
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Отмена</button>
-                <button type="submit" className="btn btn-gold" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
+                <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
               </div>
             </form>
           </div>
@@ -435,10 +435,10 @@ const styles = {
   searchInput: { background: 'none', border: 'none', outline: 'none', fontSize: 13, color: 'var(--text)', width: '100%' },
   chips: { display: 'flex', gap: 6, flexWrap: 'wrap' },
   chip: (active) => ({
-    padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-    border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`,
-    background: active ? 'var(--gold-dim)' : 'var(--surface)',
-    color: active ? 'var(--gold)' : 'var(--text2)',
+    padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: `1px solid ${active ? 'var(--accent)' : 'var(--border2)'}`,
+    background: active ? 'var(--accent-dim)' : 'var(--surface)',
+    color: active ? 'var(--accent)' : 'var(--text2)',
     cursor: 'pointer', transition: 'all 0.15s',
   }),
   hint: {
@@ -464,7 +464,7 @@ const styles = {
   },
   cellInput: {
     background: 'var(--black)',
-    border: '1px solid var(--gold)',
+    border: '1px solid var(--border2)',
     borderRadius: 6,
     padding: '5px 8px',
     fontSize: 13,

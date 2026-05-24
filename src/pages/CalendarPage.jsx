@@ -4,10 +4,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 
 const TYPE_COLORS = {
-  reels:    '#4A7CFF',
-  post:     '#2ECC8A',
-  carousel: '#E8B84B',
-  stories:  '#FF4060',
+  reels:    '#6666ff',
+  post:     '#3ddc84',
+  carousel: '#ff9900',
+  stories:  '#ff4444',
 }
 
 const TYPE_LABELS = {
@@ -19,9 +19,9 @@ const TYPE_LABELS = {
 
 const STATUS_COLORS = {
   idea:        'var(--text3)',
-  in_progress: '#FF8C42',
-  review:      '#E8B84B',
-  published:   '#2ECC8A',
+  in_progress: '#ff4444',
+  review:      '#ff9900',
+  published:   '#3ddc84',
 }
 
 const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
@@ -141,7 +141,7 @@ export default function CalendarPage() {
             </div>
             <div style={styles.statPill}>
               <span style={{ color: 'var(--text3)', fontSize: 11 }}>Reels</span>
-              <span style={{ color: '#4A7CFF', fontWeight: 800 }} className="bebas">{reelsPosts}</span>
+              <span style={{ color: '#6666ff', fontWeight: 800 }} className="bebas">{reelsPosts}</span>
             </div>
           </div>
         </div>
@@ -151,7 +151,7 @@ export default function CalendarPage() {
         {/* Client filter */}
         <div style={styles.clientsRow}>
           <button
-            style={styles.clientChip(selectedClient === 'all', 'var(--gold)')}
+            style={styles.clientChip(selectedClient === 'all', 'var(--accent)')}
             onClick={() => setSelectedClient('all')}
           >
             Все клиенты
@@ -210,15 +210,15 @@ export default function CalendarPage() {
                   style={{
                     ...styles.dayCell,
                     minHeight: isMobile ? 60 : 110,
-                    background: isTodayDay ? 'rgba(232,184,75,0.06)' : 'transparent',
-                    borderColor: isTodayDay ? 'rgba(232,184,75,0.3)' : 'var(--border)',
+                    background: isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    borderColor: isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)',
                     opacity: day.current ? 1 : 0.3,
                   }}
                 >
                   <div style={{
                     ...styles.dayNum,
-                    color: isTodayDay ? 'var(--gold)' : isWeekend ? 'var(--red)' : 'var(--text2)',
-                    background: isTodayDay ? 'rgba(232,184,75,0.15)' : 'transparent',
+                    color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)',
+                    background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent',
                     borderRadius: isTodayDay ? 6 : 0,
                     padding: isTodayDay ? '2px 6px' : '2px 0',
                   }} className="bebas">
@@ -262,7 +262,7 @@ export default function CalendarPage() {
           <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={{ ...styles.modalTop, borderBottomColor: TYPE_COLORS[selectedPost.post_type] || 'var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <div style={{ width: 4, height: 40, borderRadius: 2, background: TYPE_COLORS[selectedPost.post_type] || 'var(--gold)', flexShrink: 0 }} />
+                <div style={{ width: 4, height: 40, borderRadius: 2, background: TYPE_COLORS[selectedPost.post_type] || 'var(--text2)', flexShrink: 0 }} />
                 <div>
                   <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 3 }}>
                     {TYPE_LABELS[selectedPost.post_type]} · {selectedPost.client?.name}
@@ -327,10 +327,10 @@ const styles = {
   clientsRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 },
   clientChip: (active, color) => ({
     display: 'flex', alignItems: 'center', gap: 7,
-    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700,
-    border: `1px solid ${active ? color || 'var(--gold)' : 'var(--border)'}`,
+    padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+    border: `1px solid ${active ? color || 'var(--border2)' : 'var(--border)'}`,
     background: active ? `${color}22` : 'var(--surface)',
-    color: active ? color || 'var(--gold)' : 'var(--text2)',
+    color: active ? color || 'var(--text)' : 'var(--text2)',
     cursor: 'pointer', transition: 'all 0.15s',
   }),
   legendRow: { display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' },

@@ -5,9 +5,9 @@ import { useMediaQuery } from '../lib/useMediaQuery'
 import { Plus, X, Video, Image, AlignLeft, Layers } from 'lucide-react'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
-const STATUS_COLORS = { idea: 'badge-dim', in_progress: 'badge-red', review: 'badge-gold', published: 'badge-green' }
+const STATUS_COLORS = { idea: 'badge-dim', in_progress: 'badge-red', review: 'badge-orange', published: 'badge-green' }
 const TYPE_ICONS = { reels: <Video size={14} />, post: <AlignLeft size={14} />, carousel: <Layers size={14} />, stories: <Image size={14} /> }
-const TYPE_COLORS = { reels: 'rgba(74,124,255,0.15)', post: 'rgba(46,204,138,0.12)', carousel: 'rgba(232,184,75,0.12)', stories: 'rgba(255,64,96,0.1)' }
+const TYPE_COLORS = { reels: 'rgba(102,102,255,0.15)', post: 'rgba(61,220,132,0.12)', carousel: 'rgba(255,153,0,0.12)', stories: 'rgba(255,68,68,0.1)' }
 
 export default function ContentPage() {
   const { profile, loading: profileLoading } = useProfile()
@@ -87,7 +87,7 @@ export default function ContentPage() {
       <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
         <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Контент-план</div>
         {!isClient && (
-          <button className="btn btn-gold" onClick={() => setShowForm(true)} disabled={!selectedClient}>
+          <button className="btn btn-white" onClick={() => setShowForm(true)} disabled={!selectedClient}>
             <Plus size={16} /> Добавить пост
           </button>
         )}
@@ -109,7 +109,7 @@ export default function ContentPage() {
           <div style={{ ...styles.statsBar, display: isMobile ? 'grid' : 'flex', gridTemplateColumns: isMobile ? '1fr 1fr' : undefined, gap: isMobile ? 12 : 24 }}>
             <div style={styles.statItem}><span style={styles.statVal} className="bebas">{posts.length}</span><span style={styles.statLbl}>Всего</span></div>
             <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--green)' }} className="bebas">{published}</span><span style={styles.statLbl}>Опубликовано</span></div>
-            <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--gold)' }} className="bebas">{posts.filter(p => p.status === 'review').length}</span><span style={styles.statLbl}>На проверке</span></div>
+            <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--orange)' }} className="bebas">{posts.filter(p => p.status === 'review').length}</span><span style={styles.statLbl}>На проверке</span></div>
             <div style={styles.statItem}><span style={{ ...styles.statVal, color: 'var(--red)' }} className="bebas">{posts.filter(p => p.status === 'in_progress').length}</span><span style={styles.statLbl}>В работе</span></div>
           </div>
         )}
@@ -135,7 +135,7 @@ export default function ContentPage() {
                   <div style={styles.postMeta}>
                     {post.post_type && <span style={{ textTransform: 'capitalize' }}>{post.post_type}</span>}
                     {post.publish_date && <span> · {formatDate(post.publish_date)}</span>}
-                    {post.smm?.name && <span style={{ color: 'var(--blue)' }}> · СММ: {post.smm.name}</span>}
+                    {post.smm?.name && <span style={{ color: 'var(--text2)' }}> · СММ: {post.smm.name}</span>}
                     {post.operator?.name && <span style={{ color: 'var(--green)' }}> · Опер: {post.operator.name}</span>}
                   </div>
                   {post.notes && <div style={styles.postNotes}>{post.notes}</div>}
@@ -208,7 +208,7 @@ export default function ContentPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Отмена</button>
-                <button type="submit" className="btn btn-gold" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Добавить пост'}</button>
+                <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Добавить пост'}</button>
               </div>
             </form>
           </div>
@@ -224,7 +224,7 @@ const styles = {
   pageTitle: { fontSize: 28, letterSpacing: 2 },
   content: { padding: '24px 32px' },
   clientsRow: { display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 },
-  clientChip: (active, color) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${active ? color || 'var(--gold)' : 'var(--border)'}`, background: active ? `${color}22` || 'var(--gold-dim)' : 'var(--surface)', color: active ? color || 'var(--gold)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
+  clientChip: (active, color) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: `1px solid ${active ? color || 'var(--border2)' : 'var(--border)'}`, background: active ? `${color}22` || 'var(--accent-dim)' : 'var(--surface)', color: active ? color || 'var(--text)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
   statsBar: { display: 'flex', gap: 24, marginBottom: 24, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 24px' },
   statItem: { display: 'flex', alignItems: 'center', gap: 10 },
   statVal: { fontSize: 32, color: 'var(--text)', lineHeight: 1 },

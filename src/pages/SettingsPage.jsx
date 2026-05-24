@@ -4,7 +4,7 @@ import { Plus, X, Check, Trash2, UserCheck, Users, Shield, Lock, Link } from 'lu
 import { useMediaQuery } from '../lib/useMediaQuery'
 
 const SYSTEM_ROLE_LABELS = { admin: 'Администратор', smm: 'СММ', operator: 'Оператор', client: 'Клиент', pending: 'Ожидает' }
-const ROLE_COLORS = { admin: 'var(--gold)', smm: 'var(--blue)', operator: 'var(--green)', client: 'var(--text2)', pending: 'var(--red)' }
+const ROLE_COLORS = { admin: 'var(--accent)', smm: 'var(--text2)', operator: 'var(--green)', client: 'var(--text2)', pending: 'var(--red)' }
 
 const PAGE_LABELS = {
   dashboard: 'Дашборд',
@@ -149,12 +149,12 @@ export default function SettingsPage() {
         <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Настройки</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {activeTab === 'employees' && (
-            <button className="btn btn-gold" onClick={() => setShowEmpForm(true)}>
+            <button className="btn btn-white" onClick={() => setShowEmpForm(true)}>
               <Plus size={16} /> Добавить сотрудника
             </button>
           )}
           {activeTab === 'roles' && (
-            <button className="btn btn-gold" onClick={() => { setEditingRole(null); setRoleForm({ name: '', label: '', permissions: { dashboard: false, clients: false, content: false, calendar: false, shoots: false, settings: false } }); setShowRoleForm(true) }}>
+            <button className="btn btn-white" onClick={() => { setEditingRole(null); setRoleForm({ name: '', label: '', permissions: { dashboard: false, clients: false, content: false, calendar: false, shoots: false, settings: false } }); setShowRoleForm(true) }}>
               <Plus size={16} /> Новая роль
             </button>
           )}
@@ -276,16 +276,16 @@ export default function SettingsPage() {
                     style={{
                       ...styles.userCard,
                       cursor: 'pointer',
-                      borderColor: selectedUser?.id === user.id ? 'var(--gold)' : 'var(--border)',
-                      background: selectedUser?.id === user.id ? 'var(--gold-dim)' : 'var(--surface)',
+                      borderColor: selectedUser?.id === user.id ? 'var(--border2)' : 'var(--border)',
+                      background: selectedUser?.id === user.id ? 'var(--accent-dim)' : 'var(--surface)',
                     }}
                     onClick={() => setSelectedUser(user)}
                   >
-                    <div style={{ ...styles.userAvatar, background: selectedUser?.id === user.id ? 'var(--gold)' : 'var(--surface3)', color: selectedUser?.id === user.id ? 'var(--black)' : 'var(--text)' }}>
+                    <div style={{ ...styles.userAvatar, background: selectedUser?.id === user.id ? 'var(--surface3)' : 'var(--surface3)', color: 'var(--text)' }}>
                       {(user.full_name || user.email)?.[0]?.toUpperCase()}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 13, color: selectedUser?.id === user.id ? 'var(--gold)' : 'var(--text)' }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--text)' }}>
                         {user.full_name || 'Без имени'}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email}</div>
@@ -323,16 +323,16 @@ export default function SettingsPage() {
                           style={{
                             display: 'flex', alignItems: 'center', gap: 12,
                             padding: '12px 16px', borderRadius: 12, cursor: 'pointer',
-                            border: `1px solid ${isAssigned ? client.color || 'var(--gold)' : 'var(--border)'}`,
-                            background: isAssigned ? `${client.color || 'var(--gold)'}15` : 'var(--surface)',
+                            border: `1px solid ${isAssigned ? client.color || 'var(--border2)' : 'var(--border)'}`,
+                            background: isAssigned ? `${client.color || '#fff'}12` : 'var(--surface)',
                             transition: 'all 0.15s',
                           }}
                           onClick={() => toggleClientUser(client.id, selectedUser.id, isAssigned)}
                         >
                           <div style={{
                             width: 20, height: 20, borderRadius: 6,
-                            border: `2px solid ${isAssigned ? client.color || 'var(--gold)' : 'var(--border)'}`,
-                            background: isAssigned ? client.color || 'var(--gold)' : 'transparent',
+                            border: `2px solid ${isAssigned ? client.color || 'var(--border2)' : 'var(--border)'}`,
+                            background: isAssigned ? client.color || 'var(--text2)' : 'transparent',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             flexShrink: 0, transition: 'all 0.15s',
                           }}>
@@ -409,7 +409,7 @@ export default function SettingsPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowEmpForm(false)}>Отмена</button>
-                <button type="submit" className="btn btn-gold" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Добавить'}</button>
+                <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Добавить'}</button>
               </div>
             </form>
           </div>
@@ -449,7 +449,7 @@ export default function SettingsPage() {
               </div>
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowRoleForm(false)}>Отмена</button>
-                <button type="submit" className="btn btn-gold" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
+                <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
               </div>
             </form>
           </div>
@@ -460,7 +460,7 @@ export default function SettingsPage() {
 }
 
 function EmployeeCard({ emp, onDelete }) {
-  const roleColors = { smm: 'var(--blue)', operator: 'var(--green)' }
+  const roleColors = { smm: 'var(--text2)', operator: 'var(--green)' }
   const roleLabels = { smm: 'СММ', operator: 'Оператор' }
   return (
     <div style={cardStyles.wrap}>
@@ -481,7 +481,7 @@ function EmptyCard({ text }) {
 
 const cardStyles = {
   wrap: { display: 'flex', alignItems: 'center', gap: 14, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '14px 16px' },
-  avatar: { width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 800, color: 'var(--black)', flexShrink: 0 },
+  avatar: { width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, color: 'var(--black)', flexShrink: 0 },
   deleteBtn: { background: 'rgba(255,64,96,0.1)', border: '1px solid rgba(255,64,96,0.2)', borderRadius: 7, padding: '6px 8px', color: 'var(--red)', cursor: 'pointer', display: 'flex', alignItems: 'center' },
 }
 
@@ -491,7 +491,7 @@ const styles = {
   pageTitle: { fontSize: 28, letterSpacing: 2 },
   content: { padding: '24px 32px' },
   tabs: { display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' },
-  tab: (active) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 10, fontSize: 13, fontWeight: 700, border: `1px solid ${active ? 'var(--gold)' : 'var(--border)'}`, background: active ? 'var(--gold-dim)' : 'var(--surface)', color: active ? 'var(--gold)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
+  tab: (active) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 20px', borderRadius: 10, fontSize: 13, fontWeight: 600, border: `1px solid ${active ? 'var(--border2)' : 'var(--border)'}`, background: active ? 'var(--accent-dim)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
   badge: { background: 'var(--red)', color: '#fff', fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20 },
   sectionTitle: { fontSize: 16, letterSpacing: 2, color: 'var(--text2)', marginBottom: 12 },
   cardsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 },

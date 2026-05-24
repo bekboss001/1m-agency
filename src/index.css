@@ -1,25 +1,24 @@
 :root {
-  --black: #080810;
-  --surface: #0F0F1A;
-  --surface2: #161625;
-  --surface3: #1E1E30;
-  --border: #2A2A40;
-  --border2: #333350;
-  --gold: #E8B84B;
-  --gold2: #F5D070;
-  --gold-dim: rgba(232,184,75,0.12);
-  --text: #F0F0F8;
-  --text2: #8888AA;
-  --text3: #555570;
-  --red: #FF4060;
-  --green: #2ECC8A;
-  --blue: #4A7CFF;
+  --black: #080808;
+  --surface: #0e0e0e;
+  --surface2: #141414;
+  --surface3: #1a1a1a;
+  --border: #1e1e1e;
+  --border2: #2a2a2a;
+  --accent: #ffffff;
+  --accent-dim: rgba(255,255,255,0.06);
+  --text: #ffffff;
+  --text2: #888888;
+  --text3: #444444;
+  --red: #ff4444;
+  --orange: #ff9900;
+  --green: #3ddc84;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'Manrope', sans-serif;
+  font-family: 'DM Sans', sans-serif;
   background: var(--black);
   color: var(--text);
   min-height: 100vh;
@@ -30,10 +29,11 @@ body {
 ::-webkit-scrollbar-track { background: var(--surface); }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 
-button { cursor: pointer; font-family: 'Manrope', sans-serif; }
-input, select, textarea { font-family: 'Manrope', sans-serif; }
+button { cursor: pointer; font-family: 'DM Sans', sans-serif; }
+input, select, textarea { font-family: 'DM Sans', sans-serif; }
 
 .bebas { font-family: 'Bebas Neue', sans-serif; }
+.mono { font-family: 'DM Mono', monospace; }
 
 /* Badges */
 .badge {
@@ -42,13 +42,14 @@ input, select, textarea { font-family: 'Manrope', sans-serif; }
   padding: 3px 10px;
   border-radius: 6px;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   white-space: nowrap;
+  letter-spacing: 0.3px;
 }
-.badge-red    { background: rgba(255,64,96,0.15);   color: var(--red); }
-.badge-green  { background: rgba(46,204,138,0.15);  color: var(--green); }
-.badge-gold   { background: var(--gold-dim);         color: var(--gold); }
-.badge-blue   { background: rgba(74,124,255,0.15);  color: var(--blue); }
+.badge-red    { background: rgba(255,68,68,0.12);   color: var(--red); }
+.badge-green  { background: rgba(61,220,132,0.12);  color: var(--green); }
+.badge-orange { background: rgba(255,153,0,0.12);   color: var(--orange); }
+.badge-white  { background: rgba(255,255,255,0.08); color: var(--text); }
 .badge-dim    { background: var(--surface3);         color: var(--text3); }
 
 /* Buttons */
@@ -59,27 +60,27 @@ input, select, textarea { font-family: 'Manrope', sans-serif; }
   padding: 9px 20px;
   border-radius: 10px;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   border: none;
   transition: all 0.2s;
 }
-.btn-gold {
-  background: var(--gold);
+.btn-white {
+  background: var(--accent);
   color: var(--black);
 }
-.btn-gold:hover { background: var(--gold2); transform: translateY(-1px); }
+.btn-white:hover { background: #e0e0e0; transform: translateY(-1px); }
 .btn-ghost {
   background: var(--surface2);
   color: var(--text2);
-  border: 1px solid var(--border);
+  border: 1px solid var(--border2);
 }
 .btn-ghost:hover { border-color: var(--border2); color: var(--text); }
 
 /* Progress bar */
 .prog-wrap { display: flex; align-items: center; gap: 8px; }
-.prog-bar { flex: 1; height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; min-width: 60px; }
-.prog-fill { height: 100%; border-radius: 3px; }
-.prog-label { font-size: 12px; font-weight: 700; min-width: 32px; text-align: right; }
+.prog-bar { flex: 1; height: 4px; background: var(--surface3); border-radius: 2px; overflow: hidden; min-width: 60px; }
+.prog-fill { height: 100%; border-radius: 2px; }
+.prog-label { font-size: 12px; font-weight: 600; min-width: 32px; text-align: right; font-family: 'DM Mono', monospace; }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(10px); }
@@ -93,7 +94,7 @@ input, select, textarea { font-family: 'Manrope', sans-serif; }
 .spinner {
   width: 20px; height: 20px;
   border: 2px solid var(--border2);
-  border-top-color: var(--gold);
+  border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
