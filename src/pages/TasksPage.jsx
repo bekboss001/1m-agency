@@ -28,6 +28,7 @@ export default function TasksPage() {
   const [showForm, setShowForm] = useState(null)
   const [form, setForm] = useState({ title: '', description: '', priority: 'medium', assignee_id: '', client_id: '', deadline: '' })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [selectedTask, setSelectedTask] = useState(null)
   const [comments, setComments] = useState([])
   const [newComment, setNewComment] = useState('')
@@ -94,13 +95,18 @@ export default function TasksPage() {
   async function saveTask(e) {
     e.preventDefault()
     setSaving(true)
+    setSaveError('')
     const payload = { ...form, status: showForm }
     if (!payload.assignee_id) delete payload.assignee_id
     if (!payload.client_id) delete payload.client_id
     if (!payload.deadline) delete payload.deadline
     if (!payload.description) delete payload.description
-    await supabase.from('tasks').insert(payload)
+    const { error } = await supabase.from('tasks').insert(payload)
     setSaving(false)
+    if (error) {
+      setSaveError(error.message)
+      return
+    }
     setShowForm(null)
     loadData()
   }
@@ -299,6 +305,11 @@ export default function TasksPage() {
                   </select>
                 </div>
               </div>
+              {saveError && (
+                <div style={{ background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.25)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--red)', marginBottom: 12 }}>
+                  {saveError}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 10 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(null)}>Отмена</button>
                 <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Создать задачу'}</button>
