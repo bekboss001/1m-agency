@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
@@ -22,6 +22,9 @@ export default function ShootsPage() {
   const [formDate, setFormDate] = useState('')
   const [form, setForm] = useState({ client_id: '', operator_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
   const [saving, setSaving] = useState(false)
+  const [draggedShootId, setDraggedShootId] = useState(null)
+  const [dragOverDate, setDragOverDate] = useState(null)
+  const dropJustHappened = useRef(false)
 
   useEffect(() => { loadData() }, [year, month])
 
@@ -112,6 +115,22 @@ export default function ShootsPage() {
     loadData()
   }
 
+  function handleShootDragStart(e, shootId) {
+    setDraggedShootId(shootId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  async function handleDayDrop(e, dateStr) {
+    e.preventDefault()
+    setDragOverDate(null)
+    if (!draggedShootId) return
+    dropJustHappened.current = true
+    setTimeout(() => { dropJustHappened.current = false }, 100)
+    setShoots(prev => prev.map(s => s.id === draggedShootId ? { ...s, shoot_date: dateStr } : s))
+    await supabase.from('shoots').update({ shoot_date: dateStr }).eq('id', draggedShootId)
+    setDraggedShootId(null)
+  }
+
   const totalShoots = shoots.length
   const confirmedShoots = shoots.filter(s => s.status === 'confirmed').length
 
@@ -169,6 +188,8 @@ export default function ShootsPage() {
               const dayShootsList = getShootsForDay(day.date)
               const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
               const isTodayDay = isToday(day.date)
+              const dateStr = day.date.toISOString().split('T')[0]
+              const isDragOver = dragOverDate === dateStr && day.current
 
               return (
                 <div
@@ -176,12 +197,16 @@ export default function ShootsPage() {
                   style={{
                     ...styles.dayCell,
                     minHeight: isMobile ? 60 : 110,
-                    background: isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent',
-                    borderColor: isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)',
+                    background: isDragOver ? 'rgba(255,255,255,0.08)' : isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    borderColor: isDragOver ? 'rgba(255,255,255,0.4)' : isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)',
                     opacity: day.current ? 1 : 0.3,
                     cursor: day.current ? 'pointer' : 'default',
+                    transition: 'background 0.1s, border-color 0.1s',
                   }}
-                  onClick={() => day.current && openAddForm(day.date)}
+                  onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dateStr) } : undefined}
+                  onDragLeave={() => setDragOverDate(null)}
+                  onDrop={day.current ? e => handleDayDrop(e, dateStr) : undefined}
+                  onClick={() => !dropJustHappened.current && day.current && openAddForm(day.date)}
                 >
                   <div style={{
                     ...styles.dayNum,
@@ -197,12 +222,18 @@ export default function ShootsPage() {
                     {dayShootsList.slice(0, 3).map(shoot => (
                       <div
                         key={shoot.id}
+                        draggable
                         style={{
                           ...styles.shootChip,
                           borderLeftColor: shoot.client?.color || 'var(--border2)',
                           background: `${shoot.client?.color || '#888'}18`,
+                          opacity: draggedShootId === shoot.id ? 0.4 : 1,
+                          cursor: 'grab',
+                          transition: 'opacity 0.15s',
                         }}
-                        onClick={e => { e.stopPropagation(); setSelectedShoot(shoot) }}
+                        onDragStart={e => { e.stopPropagation(); handleShootDragStart(e, shoot.id) }}
+                        onDragEnd={() => setDraggedShootId(null)}
+                        onClick={e => { e.stopPropagation(); if (!dropJustHappened.current) setSelectedShoot(shoot) }}
                       >
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_COLORS[shoot.status], flexShrink: 0 }} />
                         <span style={{ ...styles.shootChipText, maxWidth: isMobile ? 60 : 110 }}>

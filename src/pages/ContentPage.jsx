@@ -1,13 +1,16 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import { Plus, X, Video, Image, AlignLeft, Layers } from 'lucide-react'
+import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
 const STATUS_COLORS = { idea: 'badge-dim', in_progress: 'badge-red', review: 'badge-orange', published: 'badge-green' }
-const TYPE_ICONS = { reels: <Video size={14} />, post: <AlignLeft size={14} />, carousel: <Layers size={14} />, stories: <Image size={14} /> }
+const STATUS_HEX = { idea: '#555555', in_progress: '#ff4444', review: '#ff9900', published: '#3ddc84' }
+const TYPE_ICONS = { reels: <Video size={12} />, post: <AlignLeft size={12} />, carousel: <Layers size={12} />, stories: <Image size={12} /> }
 const TYPE_COLORS = { reels: 'rgba(102,102,255,0.15)', post: 'rgba(61,220,132,0.12)', carousel: 'rgba(255,153,0,0.12)', stories: 'rgba(255,68,68,0.1)' }
+const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
 
 export default function ContentPage() {
   const { profile, loading: profileLoading } = useProfile()
@@ -19,6 +22,12 @@ export default function ContentPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
   const [saving, setSaving] = useState(false)
+  const [view, setView] = useState('list')
+  const [calYear, setCalYear] = useState(() => new Date().getFullYear())
+  const [calMonth, setCalMonth] = useState(() => new Date().getMonth())
+  const [draggedPostId, setDraggedPostId] = useState(null)
+  const [dragOverDate, setDragOverDate] = useState(null)
+  const dropJustHappened = useRef(false)
 
   const isClient = profile?.role === 'client'
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -27,12 +36,10 @@ export default function ContentPage() {
     if (profileLoading) return
     async function load() {
       let clientsQuery = supabase.from('clients').select('id, name, color, number').eq('is_active', true).order('number')
-
       if (isClient) {
         if (!profile.client_id) { setLoading(false); return }
         clientsQuery = clientsQuery.eq('id', profile.client_id)
       }
-
       const [{ data: c }, { data: e }] = await Promise.all([
         clientsQuery,
         supabase.from('employees').select('*').order('name'),
@@ -76,21 +83,93 @@ export default function ContentPage() {
     loadPosts(selectedClient)
   }
 
+  function buildCalendar() {
+    const firstDay = new Date(calYear, calMonth, 1)
+    const startDow = (firstDay.getDay() + 6) % 7
+    const totalDays = new Date(calYear, calMonth + 1, 0).getDate()
+    const days = []
+    for (let i = 0; i < startDow; i++) days.push({ date: new Date(calYear, calMonth, -startDow + i + 1), current: false })
+    for (let d = 1; d <= totalDays; d++) days.push({ date: new Date(calYear, calMonth, d), current: true })
+    const remaining = 42 - days.length
+    for (let d = 1; d <= remaining; d++) days.push({ date: new Date(calYear, calMonth + 1, d), current: false })
+    return days
+  }
+
+  function prevCalMonth() {
+    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) }
+    else setCalMonth(m => m - 1)
+  }
+
+  function nextCalMonth() {
+    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) }
+    else setCalMonth(m => m + 1)
+  }
+
+  function localStr(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  }
+
+  function getPostsForDay(dateStr) {
+    return posts.filter(p => p.publish_date === dateStr)
+  }
+
+  function handlePostDragStart(e, postId) {
+    if (isClient) return
+    setDraggedPostId(postId)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+
+  async function handleCalDrop(e, dateStr) {
+    e.preventDefault()
+    setDragOverDate(null)
+    if (!draggedPostId || isClient) return
+    dropJustHappened.current = true
+    setTimeout(() => { dropJustHappened.current = false }, 100)
+    setPosts(prev => prev.map(p => p.id === draggedPostId ? { ...p, publish_date: dateStr } : p))
+    await supabase.from('posts').update({ publish_date: dateStr }).eq('id', draggedPostId)
+    setDraggedPostId(null)
+  }
+
+  async function handleUnscheduleDrop(e) {
+    e.preventDefault()
+    setDragOverDate(null)
+    if (!draggedPostId || isClient) return
+    dropJustHappened.current = true
+    setTimeout(() => { dropJustHappened.current = false }, 100)
+    setPosts(prev => prev.map(p => p.id === draggedPostId ? { ...p, publish_date: null } : p))
+    await supabase.from('posts').update({ publish_date: null }).eq('id', draggedPostId)
+    setDraggedPostId(null)
+  }
+
   const client = clients.find(c => c.id === selectedClient)
   const published = posts.filter(p => p.status === 'published').length
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'
   const smms = employees.filter(e => e.role === 'smm')
   const operators = employees.filter(e => e.role === 'operator')
+  const todayStr = localStr(new Date())
+  const unscheduledPosts = posts.filter(p => !p.publish_date)
 
   return (
     <div style={styles.wrap} className="fade-up">
       <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
         <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Контент-план</div>
-        {!isClient && (
-          <button className="btn btn-white" onClick={() => setShowForm(true)} disabled={!selectedClient}>
-            <Plus size={16} /> Добавить пост
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={styles.viewToggle}>
+            <button
+              style={{ ...styles.viewBtn, background: view === 'list' ? 'var(--surface3)' : 'transparent', color: view === 'list' ? 'var(--text)' : 'var(--text3)' }}
+              onClick={() => setView('list')}
+            >Список</button>
+            <button
+              style={{ ...styles.viewBtn, background: view === 'calendar' ? 'var(--surface3)' : 'transparent', color: view === 'calendar' ? 'var(--text)' : 'var(--text3)' }}
+              onClick={() => setView('calendar')}
+            >Календарь</button>
+          </div>
+          {!isClient && (
+            <button className="btn btn-white" onClick={() => setShowForm(true)} disabled={!selectedClient}>
+              <Plus size={16} /> Добавить пост
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ ...styles.content, padding: isMobile ? '16px' : '24px 32px' }}>
@@ -114,9 +193,153 @@ export default function ContentPage() {
           </div>
         )}
 
-        {/* Posts */}
+        {/* Content view */}
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><div className="spinner" /></div>
+        ) : view === 'calendar' ? (
+          <div>
+            {/* Month navigation */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <button style={styles.calNavBtn} onClick={prevCalMonth}><ChevronLeft size={16} /></button>
+              <div style={{ fontSize: isMobile ? 18 : 22, letterSpacing: 2, minWidth: isMobile ? 140 : 180, textAlign: 'center' }} className="bebas">
+                {MONTHS[calMonth]} {calYear}
+              </div>
+              <button style={styles.calNavBtn} onClick={nextCalMonth}><ChevronRight size={16} /></button>
+            </div>
+
+            {/* Calendar grid */}
+            <div style={styles.calendarWrap}>
+              <div style={styles.weekdaysRow}>
+                {WEEKDAYS.map(d => (
+                  <div key={d} style={{ ...styles.weekday, color: d === 'СБ' || d === 'ВС' ? 'var(--red)' : 'var(--text3)' }}>{d}</div>
+                ))}
+              </div>
+              <div style={styles.daysGrid}>
+                {buildCalendar().map((day, idx) => {
+                  const dateStr = localStr(day.date)
+                  const dayPosts = getPostsForDay(dateStr)
+                  const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
+                  const isTodayDay = dateStr === todayStr
+                  const isDragOver = dragOverDate === dateStr && day.current
+                  const maxVisible = isMobile ? 2 : 3
+
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        minHeight: isMobile ? 60 : 100,
+                        padding: '6px',
+                        border: '1px solid',
+                        borderColor: isDragOver ? 'rgba(255,255,255,0.4)' : isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)',
+                        background: isDragOver ? 'rgba(255,255,255,0.06)' : isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent',
+                        opacity: day.current ? 1 : 0.3,
+                        transition: 'background 0.1s, border-color 0.1s',
+                      }}
+                      onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dateStr) } : undefined}
+                      onDragLeave={() => setDragOverDate(null)}
+                      onDrop={day.current ? e => handleCalDrop(e, dateStr) : undefined}
+                    >
+                      <div style={{
+                        fontSize: isMobile ? 13 : 15,
+                        fontWeight: 700,
+                        marginBottom: 4,
+                        color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)',
+                        display: 'inline-block',
+                        background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent',
+                        borderRadius: isTodayDay ? 6 : 0,
+                        padding: isTodayDay ? '2px 6px' : '2px 0',
+                      }} className="bebas">
+                        {day.date.getDate()}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        {dayPosts.slice(0, maxVisible).map(post => (
+                          <div
+                            key={post.id}
+                            draggable={!isClient}
+                            onDragStart={e => { e.stopPropagation(); handlePostDragStart(e, post.id) }}
+                            onDragEnd={() => setDraggedPostId(null)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 4,
+                              padding: '2px 5px', borderRadius: 4,
+                              borderLeft: `3px solid ${STATUS_HEX[post.status] || '#555'}`,
+                              background: TYPE_COLORS[post.post_type] || 'var(--surface3)',
+                              cursor: isClient ? 'default' : 'grab',
+                              opacity: draggedPostId === post.id ? 0.4 : 1,
+                              transition: 'opacity 0.15s',
+                            }}
+                          >
+                            <span style={{ color: 'var(--text2)', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
+                              {TYPE_ICONS[post.post_type] || <AlignLeft size={12} />}
+                            </span>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 50 : 90 }}>
+                              {post.title}
+                            </span>
+                          </div>
+                        ))}
+                        {dayPosts.length > maxVisible && (
+                          <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 700, padding: '2px 4px' }}>
+                            +{dayPosts.length - maxVisible}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Unscheduled drop zone */}
+            <div
+              style={{
+                marginTop: 16,
+                padding: '12px 16px',
+                background: dragOverDate === '__unscheduled__' ? 'rgba(255,255,255,0.04)' : 'var(--surface)',
+                border: `1px solid ${dragOverDate === '__unscheduled__' ? 'rgba(255,255,255,0.3)' : 'var(--border)'}`,
+                borderRadius: 12,
+                minHeight: 60,
+                transition: 'background 0.1s, border-color 0.1s',
+              }}
+              onDragOver={!isClient ? e => { e.preventDefault(); setDragOverDate('__unscheduled__') } : undefined}
+              onDragLeave={() => setDragOverDate(null)}
+              onDrop={!isClient ? handleUnscheduleDrop : undefined}
+            >
+              <div style={{ fontSize: 9, letterSpacing: 3, textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 10, fontWeight: 700 }}>
+                Без даты
+              </div>
+              {unscheduledPosts.length === 0 ? (
+                <div style={{ fontSize: 12, color: 'var(--text3)', fontStyle: 'italic' }}>
+                  {isClient ? 'Нет постов без даты' : 'Перетащи сюда пост, чтобы убрать дату'}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {unscheduledPosts.map(post => (
+                    <div
+                      key={post.id}
+                      draggable={!isClient}
+                      onDragStart={e => handlePostDragStart(e, post.id)}
+                      onDragEnd={() => setDraggedPostId(null)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '5px 10px', borderRadius: 8,
+                        background: 'var(--surface2)',
+                        border: '1px solid var(--border)',
+                        borderLeft: `3px solid ${STATUS_HEX[post.status] || '#555'}`,
+                        cursor: isClient ? 'default' : 'grab',
+                        opacity: draggedPostId === post.id ? 0.4 : 1,
+                        fontSize: 12, fontWeight: 600, color: 'var(--text)',
+                        transition: 'opacity 0.15s',
+                      }}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text2)' }}>
+                        {TYPE_ICONS[post.post_type] || <AlignLeft size={12} />}
+                      </span>
+                      {post.title}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         ) : posts.length === 0 ? (
           <div style={styles.empty}>
             <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.3 }}>📝</div>
@@ -128,7 +351,7 @@ export default function ContentPage() {
               <div key={post.id} style={styles.postCard}>
                 <div style={styles.postNum} className="bebas">{String(i + 1).padStart(2, '0')}</div>
                 <div style={{ ...styles.postTypeIcon, background: TYPE_COLORS[post.post_type] || 'var(--surface3)' }}>
-                  {TYPE_ICONS[post.post_type] || <AlignLeft size={14} />}
+                  {TYPE_ICONS[post.post_type] || <AlignLeft size={12} />}
                 </div>
                 <div style={styles.postBody}>
                   <div style={styles.postTitle}>{post.title}</div>
@@ -229,6 +452,13 @@ const styles = {
   statItem: { display: 'flex', alignItems: 'center', gap: 10 },
   statVal: { fontSize: 32, color: 'var(--text)', lineHeight: 1 },
   statLbl: { fontSize: 12, color: 'var(--text3)', fontWeight: 600 },
+  viewToggle: { display: 'flex', border: '1px solid var(--border)', borderRadius: 9, overflow: 'hidden' },
+  viewBtn: { padding: '7px 14px', fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'background 0.15s, color 0.15s' },
+  calNavBtn: { background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 8px', color: 'var(--text2)', cursor: 'pointer', display: 'flex', alignItems: 'center' },
+  calendarWrap: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', marginBottom: 4 },
+  weekdaysRow: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', background: 'var(--surface2)', borderBottom: '1px solid var(--border)' },
+  weekday: { padding: '10px 0', textAlign: 'center', fontSize: 11, fontWeight: 700, letterSpacing: 2 },
+  daysGrid: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' },
   postsList: { display: 'flex', flexDirection: 'column', gap: 8 },
   postCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 14, transition: 'border-color 0.15s' },
   postNum: { fontSize: 26, color: 'var(--text3)', lineHeight: 1, minWidth: 28, textAlign: 'center', flexShrink: 0, paddingTop: 2 },
