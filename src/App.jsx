@@ -10,6 +10,7 @@ import ShootsPage from './pages/ShootsPage'
 import CalendarPage from './pages/CalendarPage'
 import TargetPage from './pages/TargetPage'
 import SettingsPage from './pages/SettingsPage'
+import TasksPage from './pages/TasksPage'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="shoots" element={<ShootsPage />} />
         <Route path="target" element={<TargetPage />} />
         <Route path="calendar" element={<CalendarPage />} />
+        <Route path="tasks" element={<TasksPage />} />
         <Route path="settings" element={<SettingsPage />} />
       </Route>
     </Routes>
