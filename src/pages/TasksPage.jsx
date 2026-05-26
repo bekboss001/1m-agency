@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, X, MessageSquare, Calendar, Trash2 } from 'lucide-react'
+import { logAction } from '../lib/auditLog'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useProfile } from '../lib/useProfile'
 
@@ -104,6 +105,7 @@ export default function TasksPage() {
     if (!task || task.status === colId) { setDraggedId(null); return }
     setTasks(prev => prev.map(t => t.id === draggedId ? { ...t, status: colId } : t))
     await supabase.from('tasks').update({ status: colId }).eq('id', draggedId)
+    await logAction(supabase, 'status_changed', 'task', task.title, { from: task.status, to: colId })
     setDraggedId(null)
   }
 
@@ -130,19 +132,23 @@ export default function TasksPage() {
       setSaveError(error.message)
       return
     }
+    await logAction(supabase, 'created', 'task', form.title, { status: showForm })
     setShowForm(null)
     loadData()
   }
 
   async function deleteTask(taskId) {
     if (!window.confirm('Удалить задачу?')) return
+    const taskTitle = selectedTask?.title || tasks.find(t => t.id === taskId)?.title || ''
     await supabase.from('tasks').delete().eq('id', taskId)
+    await logAction(supabase, 'deleted', 'task', taskTitle)
     setSelectedTask(null)
     loadData()
   }
 
   async function updateTaskStatus(taskId, status) {
     await supabase.from('tasks').update({ status }).eq('id', taskId)
+    await logAction(supabase, 'status_changed', 'task', selectedTask?.title || '', { to: status })
     setSelectedTask(prev => ({ ...prev, status }))
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t))
   }

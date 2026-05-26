@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { logAction } from '../lib/auditLog'
 
 const STATUS_LABELS = { planned: 'План', confirmed: 'Подтверждено', done: 'Завершено', cancelled: 'Отменено' }
 const STATUS_COLORS = { planned: '#888888', confirmed: '#3ddc84', done: '#ffffff', cancelled: '#ff4444' }
@@ -97,6 +98,7 @@ export default function ShootsPage() {
     if (!payload.time_start) delete payload.time_start
     if (!payload.time_end) delete payload.time_end
     await supabase.from('shoots').insert(payload)
+    await logAction(supabase, 'created', 'shoot', clients.find(c => c.id === form.client_id)?.name || 'Съёмка', { date: form.shoot_date })
     setSaving(false)
     setShowForm(false)
     loadData()
@@ -104,13 +106,16 @@ export default function ShootsPage() {
 
   async function updateStatus(id, status) {
     await supabase.from('shoots').update({ status }).eq('id', id)
+    await logAction(supabase, 'status_changed', 'shoot', shoots.find(s => s.id === id)?.client?.name || '', { status })
     loadData()
     if (selectedShoot?.id === id) setSelectedShoot(s => ({ ...s, status }))
   }
 
   async function deleteShoot(id) {
     if (!window.confirm('Удалить съёмку?')) return
+    const shootName = selectedShoot?.client?.name || shoots.find(s => s.id === id)?.client?.name || ''
     await supabase.from('shoots').delete().eq('id', id)
+    await logAction(supabase, 'deleted', 'shoot', shootName)
     setSelectedShoot(null)
     loadData()
   }

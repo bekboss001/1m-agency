@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
 import { Plus, Search, Trash2 } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { logAction } from '../lib/auditLog'
 
 export default function ClientsPage() {
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -37,6 +38,7 @@ export default function ClientsPage() {
     if (!payload.contract_start) delete payload.contract_start
     if (!payload.contract_end) delete payload.contract_end
     await supabase.from('clients').insert(payload)
+    await logAction(supabase, 'created', 'client', form.name)
     setSaving(false)
     setShowForm(false)
     setForm({ number: '', name: '', color: '#7B9FE8', contract_start: '', contract_end: '', smm_id: '', operator_id: '', total_posts: 12, notes: '' })
@@ -62,6 +64,7 @@ export default function ClientsPage() {
     if (field === 'meta_account_id') val = val || null
 
     await supabase.from('clients').update({ [field]: val }).eq('id', id)
+    await logAction(supabase, 'updated', 'client', clients.find(c => c.id === id)?.name || '', { field })
     setEditingCell(null)
     setEditValue('')
     load()
@@ -70,6 +73,7 @@ export default function ClientsPage() {
   async function deleteClient(id, name) {
     if (!window.confirm(`Удалить клиента "${name}"?`)) return
     await supabase.from('clients').update({ is_active: false }).eq('id', id)
+    await logAction(supabase, 'deleted', 'client', name)
     load()
   }
 

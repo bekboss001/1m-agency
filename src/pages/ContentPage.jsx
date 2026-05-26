@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight } from 'lucide-react'
+import { logAction } from '../lib/auditLog'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
 const STATUS_COLORS = { idea: 'badge-dim', in_progress: 'badge-red', review: 'badge-orange', published: 'badge-green' }
@@ -72,6 +73,7 @@ export default function ContentPage() {
     if (!payload.operator_id) delete payload.operator_id
     if (!payload.publish_date) delete payload.publish_date
     await supabase.from('posts').insert(payload)
+    await logAction(supabase, 'created', 'post', form.title, { client: client?.name })
     setSaving(false)
     setShowForm(false)
     setForm({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
@@ -80,6 +82,7 @@ export default function ContentPage() {
 
   async function updateStatus(id, status) {
     await supabase.from('posts').update({ status, ...(status === 'published' ? { published_at: new Date().toISOString() } : {}) }).eq('id', id)
+    await logAction(supabase, 'status_changed', 'post', posts.find(p => p.id === id)?.title || '', { status })
     loadPosts(selectedClient)
   }
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { Plus, X, Check, Trash2, UserCheck, Users, Shield, Lock, Link } from 'lucide-react'
+import { Plus, X, Check, Trash2, UserCheck, Users, Shield, Lock, Link, Activity } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { logAction } from '../lib/auditLog'
 
 const SYSTEM_ROLE_LABELS = { admin: 'Администратор', smm: 'СММ', operator: 'Оператор', client: 'Клиент', pending: 'Ожидает' }
 const ROLE_COLORS = { admin: 'var(--accent)', smm: 'var(--text2)', operator: 'var(--green)', client: 'var(--text2)', pending: 'var(--red)' }
@@ -14,6 +15,10 @@ const PAGE_LABELS = {
   shoots: 'Съёмки',
   settings: 'Настройки',
 }
+
+const ACTION_LABELS = { created: 'Создан', deleted: 'Удалён', updated: 'Изменён', status_changed: 'Статус', approved: 'Одобрен' }
+const ACTION_COLORS = { created: 'var(--green)', deleted: 'var(--red)', updated: 'var(--text2)', status_changed: 'var(--orange)', approved: '#6666ff' }
+const ENTITY_LABELS = { client: 'Клиент', post: 'Пост', shoot: 'Съёмка', task: 'Задача', employee: 'Сотрудник', user: 'Пользователь' }
 
 export default function SettingsPage() {
   const isMobile = useMediaQuery('(max-width: 768px)')
@@ -32,8 +37,19 @@ export default function SettingsPage() {
   const [empForm, setEmpForm] = useState({ name: '', email: '', role: 'smm' })
   const [roleForm, setRoleForm] = useState({ name: '', label: '', permissions: { dashboard: false, clients: false, content: false, calendar: false, shoots: false, settings: false } })
   const [saving, setSaving] = useState(false)
+  const [auditLogs, setAuditLogs] = useState([])
+  const [logsFilter, setLogsFilter] = useState('')
+  const [logsLoading, setLogsLoading] = useState(false)
 
   useEffect(() => { loadData() }, [])
+  useEffect(() => { if (activeTab === 'logs') loadLogs() }, [activeTab])
+
+  async function loadLogs() {
+    setLogsLoading(true)
+    const { data } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100)
+    setAuditLogs(data || [])
+    setLogsLoading(false)
+  }
 
   async function loadData() {
     setLoading(true)
@@ -58,6 +74,7 @@ export default function SettingsPage() {
     e.preventDefault()
     setSaving(true)
     await supabase.from('employees').insert(empForm)
+    await logAction(supabase, 'created', 'employee', empForm.name, { role: empForm.role })
     setSaving(false)
     setShowEmpForm(false)
     setEmpForm({ name: '', email: '', role: 'smm' })
@@ -67,21 +84,21 @@ export default function SettingsPage() {
   async function deleteEmployee(id, name) {
     if (!window.confirm(`Удалить сотрудника "${name}"?`)) return
     await supabase.from('employees').delete().eq('id', id)
+    await logAction(supabase, 'deleted', 'employee', name)
     loadData()
   }
 
   async function approveUser(userId, role) {
+    const user = pendingUsers.find(u => u.id === userId)
     await supabase.from('profiles').update({ is_approved: true, role }).eq('id', userId)
-    if (role === 'smm' || role === 'operator') {
-      const user = pendingUsers.find(u => u.id === userId)
-      if (user) {
-        await supabase.from('employees').insert({
-          name: user.full_name || user.email.split('@')[0],
-          email: user.email,
-          role,
-        })
-      }
+    if ((role === 'smm' || role === 'operator') && user) {
+      await supabase.from('employees').insert({
+        name: user.full_name || user.email.split('@')[0],
+        email: user.email,
+        role,
+      })
     }
+    await logAction(supabase, 'approved', 'user', user?.email || userId, { role })
     loadData()
   }
 
@@ -162,6 +179,8 @@ export default function SettingsPage() {
   const operators = employees.filter(e => e.role === 'operator')
   const clientRoleUsers = allUsers.filter(u => u.role === 'client')
 
+  const filteredLogs = logsFilter ? auditLogs.filter(l => l.action === logsFilter) : auditLogs
+
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
       <div className="spinner" />
@@ -204,6 +223,9 @@ export default function SettingsPage() {
           </button>
           <button style={styles.tab(activeTab === 'roles')} onClick={() => setActiveTab('roles')}>
             <Lock size={15} /> Роли и права
+          </button>
+          <button style={styles.tab(activeTab === 'logs')} onClick={() => setActiveTab('logs')}>
+            <Activity size={15} /> Логи
           </button>
         </div>
 
@@ -404,6 +426,70 @@ export default function SettingsPage() {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* LOGS */}
+        {activeTab === 'logs' && (
+          <div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <select
+                style={{ ...styles.roleSelect, padding: '8px 12px', fontSize: 12 }}
+                value={logsFilter}
+                onChange={e => setLogsFilter(e.target.value)}
+              >
+                <option value="">Все действия</option>
+                {Object.entries(ACTION_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <div style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 'auto' }}>Последние 100 записей</div>
+            </div>
+
+            {logsLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><div className="spinner" /></div>
+            ) : (
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, overflow: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 600 }}>
+                  <thead>
+                    <tr>
+                      {['Время', 'Пользователь', 'Действие', 'Объект', 'Название'].map(h => (
+                        <th key={h} style={{ padding: '11px 14px', textAlign: 'left', fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text3)', background: 'var(--surface2)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredLogs.length === 0 ? (
+                      <tr><td colSpan={5} style={{ textAlign: 'center', padding: 48, color: 'var(--text3)' }}>Нет записей</td></tr>
+                    ) : filteredLogs.map((log, i) => (
+                      <tr key={log.id} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.01)' }}>
+                        <td style={{ padding: '10px 14px', color: 'var(--text3)', fontSize: 12, fontFamily: "'DM Mono', monospace", whiteSpace: 'nowrap' }}>
+                          {new Date(log.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' })}
+                          {' '}
+                          {new Date(log.created_at).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text2)' }}>
+                          {log.user_email?.split('@')[0] || '—'}
+                        </td>
+                        <td style={{ padding: '10px 14px' }}>
+                          <span style={{
+                            background: `${ACTION_COLORS[log.action] || 'var(--text3)'}22`,
+                            color: ACTION_COLORS[log.action] || 'var(--text3)',
+                            padding: '3px 8px', borderRadius: 6, fontSize: 11, fontWeight: 700,
+                          }}>
+                            {ACTION_LABELS[log.action] || log.action}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text3)' }}>
+                          {ENTITY_LABELS[log.entity] || log.entity}
+                        </td>
+                        <td style={{ padding: '10px 14px', fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>
+                          {log.entity_name || '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
