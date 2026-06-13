@@ -5,17 +5,20 @@ import { logAction } from '../lib/auditLog'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useProfile } from '../lib/useProfile'
 
+const DISP = "'Anton', 'Arial Narrow', sans-serif"
+const SANS = "'Space Grotesk', system-ui, sans-serif"
+
 const COLUMNS = [
-  { id: 'new',         label: 'Новые',       color: 'var(--text3)' },
-  { id: 'in_progress', label: 'В работе',    color: 'var(--orange)' },
-  { id: 'review',      label: 'На проверке', color: '#6666ff' },
-  { id: 'done',        label: 'Готово',      color: 'var(--green)' },
+  { id: 'new',         label: 'Сделать',  color: 'var(--ink3)' },
+  { id: 'in_progress', label: 'В работе', color: '#8B7BFF' },
+  { id: 'review',      label: 'Проверка', color: '#FFB020' },
+  { id: 'done',        label: 'Готово',   color: 'var(--accent)' },
 ]
 
 const PRIORITY = {
-  low:    { label: 'Низкий',  color: 'var(--text3)' },
-  medium: { label: 'Средний', color: '#6666ff' },
-  high:   { label: 'Высокий', color: 'var(--orange)' },
+  low:    { label: 'Низкий',  color: 'var(--ink3)' },
+  medium: { label: 'Средний', color: '#8B7BFF' },
+  high:   { label: 'Высокий', color: '#FFB020' },
   urgent: { label: 'Срочно',  color: 'var(--red)' },
 }
 
@@ -44,7 +47,6 @@ export default function TasksPage() {
   async function loadData() {
     setLoading(true)
 
-    // Найти employee-запись текущего пользователя по email
     let empId = null
     if (!isAdmin && profile?.email) {
       const { data: emp } = await supabase.from('employees').select('id').eq('email', profile.email).maybeSingle()
@@ -57,10 +59,9 @@ export default function TasksPage() {
       .select('*, assignee:assignee_id(id, name, role), client:client_id(id, name, color)')
       .order('created_at', { ascending: false })
 
-    // Не-админ видит только свои задачи
     if (!isAdmin) {
       if (empId) tasksQuery = tasksQuery.eq('assignee_id', empId)
-      else tasksQuery = tasksQuery.eq('assignee_id', '00000000-0000-0000-0000-000000000000') // никаких задач если нет записи сотрудника
+      else tasksQuery = tasksQuery.eq('assignee_id', '00000000-0000-0000-0000-000000000000')
     }
 
     const [{ data: t }, { data: e }, { data: c }, { data: cc }] = await Promise.all([
@@ -83,7 +84,6 @@ export default function TasksPage() {
     setComments(data || [])
   }
 
-  // ── Drag and drop ──────────────────────────────────────────
   function handleDragStart(e, taskId) {
     setDraggedId(taskId)
     e.dataTransfer.effectAllowed = 'move'
@@ -111,7 +111,6 @@ export default function TasksPage() {
 
   function handleDragEnd() { setDraggedId(null); setDragOver(null) }
 
-  // ── Task CRUD ──────────────────────────────────────────────
   function openForm(colId) {
     setForm({ title: '', description: '', priority: 'medium', assignee_id: isAdmin ? '' : (myEmployeeId || ''), client_id: '', deadline: '' })
     setShowForm(colId)
@@ -128,10 +127,7 @@ export default function TasksPage() {
     if (!payload.description) delete payload.description
     const { error } = await supabase.from('tasks').insert(payload)
     setSaving(false)
-    if (error) {
-      setSaveError(error.message)
-      return
-    }
+    if (error) { setSaveError(error.message); return }
     await logAction(supabase, 'created', 'task', form.title, { status: showForm })
     setShowForm(null)
     loadData()
@@ -153,7 +149,6 @@ export default function TasksPage() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status } : t))
   }
 
-  // ── Comments ───────────────────────────────────────────────
   async function submitComment(e) {
     e.preventDefault()
     if (!newComment.trim()) return
@@ -181,167 +176,270 @@ export default function TasksPage() {
   const getByCol = colId => tasks.filter(t => t.status === colId)
 
   if (loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-      <div className="spinner" />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', background: 'var(--bg)' }}>
+      <div className="spinner" style={{ width: 28, height: 28 }} />
     </div>
   )
 
-  return (
-    <div style={styles.wrap} className="fade-up">
-      {/* Topbar */}
-      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
-        <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Задачи</div>
-        <div style={{ fontSize: 13, color: 'var(--text3)', fontFamily: "'DM Mono', monospace" }}>{tasks.length} задач</div>
-      </div>
+  const inputStyle = {
+    width: '100%', background: 'var(--bg)', border: '1px solid var(--line)',
+    borderRadius: 10, padding: '10px 13px', fontSize: 13,
+    color: 'var(--ink)', outline: 'none', fontFamily: SANS, boxSizing: 'border-box',
+  }
 
-      {/* Kanban board */}
-      <div style={{ ...styles.board, padding: isMobile ? '16px' : '24px 32px', flexDirection: isMobile ? 'column' : 'row' }}>
-        {COLUMNS.map(col => {
-          const colTasks = getByCol(col.id)
-          const isOver = dragOver === col.id
+  const labelStyle = {
+    display: 'block', fontFamily: SANS, fontSize: 10, fontWeight: 700,
+    letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 7,
+  }
 
-          return (
-            <div
-              key={col.id}
-              style={{
-                ...styles.column,
-                borderColor: isOver ? col.color : 'var(--border)',
-                background: isOver ? `${col.color}0a` : 'var(--surface)',
-              }}
-              onDragOver={e => handleDragOver(e, col.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={e => handleDrop(e, col.id)}
-            >
-              {/* Column header */}
-              <div style={styles.colHeader}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: col.color }} />
-                  <span style={{ fontWeight: 700, fontSize: 13 }}>{col.label}</span>
-                  <span style={styles.colCount}>{colTasks.length}</span>
-                </div>
-                <button style={styles.addBtn} onClick={() => openForm(col.id)} title="Добавить задачу">
-                  <Plus size={14} />
-                </button>
+  const ColCard = ({ col }) => {
+    const colTasks = getByCol(col.id)
+    const isOver = dragOver === col.id
+
+    return (
+      <div
+        style={{
+          flex: isMobile ? 'none' : '1 1 0',
+          width: isMobile ? 280 : undefined,
+          minWidth: isMobile ? 280 : 220,
+          background: isOver ? `${col.color}0d` : 'transparent',
+          border: `1px solid ${isOver ? col.color : 'var(--line)'}`,
+          borderRadius: 16,
+          padding: 16,
+          transition: 'border-color 0.15s, background 0.15s',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+        }}
+        onDragOver={e => handleDragOver(e, col.id)}
+        onDragLeave={handleDragLeave}
+        onDrop={e => handleDrop(e, col.id)}
+      >
+        {/* Column header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: '50%', background: col.color, flexShrink: 0 }} />
+            <span style={{ fontFamily: SANS, fontSize: 12, fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--ink2)' }}>
+              {col.label}
+            </span>
+            <span style={{ fontFamily: SANS, fontSize: 11, fontWeight: 600, color: 'var(--ink3)', background: 'var(--raised)', borderRadius: 20, padding: '1px 8px' }}>
+              {colTasks.length}
+            </span>
+          </div>
+          <button
+            style={{ background: 'none', border: '1px solid var(--line2)', borderRadius: 8, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--ink3)', cursor: 'pointer' }}
+            onClick={() => openForm(col.id)}
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+
+        {/* Task cards */}
+        {colTasks.map(task => (
+          <div
+            key={task.id}
+            draggable
+            onDragStart={e => handleDragStart(e, task.id)}
+            onDragEnd={handleDragEnd}
+            onClick={() => openTask(task)}
+            style={{
+              background: 'var(--surface)',
+              border: '1px solid var(--line)',
+              borderRadius: 14,
+              padding: '12px 14px',
+              cursor: 'grab',
+              userSelect: 'none',
+              opacity: draggedId === task.id ? 0.4 : 1,
+              transition: 'opacity 0.15s',
+            }}
+          >
+            {/* Priority stripe */}
+            <div style={{
+              height: 3,
+              background: PRIORITY[task.priority]?.color || 'var(--ink3)',
+              margin: '-12px -14px 10px',
+              borderRadius: '14px 14px 0 0',
+            }} />
+
+            {/* Type tag if client */}
+            {task.client && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 7 }}>
+                <span style={{ width: 6, height: 6, borderRadius: 2, background: task.client.color || 'var(--ink3)', flexShrink: 0 }} />
+                <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 600, color: 'var(--ink3)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{task.client.name}</span>
               </div>
+            )}
 
-              {/* Cards */}
-              <div style={styles.cards}>
-                {colTasks.map(task => (
-                  <div
-                    key={task.id}
-                    draggable
-                    onDragStart={e => handleDragStart(e, task.id)}
-                    onDragEnd={handleDragEnd}
-                    style={{ ...styles.card, opacity: draggedId === task.id ? 0.4 : 1 }}
-                    onClick={() => openTask(task)}
-                  >
-                    {/* Priority top stripe */}
-                    <div style={{
-                      height: 3, background: PRIORITY[task.priority]?.color || 'var(--text3)',
-                      margin: '-14px -16px 12px', borderRadius: '10px 10px 0 0',
-                    }} />
+            <div style={{ fontFamily: SANS, fontWeight: 600, fontSize: 13.5, lineHeight: 1.4, color: 'var(--ink)', marginBottom: 10 }}>
+              {task.title}
+            </div>
 
-                    <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.4, marginBottom: 8 }}>
-                      {task.title}
-                    </div>
-
-                    {task.client && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                        <span style={{ width: 7, height: 7, borderRadius: 2, background: task.client.color || '#888', flexShrink: 0 }} />
-                        <span style={{ fontSize: 11, color: 'var(--text3)' }}>{task.client.name}</span>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-                      {task.assignee ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <div style={styles.avatarMini}>{task.assignee.name[0]}</div>
-                          <span style={{ fontSize: 11, color: 'var(--text3)' }}>{task.assignee.name.split(' ')[0]}</span>
-                        </div>
-                      ) : <div />}
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {task.deadline && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <Calendar size={10} style={{ color: isOverdue(task.deadline) ? 'var(--red)' : 'var(--text3)' }} />
-                            <span style={{ fontSize: 11, color: isOverdue(task.deadline) ? 'var(--red)' : 'var(--text3)', fontFamily: "'DM Mono', monospace" }}>
-                              {formatDate(task.deadline)}
-                            </span>
-                          </div>
-                        )}
-                        {task.comment_count > 0 && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                            <MessageSquare size={10} style={{ color: 'var(--text3)' }} />
-                            <span style={{ fontSize: 11, color: 'var(--text3)' }}>{task.comment_count}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              {task.assignee ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{
+                    width: 24, height: 24, borderRadius: 7,
+                    background: 'var(--raised)', border: '1px solid var(--line2)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: DISP, fontSize: 11, color: 'var(--ink2)', flexShrink: 0,
+                  }}>
+                    {task.assignee.name[0]}
                   </div>
-                ))}
+                  <span style={{ fontFamily: SANS, fontSize: 11, color: 'var(--ink2)' }}>{task.assignee.name.split(' ')[0]}</span>
+                </div>
+              ) : <div />}
 
-                {colTasks.length === 0 && (
-                  <div style={styles.emptyCol}>Перетащи сюда</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {task.deadline && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <Calendar size={10} style={{ color: isOverdue(task.deadline) ? 'var(--red)' : 'var(--ink3)' }} />
+                    <span style={{ fontFamily: SANS, fontSize: 11, color: isOverdue(task.deadline) ? 'var(--red)' : 'var(--ink3)' }}>
+                      {formatDate(task.deadline)}
+                    </span>
+                  </div>
+                )}
+                {task.comment_count > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <MessageSquare size={10} style={{ color: 'var(--ink3)' }} />
+                    <span style={{ fontFamily: SANS, fontSize: 11, color: 'var(--ink3)' }}>{task.comment_count}</span>
+                  </div>
                 )}
               </div>
             </div>
-          )
-        })}
+          </div>
+        ))}
+
+        {/* Add card button */}
+        <button
+          onClick={() => openForm(col.id)}
+          style={{
+            background: 'none', border: '1.5px dashed var(--line2)', borderRadius: 12,
+            padding: '11px 0', color: 'var(--ink3)', cursor: 'pointer',
+            fontFamily: SANS, fontSize: 12, fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            transition: 'border-color 0.15s, color 0.15s',
+            width: '100%',
+          }}
+        >
+          <Plus size={13} /> Добавить
+        </button>
+
+        {colTasks.length === 0 && (
+          <div style={{ fontFamily: SANS, fontSize: 12, color: 'var(--ink3)', textAlign: 'center', padding: '8px 0' }}>
+            Перетащи сюда
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }} className="fade-up">
+
+      {/* Topbar */}
+      {isMobile ? (
+        <div style={{ padding: '54px 20px 0' }}>
+          <div style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 6 }}>
+            Доска задач команды
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div style={{ fontFamily: DISP, fontSize: 46, lineHeight: 0.85, color: 'var(--ink)', textTransform: 'uppercase' }}>Задачи</div>
+            <span style={{ fontFamily: SANS, fontSize: 12, color: 'var(--ink3)', marginBottom: 6 }}>{tasks.length} задач</span>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '34px 40px 24px', borderBottom: '1px solid var(--line)' }}>
+          <div>
+            <div style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 600, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--ink3)', marginBottom: 8 }}>
+              Доска задач команды
+            </div>
+            <h1 style={{ fontFamily: DISP, fontSize: 52, lineHeight: 0.85, color: 'var(--ink)', margin: 0, textTransform: 'uppercase' }}>Задачи</h1>
+          </div>
+          <span style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink3)', marginBottom: 6 }}>{tasks.length} задач</span>
+        </div>
+      )}
+
+      {/* Kanban board */}
+      <div style={{
+        display: 'flex',
+        flexDirection: isMobile ? 'row' : 'row',
+        gap: 14,
+        padding: isMobile ? '0 20px 100px' : '24px 40px 40px',
+        overflowX: isMobile ? 'auto' : 'visible',
+        alignItems: 'flex-start',
+      }}>
+        {COLUMNS.map(col => <ColCard key={col.id} col={col} />)}
       </div>
 
       {/* Add task modal */}
       {showForm && (
-        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowForm(null)}>
-          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 16 }} onClick={e => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <div className="bebas" style={{ fontSize: 20, letterSpacing: 2 }}>
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 100, padding: isMobile ? 0 : 20 }}
+          onClick={() => setShowForm(null)}
+        >
+          <div
+            style={{ background: 'var(--surface)', border: '1px solid var(--line2)', borderRadius: isMobile ? '20px 20px 0 0' : 18, width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px 16px', borderBottom: '1px solid var(--line)' }}>
+              <div style={{ fontFamily: DISP, fontSize: 22, letterSpacing: 0.5, textTransform: 'uppercase', color: 'var(--ink)' }}>
                 {COLUMNS.find(c => c.id === showForm)?.label} — новая задача
               </div>
-              <button style={styles.closeBtn} onClick={() => setShowForm(null)}><X size={18} /></button>
+              <button style={{ background: 'none', border: 'none', color: 'var(--ink2)', cursor: 'pointer', display: 'flex', padding: 2 }} onClick={() => setShowForm(null)}>
+                <X size={18} />
+              </button>
             </div>
-            <form onSubmit={saveTask} style={{ padding: '20px 24px' }}>
+
+            <form onSubmit={saveTask} style={{ padding: '20px 24px', overflowY: 'auto' }}>
               <div style={{ marginBottom: 14 }}>
-                <label style={styles.label}>Название *</label>
-                <input style={styles.input} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required placeholder="Что нужно сделать..." autoFocus />
+                <label style={labelStyle}>Название *</label>
+                <input style={inputStyle} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required placeholder="Что нужно сделать..." autoFocus />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={styles.label}>Описание</label>
-                <textarea style={{ ...styles.input, height: 68, resize: 'vertical' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Детали, ссылки, ТЗ..." />
+                <label style={labelStyle}>Описание</label>
+                <textarea style={{ ...inputStyle, height: 68, resize: 'vertical' }} value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Детали, ссылки, ТЗ..." />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                 <div>
-                  <label style={styles.label}>Приоритет</label>
-                  <select style={styles.input} value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
+                  <label style={labelStyle}>Приоритет</label>
+                  <select style={inputStyle} value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}>
                     {Object.entries(PRIORITY).map(([v, { label }]) => <option key={v} value={v}>{label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={styles.label}>Дедлайн</label>
-                  <input style={styles.input} type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} />
+                  <label style={labelStyle}>Дедлайн</label>
+                  <input style={inputStyle} type="date" value={form.deadline} onChange={e => setForm({ ...form, deadline: e.target.value })} />
                 </div>
                 <div>
-                  <label style={styles.label}>Исполнитель</label>
-                  <select style={styles.input} value={form.assignee_id} onChange={e => setForm({ ...form, assignee_id: e.target.value })}>
+                  <label style={labelStyle}>Исполнитель</label>
+                  <select style={inputStyle} value={form.assignee_id} onChange={e => setForm({ ...form, assignee_id: e.target.value })}>
                     <option value="">— выбрать —</option>
                     {employees.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={styles.label}>Клиент</label>
-                  <select style={styles.input} value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })}>
+                  <label style={labelStyle}>Клиент</label>
+                  <select style={inputStyle} value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })}>
                     <option value="">— выбрать —</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </div>
               </div>
+
               {saveError && (
-                <div style={{ background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.25)', borderRadius: 8, padding: '10px 14px', fontSize: 12, color: 'var(--red)', marginBottom: 12 }}>
+                <div style={{ background: 'rgba(255,92,92,0.08)', border: '1px solid rgba(255,92,92,0.25)', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: 'var(--red)', marginBottom: 12, fontFamily: SANS }}>
                   {saveError}
                 </div>
               )}
+
               <div style={{ display: 'flex', gap: 10 }}>
-                <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(null)}>Отмена</button>
-                <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Создать задачу'}</button>
+                <button type="button" onClick={() => setShowForm(null)}
+                  style={{ flex: 1, padding: '11px 0', border: '1px solid var(--line2)', borderRadius: 11, background: 'none', color: 'var(--ink2)', fontFamily: SANS, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+                  Отмена
+                </button>
+                <button type="submit" disabled={saving}
+                  style={{ flex: 1, padding: '11px 0', border: 'none', borderRadius: 11, background: 'var(--accent)', color: 'var(--on-accent)', fontFamily: SANS, fontSize: 13, fontWeight: 700, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+                  {saving ? 'Сохранение...' : 'Создать задачу'}
+                </button>
               </div>
             </form>
           </div>
@@ -350,103 +448,113 @@ export default function TasksPage() {
 
       {/* Task detail modal */}
       {selectedTask && (
-        <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setSelectedTask(null)}>
-          <div style={{ ...styles.modal, maxWidth: 560, borderRadius: isMobile ? '20px 20px 0 0' : 16 }} onClick={e => e.stopPropagation()}>
-            {/* Priority accent bar */}
-            <div style={{ height: 4, background: PRIORITY[selectedTask.priority]?.color, borderRadius: '16px 16px 0 0' }} />
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: isMobile ? 'flex-end' : 'center', justifyContent: 'center', zIndex: 100, padding: isMobile ? 0 : 20 }}
+          onClick={() => setSelectedTask(null)}
+        >
+          <div
+            style={{ background: 'var(--surface)', border: '1px solid var(--line2)', borderRadius: isMobile ? '20px 20px 0 0' : 18, width: '100%', maxWidth: 560, maxHeight: isMobile ? '88vh' : '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
+            onClick={e => e.stopPropagation()}
+          >
+            {/* Priority bar */}
+            <div style={{ height: 4, background: PRIORITY[selectedTask.priority]?.color || 'var(--ink3)', borderRadius: isMobile ? '20px 20px 0 0' : '18px 18px 0 0' }} />
 
-            <div style={styles.modalHeader}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, padding: '18px 24px 16px', borderBottom: '1px solid var(--line)' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 11, color: PRIORITY[selectedTask.priority]?.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+                  <span style={{ fontFamily: SANS, fontSize: 10.5, color: PRIORITY[selectedTask.priority]?.color, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1 }}>
                     {PRIORITY[selectedTask.priority]?.label}
                   </span>
-                  <span style={{ color: 'var(--text3)', fontSize: 11 }}>·</span>
-                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>{COLUMNS.find(c => c.id === selectedTask.status)?.label}</span>
+                  <span style={{ color: 'var(--ink3)', fontSize: 11 }}>·</span>
+                  <span style={{ fontFamily: SANS, fontSize: 10.5, color: 'var(--ink3)' }}>{COLUMNS.find(c => c.id === selectedTask.status)?.label}</span>
                 </div>
-                <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.4 }}>{selectedTask.title}</div>
+                <div style={{ fontFamily: SANS, fontWeight: 700, fontSize: 15.5, lineHeight: 1.4, color: 'var(--ink)' }}>{selectedTask.title}</div>
               </div>
-              <button style={styles.closeBtn} onClick={() => setSelectedTask(null)}><X size={18} /></button>
+              <button style={{ background: 'none', border: 'none', color: 'var(--ink2)', cursor: 'pointer', flexShrink: 0, display: 'flex', padding: 2 }} onClick={() => setSelectedTask(null)}>
+                <X size={18} />
+              </button>
             </div>
 
             <div style={{ padding: '0 24px 20px', maxHeight: '72vh', overflowY: 'auto' }}>
-              {/* Meta grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20, paddingTop: 4 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20, paddingTop: 16 }}>
                 <div>
-                  <div style={styles.label}>Статус</div>
-                  <select style={{ ...styles.input, fontSize: 13 }} value={selectedTask.status} onChange={e => updateTaskStatus(selectedTask.id, e.target.value)}>
+                  <div style={labelStyle}>Статус</div>
+                  <select style={{ ...inputStyle, fontSize: 13 }} value={selectedTask.status} onChange={e => updateTaskStatus(selectedTask.id, e.target.value)}>
                     {COLUMNS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                   </select>
                 </div>
                 <div>
-                  <div style={styles.label}>Дедлайн</div>
-                  <div style={{ fontSize: 13, paddingTop: 10, color: isOverdue(selectedTask.deadline) ? 'var(--red)' : 'var(--text)' }}>
+                  <div style={labelStyle}>Дедлайн</div>
+                  <div style={{ fontFamily: SANS, fontSize: 13, paddingTop: 10, color: isOverdue(selectedTask.deadline) ? 'var(--red)' : 'var(--ink)' }}>
                     {selectedTask.deadline ? `${formatFull(selectedTask.deadline)}${isOverdue(selectedTask.deadline) ? ' — просрочено' : ''}` : '—'}
                   </div>
                 </div>
                 {selectedTask.assignee && (
                   <div>
-                    <div style={styles.label}>Исполнитель</div>
+                    <div style={labelStyle}>Исполнитель</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 8 }}>
-                      <div style={styles.avatarMini}>{selectedTask.assignee.name[0]}</div>
-                      <span style={{ fontSize: 13 }}>{selectedTask.assignee.name}</span>
+                      <div style={{ width: 26, height: 26, borderRadius: 7, background: 'var(--raised)', border: '1px solid var(--line2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: DISP, fontSize: 12, color: 'var(--ink2)' }}>
+                        {selectedTask.assignee.name[0]}
+                      </div>
+                      <span style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink)' }}>{selectedTask.assignee.name}</span>
                     </div>
                   </div>
                 )}
                 {selectedTask.client && (
                   <div>
-                    <div style={styles.label}>Клиент</div>
+                    <div style={labelStyle}>Клиент</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingTop: 8 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 2, background: selectedTask.client.color || '#888' }} />
-                      <span style={{ fontSize: 13 }}>{selectedTask.client.name}</span>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: selectedTask.client.color || 'var(--ink3)' }} />
+                      <span style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink)' }}>{selectedTask.client.name}</span>
                     </div>
                   </div>
                 )}
               </div>
 
               {selectedTask.description && (
-                <div style={{ marginBottom: 20, padding: '12px 14px', background: 'var(--surface2)', borderRadius: 10, fontSize: 13, color: 'var(--text2)', lineHeight: 1.6 }}>
+                <div style={{ marginBottom: 20, padding: '12px 14px', background: 'var(--raised)', borderRadius: 12, fontFamily: SANS, fontSize: 13, color: 'var(--ink2)', lineHeight: 1.6 }}>
                   {selectedTask.description}
                 </div>
               )}
 
               {/* Comments */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1 }}>
+              <div style={{ borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+                <div style={{ fontFamily: SANS, fontSize: 11, fontWeight: 700, marginBottom: 12, color: 'var(--ink3)', textTransform: 'uppercase', letterSpacing: 1.2 }}>
                   Комментарии {comments.length > 0 && `(${comments.length})`}
                 </div>
 
                 {comments.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
                     {comments.map(c => (
-                      <div key={c.id} style={{ background: 'var(--surface2)', borderRadius: 10, padding: '10px 14px' }}>
+                      <div key={c.id} style={{ background: 'var(--raised)', borderRadius: 12, padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                          <div style={styles.avatarMini}>{(c.author_name || 'А')[0]}</div>
-                          <span style={{ fontSize: 12, fontWeight: 600 }}>{c.author_name || 'Аноним'}</span>
-                          <span style={{ fontSize: 11, color: 'var(--text3)', marginLeft: 'auto', fontFamily: "'DM Mono', monospace" }}>
+                          <div style={{ width: 22, height: 22, borderRadius: 6, background: 'var(--surface)', border: '1px solid var(--line2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: DISP, fontSize: 10, color: 'var(--ink2)' }}>
+                            {(c.author_name || 'А')[0]}
+                          </div>
+                          <span style={{ fontFamily: SANS, fontSize: 12, fontWeight: 600, color: 'var(--ink)' }}>{c.author_name || 'Аноним'}</span>
+                          <span style={{ fontFamily: SANS, fontSize: 11, color: 'var(--ink3)', marginLeft: 'auto' }}>
                             {new Date(c.created_at).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
-                        <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.5 }}>{c.text}</div>
+                        <div style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink2)', lineHeight: 1.5 }}>{c.text}</div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div style={{ fontSize: 13, color: 'var(--text3)', paddingBottom: 14 }}>Нет комментариев</div>
+                  <div style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink3)', paddingBottom: 14 }}>Нет комментариев</div>
                 )}
 
                 <form onSubmit={submitComment} style={{ display: 'flex', gap: 8 }}>
                   <input
-                    style={{ ...styles.input, flex: 1 }}
+                    style={{ ...inputStyle, flex: 1 }}
                     value={newComment}
                     onChange={e => setNewComment(e.target.value)}
                     placeholder="Написать комментарий..."
                   />
                   <button
                     type="submit"
-                    className="btn btn-white"
-                    style={{ padding: '9px 16px', flexShrink: 0 }}
                     disabled={addingComment || !newComment.trim()}
+                    style={{ padding: '9px 16px', border: 'none', borderRadius: 10, background: 'var(--accent)', color: 'var(--on-accent)', fontFamily: SANS, fontWeight: 700, fontSize: 14, cursor: addingComment || !newComment.trim() ? 'not-allowed' : 'pointer', opacity: addingComment || !newComment.trim() ? 0.5 : 1, flexShrink: 0 }}
                   >
                     ↑
                   </button>
@@ -454,10 +562,10 @@ export default function TasksPage() {
               </div>
             </div>
 
-            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '12px 24px', borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'flex-end' }}>
               <button
-                style={{ background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.2)', borderRadius: 8, padding: '7px 14px', color: 'var(--red)', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
                 onClick={() => deleteTask(selectedTask.id)}
+                style={{ background: 'rgba(255,92,92,0.08)', border: '1px solid rgba(255,92,92,0.2)', borderRadius: 9, padding: '7px 14px', color: 'var(--red)', cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
               >
                 <Trash2 size={13} /> Удалить задачу
               </button>
@@ -467,69 +575,4 @@ export default function TasksPage() {
       )}
     </div>
   )
-}
-
-const styles = {
-  wrap: { minHeight: '100vh' },
-  topbar: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    background: 'var(--surface)', borderBottom: '1px solid var(--border)',
-    position: 'sticky', top: 0, zIndex: 10,
-  },
-  pageTitle: { letterSpacing: 2 },
-  board: {
-    display: 'flex', gap: 14, alignItems: 'flex-start',
-    minHeight: 'calc(100vh - 74px)', overflowX: 'auto',
-  },
-  column: {
-    flex: '1 1 260px', minWidth: 240, maxWidth: 340,
-    border: '1px solid', borderRadius: 16, padding: 16,
-    transition: 'border-color 0.15s, background 0.15s',
-  },
-  colHeader: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  colCount: {
-    background: 'var(--surface3)', color: 'var(--text3)',
-    fontSize: 11, fontWeight: 700, padding: '1px 7px', borderRadius: 20,
-  },
-  addBtn: {
-    background: 'none', border: '1px solid var(--border2)', borderRadius: 7,
-    width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-    color: 'var(--text3)', cursor: 'pointer', transition: 'all 0.15s',
-  },
-  cards: { display: 'flex', flexDirection: 'column', gap: 10 },
-  card: {
-    background: 'var(--surface2)', border: '1px solid var(--border)',
-    borderRadius: 12, padding: '14px 16px 12px',
-    cursor: 'grab', userSelect: 'none', transition: 'border-color 0.15s',
-  },
-  avatarMini: {
-    width: 22, height: 22, borderRadius: 6, background: 'var(--surface3)',
-    border: '1px solid var(--border2)', display: 'flex', alignItems: 'center',
-    justifyContent: 'center', fontSize: 10, fontWeight: 700,
-    color: 'var(--text2)', flexShrink: 0,
-  },
-  emptyCol: {
-    fontSize: 12, color: 'var(--text3)', textAlign: 'center',
-    padding: '28px 0', border: '1px dashed var(--border)', borderRadius: 10,
-  },
-  overlay: {
-    position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-  },
-  modal: {
-    background: 'var(--surface)', border: '1px solid var(--border)',
-    width: '100%', maxWidth: 480, maxHeight: '90vh', overflow: 'hidden',
-    display: 'flex', flexDirection: 'column',
-  },
-  modalHeader: {
-    display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
-    gap: 12, padding: '18px 24px 16px', borderBottom: '1px solid var(--border)',
-  },
-  closeBtn: { background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer', flexShrink: 0, display: 'flex', padding: 2 },
-  label: { display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text3)', marginBottom: 7 },
-  input: {
-    width: '100%', background: 'var(--black)',
-    border: '1px solid var(--border)', borderRadius: 9,
-    padding: '10px 13px', fontSize: 13, color: 'var(--text)', outline: 'none',
-  },
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { supabase } from './lib/supabase'
+import { ThemeProvider } from './lib/ThemeContext'
 import LoginPage from './pages/LoginPage'
 import DashboardLayout from './components/DashboardLayout'
 import HomePage from './pages/HomePage'
@@ -11,6 +12,7 @@ import CalendarPage from './pages/CalendarPage'
 import TargetPage from './pages/TargetPage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
+import ProfilePage from './pages/ProfilePage'
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -28,24 +30,27 @@ export default function App() {
   }, [])
 
   if (loading) return (
-    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', background:'var(--black)' }}>
-      <div className="spinner" style={{ width:32, height:32 }} />
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
+      <div className="spinner" style={{ width: 32, height: 32 }} />
     </div>
   )
 
   return (
-    <Routes>
-      <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/" />} />
-      <Route path="/" element={session ? <DashboardLayout session={session} /> : <Navigate to="/login" />}>
-        <Route index element={<HomePage />} />
-        <Route path="clients" element={<ClientsPage />} />
-        <Route path="content" element={<ContentPage />} />
-        <Route path="shoots" element={<ShootsPage />} />
-        <Route path="target" element={<TargetPage />} />
-        <Route path="calendar" element={<CalendarPage />} />
-        <Route path="tasks" element={<TasksPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-      </Route>
-    </Routes>
+    <ThemeProvider>
+      <Routes>
+        <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/" />} />
+        <Route path="/" element={session ? <DashboardLayout session={session} /> : <Navigate to="/login" />}>
+          <Route index element={<HomePage />} />
+          <Route path="clients" element={<ClientsPage />} />
+          <Route path="content" element={<ContentPage />} />
+          <Route path="shoots" element={<ShootsPage />} />
+          <Route path="target" element={<TargetPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="tasks" element={<TasksPage />} />
+          <Route path="settings" element={<SettingsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+        </Route>
+      </Routes>
+    </ThemeProvider>
   )
 }
