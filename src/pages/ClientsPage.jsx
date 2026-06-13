@@ -14,6 +14,7 @@ export default function ClientsPage() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ number: '', name: '', color: '#7B9FE8', contract_start: '', contract_end: '', smm_id: '', operator_id: '', total_posts: 12, notes: '' })
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [editingCell, setEditingCell] = useState(null) // { id, field }
   const [editValue, setEditValue] = useState('')
 
@@ -37,9 +38,15 @@ export default function ClientsPage() {
     if (!payload.operator_id) delete payload.operator_id
     if (!payload.contract_start) delete payload.contract_start
     if (!payload.contract_end) delete payload.contract_end
-    await supabase.from('clients').insert(payload)
+    const { error } = await supabase.from('clients').insert(payload)
+    if (error) {
+      setSaveError(error.message)
+      setSaving(false)
+      return
+    }
     await logAction(supabase, 'created', 'client', form.name)
     setSaving(false)
+    setSaveError('')
     setShowForm(false)
     setForm({ number: '', name: '', color: '#7B9FE8', contract_start: '', contract_end: '', smm_id: '', operator_id: '', total_posts: 12, notes: '' })
     load()
@@ -398,6 +405,11 @@ export default function ClientsPage() {
                 </Field>
               </div>
               <Field label="Комментарий"><textarea style={{ ...styles.input, height: 72, resize: 'vertical' }} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></Field>
+              {saveError && (
+                <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,64,96,0.1)', border: '1px solid rgba(255,64,96,0.3)', borderRadius: 8, fontSize: 12, color: 'var(--red)' }}>
+                  {saveError}
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
                 <button type="button" className="btn btn-ghost" style={{ flex: 1 }} onClick={() => setShowForm(false)}>Отмена</button>
                 <button type="submit" className="btn btn-white" style={{ flex: 1 }} disabled={saving}>{saving ? 'Сохранение...' : 'Сохранить'}</button>
