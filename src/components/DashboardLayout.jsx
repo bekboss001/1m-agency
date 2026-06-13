@@ -26,6 +26,7 @@ const MOB_TABS = [
   { to: '/',        icon: Home,        label: 'Главная',  end: true },
   { to: '/calendar',icon: Calendar,    label: 'Календарь' },
   { to: '/tasks',   icon: CheckSquare, label: 'Задачи' },
+  { to: '/target',  icon: Target,      label: 'Таргет',   page: 'target' },
   { to: '/profile', icon: User,        label: 'Профиль' },
 ]
 
@@ -133,27 +134,30 @@ export default function DashboardLayout({ session }) {
   )
 
   // ── Mobile tab bar ─────────────────────────────────────────
-  const TabBar = () => (
-    <div style={s.tabBar}>
-      {MOB_TABS.map(({ to, icon: Icon, label, end }) => {
-        const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
-        return (
-          <button key={to} onClick={() => navigate(to)}
-            style={{ ...s.tabItem, color: isActive ? 'var(--ink)' : 'var(--ink3)' }}>
-            <div style={{ position: 'relative' }}>
-              <Icon size={22} strokeWidth={isActive ? 2.1 : 1.7} />
-              {isActive && (
-                <span style={{ position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)', width: 16, height: 3, borderRadius: 2, background: 'var(--accent)' }} />
-              )}
-            </div>
-            <span style={{ fontFamily: SANS, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 10 }}>
-              {label}
-            </span>
-          </button>
-        )
-      })}
-    </div>
-  )
+  const TabBar = () => {
+    const tabs = MOB_TABS.filter(t => !t.page || can(t.page))
+    return (
+      <div style={s.tabBar}>
+        {tabs.map(({ to, icon: Icon, label, end }) => {
+          const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
+          return (
+            <button key={to} onClick={() => navigate(to)}
+              style={{ ...s.tabItem, color: isActive ? 'var(--ink)' : 'var(--ink3)' }}>
+              <div style={{ position: 'relative' }}>
+                <Icon size={22} strokeWidth={isActive ? 2.1 : 1.7} />
+                {isActive && (
+                  <span style={{ position: 'absolute', bottom: -8, left: '50%', transform: 'translateX(-50%)', width: 16, height: 3, borderRadius: 2, background: 'var(--accent)' }} />
+                )}
+              </div>
+              <span style={{ fontFamily: SANS, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 10 }}>
+                {label}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
