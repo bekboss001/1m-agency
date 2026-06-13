@@ -28,6 +28,7 @@ export default function ClientsPage() {
     setClients(c || [])
     setEmployees(e || [])
     setLoading(false)
+    return c || []
   }
 
   async function saveClient(e) {
@@ -119,7 +120,12 @@ export default function ClientsPage() {
         <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Клиенты</div>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <button className="btn btn-ghost">Экспорт</button>
-          <button className="btn btn-white" onClick={() => setShowForm(true)}>
+          <button className="btn btn-white" onClick={async () => {
+            const c = await load()
+            const maxNum = c.length ? Math.max(...c.map(x => x.number || 0)) : 0
+            setForm(f => ({ ...f, number: maxNum + 1 }))
+            setShowForm(true)
+          }}>
             <Plus size={16} /> Добавить
           </button>
         </div>
