@@ -83,7 +83,11 @@ export default function SettingsPage() {
 
   async function deleteEmployee(id, name) {
     if (!window.confirm(`Удалить сотрудника "${name}"?`)) return
-    await supabase.from('employees').delete().eq('id', id)
+    // снять привязку к клиентам перед удалением
+    await supabase.from('clients').update({ smm_id: null }).eq('smm_id', id)
+    await supabase.from('clients').update({ operator_id: null }).eq('operator_id', id)
+    const { error } = await supabase.from('employees').delete().eq('id', id)
+    if (error) { alert('Ошибка: ' + error.message); return }
     await logAction(supabase, 'deleted', 'employee', name)
     loadData()
   }
