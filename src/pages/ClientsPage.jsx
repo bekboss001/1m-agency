@@ -32,7 +32,7 @@ export default function ClientsPage() {
   async function saveClient(e) {
     e.preventDefault()
     setSaving(true)
-    const payload = { ...form, number: parseInt(form.number), total_posts: parseInt(form.total_posts) }
+    const payload = { ...form, number: parseInt(form.number), total_posts: parseInt(form.total_posts), is_active: true }
     if (!payload.smm_id) delete payload.smm_id
     if (!payload.operator_id) delete payload.operator_id
     if (!payload.contract_start) delete payload.contract_start
