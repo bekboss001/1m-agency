@@ -83,10 +83,15 @@ export default function SettingsPage() {
 
   async function deleteEmployee(id, name) {
     if (!window.confirm(`Удалить сотрудника "${name}"?`)) return
-    // снять привязку перед удалением
-    await supabase.from('clients').update({ smm_id: null }).eq('smm_id', id)
-    await supabase.from('clients').update({ operator_id: null }).eq('operator_id', id)
-    await supabase.from('posts').update({ smm_id: null }).eq('smm_id', id)
+    // снять все привязки перед удалением
+    await Promise.all([
+      supabase.from('clients').update({ smm_id: null }).eq('smm_id', id),
+      supabase.from('clients').update({ operator_id: null }).eq('operator_id', id),
+      supabase.from('posts').update({ smm_id: null }).eq('smm_id', id),
+      supabase.from('posts').update({ operator_id: null }).eq('operator_id', id),
+      supabase.from('shoots').update({ operator_id: null }).eq('operator_id', id),
+      supabase.from('tasks').update({ assignee_id: null }).eq('assignee_id', id),
+    ])
     const { error } = await supabase.from('employees').delete().eq('id', id)
     if (error) { alert('Ошибка: ' + error.message); return }
     await logAction(supabase, 'deleted', 'employee', name)
