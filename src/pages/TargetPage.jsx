@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { TrendingUp, Eye, MousePointer, DollarSign, Users, Zap, RefreshCw, MessageCircle } from 'lucide-react'
+import { TrendingUp, Eye, MousePointer, DollarSign, Users, Zap, RefreshCw, MessageCircle, Download } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 
 const TOKEN = import.meta.env.VITE_META_ACCESS_TOKEN
 
 const DATE_PRESETS = [
+  { label: 'Вчера', value: 'yesterday' },
   { label: 'Сегодня', value: 'today' },
   { label: '7 дней', value: 'last_7d' },
   { label: '30 дней', value: 'last_30d' },
@@ -95,6 +96,7 @@ export default function TargetPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [datePreset, setDatePreset] = useState('last_30d')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     supabase.from('clients').select('id, name, color, number, meta_account_id').eq('is_active', true).order('number')
@@ -160,6 +162,45 @@ export default function TargetPage() {
     else loadOne(selectedClient)
   }
 
+  function handleExport() {
+    const fmt = (n) => n !== null && n !== undefined ? parseFloat(n).toFixed(2) : '—'
+    const fmtInt = (n) => n !== null && n !== undefined ? Math.round(parseFloat(n)).toString() : '—'
+
+    let text = ''
+    if (selectedClient === 'all') {
+      const blocks = allStats
+        .filter(({ client }) => client.meta_account_id)
+        .map(({ client, stats: s }) => {
+          if (!s) return `${client.name}\n\nДанные недоступны`
+          const msg = extractMessaging(s.actions) ?? 0
+          const cpm = calcCpmMsg(s.spend, msg)
+          return [
+            client.name,
+            '',
+            `Переписки: ${fmtInt(msg)}`,
+            `Цена за переписку: ${fmt(cpm)} $`,
+            `Сумма затрат: ${fmt(s.spend)} $`,
+          ].join('\n')
+        })
+      text = blocks.join('\n\n')
+    } else {
+      if (!activeClient || !stats) return
+      const msg = messaging ?? 0
+      text = [
+        activeClient.name,
+        '',
+        `Переписки: ${fmtInt(msg)}`,
+        `Цена за переписку: ${fmt(cpmMsg)} $`,
+        `Сумма затрат: ${fmt(stats.spend)} $`,
+      ].join('\n')
+    }
+
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
   const activeClient = clients.find(c => c.id === selectedClient)
   const hasMetaId = activeClient?.meta_account_id
 
@@ -195,6 +236,10 @@ export default function TargetPage() {
           <button className="btn btn-ghost" onClick={handleRefresh} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             Обновить
+          </button>
+          <button className="btn btn-ghost" onClick={handleExport} disabled={loading} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Download size={14} />
+            Экспорт
           </button>
         </div>
       </div>
@@ -352,6 +397,19 @@ export default function TargetPage() {
           </>
         )}
       </div>
+
+      {copied && (
+        <div style={{
+          position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
+          background: 'var(--green)', color: '#000',
+          padding: '12px 22px', borderRadius: 12,
+          fontWeight: 700, fontSize: 14,
+          boxShadow: '0 4px 24px rgba(0,0,0,0.35)',
+          animation: 'fadeIn 0.2s ease',
+        }}>
+          Скопировано
+        </div>
+      )}
     </div>
   )
 }
