@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 
 const TYPE_COLORS = {
@@ -37,6 +37,7 @@ export default function CalendarPage() {
   const [selectedClient, setSelectedClient] = useState('all')
   const [selectedPost, setSelectedPost] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [exportingPDF, setExportingPDF] = useState(false)
 
   useEffect(() => { loadData() }, [year, month, selectedClient])
 
@@ -112,6 +113,196 @@ export default function CalendarPage() {
   const today = now.toISOString().split('T')[0]
   const isToday = (date) => date.toISOString().split('T')[0] === today
 
+  async function generatePDF() {
+    setExportingPDF(true)
+    try {
+      const { jsPDF } = await import('jspdf')
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+
+      const W = 297, H = 210
+      const clientObj = clients.find(c => c.id === selectedClient)
+      const clientName = selectedClient === 'all' ? 'Vse klienty' : (clientObj?.name || 'Klient')
+      const monthName = MONTHS[month]
+
+      // simple Cyrillic → Latin so text always renders in default jsPDF fonts
+      function cyr(str = '') {
+        const MAP = {
+          'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z',
+          'и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r',
+          'с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh',
+          'щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
+        }
+        return str.split('').map(ch => {
+          const lower = ch.toLowerCase()
+          const mapped = MAP[lower]
+          if (mapped === undefined) return ch
+          return ch === lower ? mapped : mapped.charAt(0).toUpperCase() + mapped.slice(1)
+        }).join('')
+      }
+
+      const clientLabel = cyr(clientName)
+      const monthLabel  = cyr(monthName)
+
+      // ── Cover page ─────────────────────────────────────────────
+      doc.setFillColor(15, 15, 26)
+      doc.rect(0, 0, W, H, 'F')
+
+      // subtle corner accent dots
+      doc.setFillColor(212, 175, 55)
+      doc.circle(14, 14, 4, 'F')
+      doc.circle(W - 14, H - 14, 4, 'F')
+
+      // top gold line
+      doc.setDrawColor(212, 175, 55)
+      doc.setLineWidth(0.5)
+      doc.line(36, H / 2 - 22, W - 36, H / 2 - 22)
+
+      // CONTENT PLAN
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(54)
+      doc.setTextColor(212, 175, 55)
+      doc.text('CONTENT PLAN', W / 2, H / 2 - 4, { align: 'center' })
+
+      // client name
+      doc.setFontSize(26)
+      doc.setTextColor(255, 255, 255)
+      doc.text(clientLabel, W / 2, H / 2 + 16, { align: 'center' })
+
+      // month + year
+      doc.setFont('helvetica', 'normal')
+      doc.setFontSize(15)
+      doc.setTextColor(155, 155, 165)
+      doc.text(`${monthLabel}  ${year}`, W / 2, H / 2 + 30, { align: 'center' })
+
+      // bottom gold line
+      doc.setDrawColor(212, 175, 55)
+      doc.line(36, H / 2 + 42, W - 36, H / 2 + 42)
+
+      // 1M Agency footer
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(212, 175, 55)
+      doc.text('1M Agency', W / 2, H - 10, { align: 'center' })
+
+      // ── Calendar page ──────────────────────────────────────────
+      doc.addPage()
+      doc.setFillColor(255, 255, 255)
+      doc.rect(0, 0, W, H, 'F')
+
+      const MARGIN   = 8
+      const TITLE_H  = 13
+      const HEADER_H = 8
+      const GRID_TOP = TITLE_H + HEADER_H
+      const COL_W    = (W - 2 * MARGIN) / 7
+      const totalRows = Math.ceil(days.length / 7)
+      const ROW_H    = (H - GRID_TOP - MARGIN) / totalRows
+
+      const TYPE_RGB = {
+        reels:    [102, 102, 255],
+        post:     [61,  220, 132],
+        carousel: [255, 153,   0],
+        stories:  [255,  68,  68],
+      }
+      const TYPE_LABEL_LAT = { reels: 'Reels', post: 'Post', carousel: 'Karusel', stories: 'Stories' }
+
+      // title row
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(11)
+      doc.setTextColor(15, 15, 26)
+      doc.text(`${monthLabel} ${year}`, MARGIN, 9)
+      if (selectedClient !== 'all') {
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(9)
+        doc.setTextColor(100, 100, 110)
+        doc.text(clientLabel, MARGIN + 52, 9)
+      }
+
+      // weekday headers
+      const WD_LAT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+      for (let i = 0; i < 7; i++) {
+        const x = MARGIN + i * COL_W
+        doc.setFillColor(238, 238, 244)
+        doc.rect(x, TITLE_H, COL_W, HEADER_H, 'F')
+        doc.setDrawColor(210, 210, 222)
+        doc.setLineWidth(0.2)
+        doc.rect(x, TITLE_H, COL_W, HEADER_H)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(6.5)
+        doc.setTextColor(i >= 5 ? 200 : 80, i >= 5 ? 60 : 80, i >= 5 ? 60 : 95)
+        doc.text(WD_LAT[i], x + COL_W / 2, TITLE_H + 5.4, { align: 'center' })
+      }
+
+      // day cells
+      days.forEach((day, idx) => {
+        const col = idx % 7
+        const row = Math.floor(idx / 7)
+        const x   = MARGIN + col * COL_W
+        const y   = GRID_TOP + row * ROW_H
+
+        doc.setFillColor(day.current ? 255 : 250, day.current ? 255 : 250, day.current ? 255 : 252)
+        doc.rect(x, y, COL_W, ROW_H, 'F')
+        doc.setDrawColor(210, 210, 222)
+        doc.setLineWidth(0.2)
+        doc.rect(x, y, COL_W, ROW_H)
+
+        const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8)
+        if (!day.current)      doc.setTextColor(190, 190, 200)
+        else if (isWeekend)    doc.setTextColor(210, 70, 70)
+        else                   doc.setTextColor(30, 30, 40)
+        doc.text(String(day.date.getDate()), x + 2, y + 5)
+
+        if (day.current) {
+          const dayPostsList = getPostsForDay(day.date)
+          const maxShow = Math.max(1, Math.floor((ROW_H - 7) / 4))
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(5.5)
+
+          dayPostsList.slice(0, maxShow).forEach((post, pi) => {
+            const py = y + 6.5 + pi * 4
+            const [r, g, b] = TYPE_RGB[post.post_type] || [140, 140, 150]
+            doc.setFillColor(r, g, b)
+            doc.rect(x + 2, py - 2, 2, 2, 'F')
+            doc.setTextColor(40, 40, 50)
+            const maxChars = Math.floor((COL_W - 7) / 1.5)
+            const raw = cyr(post.title)
+            const title = raw.length > maxChars ? raw.slice(0, maxChars - 1) + '…' : raw
+            doc.text(title, x + 5.5, py)
+          })
+
+          if (dayPostsList.length > maxShow) {
+            const py = y + 6.5 + maxShow * 4
+            doc.setFontSize(5)
+            doc.setTextColor(140, 140, 155)
+            doc.text(`+${dayPostsList.length - maxShow}`, x + 2, py)
+          }
+        }
+      })
+
+      // type legend bottom-left
+      let lx = MARGIN
+      const legendY = H - 4
+      Object.entries(TYPE_LABEL_LAT).forEach(([type, label]) => {
+        const [r, g, b] = TYPE_RGB[type]
+        doc.setFillColor(r, g, b)
+        doc.rect(lx, legendY - 2.5, 3, 3, 'F')
+        doc.setFont('helvetica', 'normal')
+        doc.setFontSize(5.5)
+        doc.setTextColor(80, 80, 90)
+        doc.text(label, lx + 4.5, legendY)
+        lx += 22
+      })
+
+      // save
+      const safeName = cyr(selectedClient === 'all' ? 'All' : clientObj?.name || '')
+        .replace(/[\s/\\:*?"<>|]/g, '-')
+      doc.save(`Content-Plan-${safeName}-${monthLabel}-${year}.pdf`)
+    } finally {
+      setExportingPDF(false)
+    }
+  }
+
   // Stats
   const totalPosts = filteredPosts.length
   const publishedPosts = filteredPosts.filter(p => p.status === 'published').length
@@ -130,6 +321,15 @@ export default function CalendarPage() {
           </div>
         </div>
         <div style={styles.topbarRight}>
+          <button
+            style={styles.exportBtn}
+            onClick={generatePDF}
+            disabled={exportingPDF}
+            title="Экспорт PDF"
+          >
+            <Download size={14} />
+            {exportingPDF ? 'Генерация…' : 'PDF'}
+          </button>
           <div style={styles.statsRow}>
             <div style={styles.statPill}>
               <span style={{ color: 'var(--text3)', fontSize: 11 }}>Постов</span>
@@ -317,6 +517,12 @@ const styles = {
     transition: 'all 0.15s',
   },
   topbarRight: { display: 'flex', alignItems: 'center', gap: 12 },
+  exportBtn: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700,
+    background: 'var(--surface2)', border: '1px solid var(--border)',
+    color: 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s',
+  },
   statsRow: { display: 'flex', gap: 8 },
   statPill: {
     display: 'flex', alignItems: 'center', gap: 8,
