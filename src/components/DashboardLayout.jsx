@@ -23,11 +23,10 @@ const ALL_NAV = [
 ]
 
 const MOB_TABS = [
-  { to: '/',        icon: Home,        label: 'Главная',  end: true },
-  { to: '/calendar',icon: Calendar,    label: 'Календарь' },
-  { to: '/tasks',   icon: CheckSquare, label: 'Задачи' },
-  { to: '/target',  icon: Target,      label: 'Таргет',   page: 'target' },
-  { to: '/profile', icon: User,        label: 'Профиль' },
+  { to: '/',        icon: Home,     label: 'Главная',  end: true },
+  { to: '/calendar',icon: Calendar, label: 'Календарь' },
+  { to: '/target',  icon: Target,   label: 'Таргет',   page: 'target' },
+  { to: '/profile', icon: User,     label: 'Профиль' },
 ]
 
 export default function DashboardLayout({ session }) {
