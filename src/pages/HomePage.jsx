@@ -30,7 +30,6 @@ export default function HomePage() {
 
   const [loading, setLoading]             = useState(true)
   const [publishedCount, setPublished]    = useState(0)
-  const [prevPublished, setPrevPublished] = useState(0)
   const [activeClients, setActiveClients] = useState(0)
   const [postsInWork, setPostsInWork]     = useState(0)
   const [shootsCount, setShootsCount]     = useState(0)
@@ -53,24 +52,22 @@ export default function HomePage() {
   useEffect(() => {
     async function load() {
       const [
-        { count: pub },
-        { count: prevPub },
+        { data: clientStats },
         { count: clients },
         { count: inwork },
         { count: shoots },
         { data: shootList },
         { data: clientList },
       ] = await Promise.all([
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('publish_date', monthStart).lte('publish_date', monthEnd),
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('publish_date', prevStart).lte('publish_date', prevEnd),
+        supabase.from('clients').select('published_posts').eq('is_active', true),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('posts').select('*', { count: 'exact', head: true }).in('status', ['idea', 'in_progress', 'review']),
         supabase.from('shoots').select('*', { count: 'exact', head: true }).gte('shoot_date', todayStr).lte('shoot_date', weekEnd),
         supabase.from('shoots').select('*, client:client_id(name)').gte('shoot_date', todayStr).order('shoot_date').limit(4),
         supabase.from('clients').select('id,name,total_posts,published_posts').eq('is_active', true).order('number').limit(6),
       ])
-      setPublished(pub || 0)
-      setPrevPublished(prevPub || 0)
+      const totalPub = (clientStats || []).reduce((s, c) => s + (c.published_posts || 0), 0)
+      setPublished(totalPub)
       setActiveClients(clients || 0)
       setPostsInWork(inwork || 0)
       setShootsCount(shoots || 0)
@@ -81,7 +78,6 @@ export default function HomePage() {
     load()
   }, [])
 
-  const delta    = publishedCount - prevPublished
   const dayLabel = `${DAYS_RU[now.getDay()]} · ${now.getDate()} ${MONTHS_RU[month].toLowerCase()}`
 
   const Head = () => (
@@ -149,14 +145,9 @@ export default function HomePage() {
       <div style={{ marginTop: 10 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
           <div style={{ fontFamily: DISP, fontSize: 108, lineHeight: 0.82, color: 'var(--accent)', letterSpacing: -1 }}>{publishedCount}</div>
-          {delta !== 0 && (
-            <div style={{ fontFamily: SANS, fontSize: 12, fontWeight: 700, color: 'var(--ink)', background: dark ? 'rgba(214,248,74,0.14)' : 'rgba(199,234,30,0.3)', padding: '5px 9px', borderRadius: 8, marginTop: 8 }}>
-              {delta > 0 ? '+' : ''}{delta}
-            </div>
-          )}
         </div>
         <div style={{ fontFamily: DISP, fontSize: 30, lineHeight: 0.95, color: 'var(--ink)', textTransform: 'uppercase', marginTop: 4 }}>
-          Постов опубликовано<br />в {MONTHS_PREP[month]}
+          Постов опубликовано<br />всего по клиентам
         </div>
       </div>
 
@@ -200,13 +191,8 @@ export default function HomePage() {
             <div style={EYEBROW}>Опубликовано за {MONTHS_PREP[month]}</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: DISP, fontSize: 92, lineHeight: 0.78, color: 'var(--accent)', letterSpacing: -1 }}>{publishedCount}</span>
-              {delta !== 0 && (
-                <span style={{ fontFamily: SANS, fontSize: 13, fontWeight: 700, color: 'var(--ink)', background: dark ? 'rgba(214,248,74,0.16)' : 'rgba(199,234,30,0.32)', padding: '5px 10px', borderRadius: 8, marginBottom: 12 }}>
-                  {delta > 0 ? '+' : ''}{delta}
-                </span>
-              )}
             </div>
-            <div style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink2)', marginTop: 14 }}>Постов опубликовано в {MONTHS_PREP[month]}</div>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink2)', marginTop: 14 }}>Постов опубликовано всего по клиентам</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18 }}>

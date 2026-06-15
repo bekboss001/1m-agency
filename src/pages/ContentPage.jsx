@@ -218,86 +218,91 @@ export default function ContentPage() {
               <button style={styles.calNavBtn} onClick={nextCalMonth}><ChevronRight size={16} /></button>
             </div>
 
-            {/* Calendar grid */}
-            <div style={styles.calendarWrap}>
-              <div style={styles.weekdaysRow}>
-                {WEEKDAYS.map(d => (
-                  <div key={d} style={{ ...styles.weekday, color: d === 'СБ' || d === 'ВС' ? 'var(--red)' : 'var(--text3)' }}>{d}</div>
-                ))}
-              </div>
-              <div style={styles.daysGrid}>
-                {buildCalendar().map((day, idx) => {
+            {/* Calendar grid / mobile agenda */}
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                {buildCalendar().filter(d => d.current).map((day, idx) => {
                   const dateStr = localStr(day.date)
                   const dayPosts = getPostsForDay(dateStr)
-                  const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
                   const isTodayDay = dateStr === todayStr
-                  const isDragOver = dragOverDate === dateStr && day.current
-                  const maxVisible = isMobile ? 2 : 3
-
+                  const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
+                  if (dayPosts.length === 0 && !isTodayDay) return null
                   return (
-                    <div
-                      key={idx}
-                      style={{
-                        minHeight: isMobile ? 60 : 100,
-                        padding: '6px',
-                        border: '1px solid',
-                        borderColor: isDragOver ? 'rgba(255,255,255,0.4)' : isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)',
-                        background: isDragOver ? 'rgba(255,255,255,0.06)' : isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent',
-                        opacity: day.current ? 1 : 0.3,
-                        transition: 'background 0.1s, border-color 0.1s',
-                      }}
-                      onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dateStr) } : undefined}
-                      onDragLeave={() => setDragOverDate(null)}
-                      onDrop={day.current ? e => handleCalDrop(e, dateStr) : undefined}
-                    >
-                      <div style={{
-                        fontSize: isMobile ? 13 : 15,
-                        fontWeight: 700,
-                        marginBottom: 4,
-                        color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)',
-                        display: 'inline-block',
-                        background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent',
-                        borderRadius: isTodayDay ? 6 : 0,
-                        padding: isTodayDay ? '2px 6px' : '2px 0',
-                      }} className="bebas">
-                        {day.date.getDate()}
+                    <div key={idx} style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border)', paddingTop: 14, paddingBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: dayPosts.length ? 10 : 0 }}>
+                        <div style={{ fontWeight: 800, fontSize: 26, lineHeight: 1, color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text)' }} className="bebas">
+                          {day.date.getDate()}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                          {day.date.toLocaleDateString('ru-RU', { weekday: 'long', month: 'long' }).split(' ').slice(0, 2).join(' ')}
+                        </div>
+                        {isTodayDay && <span style={{ fontSize: 10, background: 'var(--accent)', color: 'var(--on-accent)', borderRadius: 6, padding: '2px 7px', fontWeight: 700, letterSpacing: 0.5 }}>сегодня</span>}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        {dayPosts.slice(0, maxVisible).map(post => (
-                          <div
-                            key={post.id}
-                            draggable={!isClient}
-                            onDragStart={e => { e.stopPropagation(); handlePostDragStart(e, post.id) }}
-                            onDragEnd={() => setDraggedPostId(null)}
-                            style={{
-                              display: 'flex', alignItems: 'center', gap: 4,
-                              padding: '2px 5px', borderRadius: 4,
-                              borderLeft: `3px solid ${STATUS_HEX[post.status] || '#555'}`,
-                              background: TYPE_COLORS[post.post_type] || 'var(--surface3)',
-                              cursor: isClient ? 'default' : 'grab',
-                              opacity: draggedPostId === post.id ? 0.4 : 1,
-                              transition: 'opacity 0.15s',
-                            }}
-                          >
-                            <span style={{ color: 'var(--text2)', flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-                              {TYPE_ICONS[post.post_type] || <AlignLeft size={12} />}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {dayPosts.map(post => (
+                          <div key={post.id}
+                            style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: `1px solid var(--border)`, borderLeft: `3px solid ${STATUS_HEX[post.status] || '#555'}`, borderRadius: 12, padding: '11px 14px' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', color: 'var(--text2)', flexShrink: 0 }}>
+                              {TYPE_ICONS[post.post_type] || <AlignLeft size={14} />}
                             </span>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? 50 : 90 }}>
-                              {post.title}
-                            </span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.title}</div>
+                              <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2, textTransform: 'capitalize' }}>{post.post_type}</div>
+                            </div>
+                            <span className={`badge ${STATUS_COLORS[post.status]}`}>{STATUS_LABELS[post.status]}</span>
                           </div>
                         ))}
-                        {dayPosts.length > maxVisible && (
-                          <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 700, padding: '2px 4px' }}>
-                            +{dayPosts.length - maxVisible}
-                          </div>
-                        )}
                       </div>
                     </div>
                   )
-                })}
+                }).filter(Boolean)}
+                {posts.filter(p => p.publish_date?.startsWith(`${calYear}-${String(calMonth + 1).padStart(2, '0')}`)).length === 0 && (
+                  <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>Постов на этот месяц нет</div>
+                )}
               </div>
-            </div>
+            ) : (
+              <div style={styles.calendarWrap}>
+                <div style={styles.weekdaysRow}>
+                  {WEEKDAYS.map(d => (
+                    <div key={d} style={{ ...styles.weekday, color: d === 'СБ' || d === 'ВС' ? 'var(--red)' : 'var(--text3)' }}>{d}</div>
+                  ))}
+                </div>
+                <div style={styles.daysGrid}>
+                  {buildCalendar().map((day, idx) => {
+                    const dateStr = localStr(day.date)
+                    const dayPosts = getPostsForDay(dateStr)
+                    const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
+                    const isTodayDay = dateStr === todayStr
+                    const isDragOver = dragOverDate === dateStr && day.current
+                    return (
+                      <div key={idx}
+                        style={{ minHeight: 100, padding: '6px', border: '1px solid', borderColor: isDragOver ? 'rgba(255,255,255,0.4)' : isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)', background: isDragOver ? 'rgba(255,255,255,0.06)' : isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent', opacity: day.current ? 1 : 0.3, transition: 'background 0.1s, border-color 0.1s' }}
+                        onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dateStr) } : undefined}
+                        onDragLeave={() => setDragOverDate(null)}
+                        onDrop={day.current ? e => handleCalDrop(e, dateStr) : undefined}
+                      >
+                        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 4, color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)', display: 'inline-block', background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent', borderRadius: isTodayDay ? 6 : 0, padding: isTodayDay ? '2px 6px' : '2px 0' }} className="bebas">
+                          {day.date.getDate()}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          {dayPosts.slice(0, 3).map(post => (
+                            <div key={post.id} draggable={!isClient}
+                              onDragStart={e => { e.stopPropagation(); handlePostDragStart(e, post.id) }}
+                              onDragEnd={() => setDraggedPostId(null)}
+                              style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '2px 5px', borderRadius: 4, borderLeft: `3px solid ${STATUS_HEX[post.status] || '#555'}`, background: TYPE_COLORS[post.post_type] || 'var(--surface3)', cursor: isClient ? 'default' : 'grab', opacity: draggedPostId === post.id ? 0.4 : 1, transition: 'opacity 0.15s' }}
+                            >
+                              <span style={{ color: 'var(--text2)', flexShrink: 0, display: 'flex', alignItems: 'center' }}>{TYPE_ICONS[post.post_type] || <AlignLeft size={12} />}</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 90 }}>{post.title}</span>
+                            </div>
+                          ))}
+                          {dayPosts.length > 3 && <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 700, padding: '2px 4px' }}>+{dayPosts.length - 3}</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Unscheduled drop zone */}
             <div

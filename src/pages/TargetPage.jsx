@@ -254,7 +254,7 @@ export default function TargetPage() {
 
       <div style={{ ...styles.content, padding: isMobile ? '16px' : '28px 32px' }}>
         {/* Client chips */}
-        <div style={{ ...styles.clientsRow, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 6 : 0, WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ ...styles.clientsRow, flexWrap: 'wrap', overflowX: 'visible', marginBottom: 16 }}>
           <button
             style={styles.clientChip(selectedClient === 'all', null)}
             onClick={() => setSelectedClient('all')}
@@ -288,38 +288,66 @@ export default function TargetPage() {
           </div>
         )}
 
-        {/* ALL view — summary table */}
+        {/* ALL view — summary */}
         {selectedClient === 'all' && !loading && allStats.length > 0 && (
           <div style={styles.section}>
             <div style={styles.sectionTitle} className="bebas">Сводка по клиентам</div>
-            <div style={styles.tableWrap}>
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    {['Клиент', 'Охват', 'Показы', 'Клики', 'Потрачено', 'Переписки'].map(h => (
-                      <th key={h} style={styles.th}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {allStats.map(({ client, stats: s }) => (
-                    <tr key={client.id} onClick={() => setSelectedClient(client.id)} style={{ cursor: 'pointer' }}>
-                      <td style={{ ...styles.td, fontWeight: 700 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ width: 9, height: 9, borderRadius: 2, background: client.color || '#888', flexShrink: 0 }} />
-                          {client.name}
+            {isMobile ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {allStats.map(({ client, stats: s }) => (
+                  <div key={client.id} onClick={() => setSelectedClient(client.id)}
+                    style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderLeft: `3px solid ${client.color || '#888'}`, borderRadius: 12, padding: '12px 14px', cursor: 'pointer' }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 2, background: client.color || '#888' }} />
+                      {client.name}
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {[
+                        { label: 'Охват', val: s ? formatNum(s.reach) : '—' },
+                        { label: 'Клики', val: s ? formatNum(s.clicks) : '—' },
+                        { label: 'Потрачено', val: s ? formatMoney(s.spend) : '—', red: true },
+                        { label: 'Показы', val: s ? formatNum(s.impressions) : '—' },
+                        { label: 'Переписки', val: s ? formatNum(extractMessaging(s.actions)) : '—' },
+                      ].map(m => (
+                        <div key={m.label} style={{ textAlign: 'center' }}>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: m.red ? 'var(--red)' : 'var(--text)' }}>{m.val}</div>
+                          <div style={{ fontSize: 9, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{m.label}</div>
                         </div>
-                      </td>
-                      <td style={styles.td}>{s ? formatNum(s.reach) : <span style={{ color: 'var(--red)', fontSize: 11 }}>ошибка</span>}</td>
-                      <td style={styles.td}>{s ? formatNum(s.impressions) : '—'}</td>
-                      <td style={styles.td}>{s ? formatNum(s.clicks) : '—'}</td>
-                      <td style={{ ...styles.td, color: 'var(--red)' }}>{s ? formatMoney(s.spend) : '—'}</td>
-                      <td style={{ ...styles.td, color: 'var(--text2)' }}>{s ? formatNum(extractMessaging(s.actions)) : '—'}</td>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={styles.tableWrap}>
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      {['Клиент', 'Охват', 'Показы', 'Клики', 'Потрачено', 'Переписки'].map(h => (
+                        <th key={h} style={styles.th}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {allStats.map(({ client, stats: s }) => (
+                      <tr key={client.id} onClick={() => setSelectedClient(client.id)} style={{ cursor: 'pointer' }}>
+                        <td style={{ ...styles.td, fontWeight: 700 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span style={{ width: 9, height: 9, borderRadius: 2, background: client.color || '#888', flexShrink: 0 }} />
+                            {client.name}
+                          </div>
+                        </td>
+                        <td style={styles.td}>{s ? formatNum(s.reach) : <span style={{ color: 'var(--red)', fontSize: 11 }}>ошибка</span>}</td>
+                        <td style={styles.td}>{s ? formatNum(s.impressions) : '—'}</td>
+                        <td style={styles.td}>{s ? formatNum(s.clicks) : '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--red)' }}>{s ? formatMoney(s.spend) : '—'}</td>
+                        <td style={{ ...styles.td, color: 'var(--text2)' }}>{s ? formatNum(extractMessaging(s.actions)) : '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 

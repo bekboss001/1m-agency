@@ -128,10 +128,12 @@ export default function ProfilePage() {
         ))}
       </div>
 
-      {/* Settings link (desktop shortcut) */}
-      <button onClick={() => navigate('/settings')} style={{ all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center', width: '100%', marginTop: 10, padding: '15px 0', border: '1px solid var(--line2)', borderRadius: 14, fontFamily: SANS, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--ink2)', boxSizing: 'border-box' }}>
-        Расширенные настройки
-      </button>
+      {/* Settings link — admin only */}
+      {role === 'admin' && (
+        <button onClick={() => navigate('/settings')} style={{ all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center', width: '100%', marginTop: 10, padding: '15px 0', border: '1px solid var(--line2)', borderRadius: 14, fontFamily: SANS, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--ink2)', boxSizing: 'border-box' }}>
+          Расширенные настройки
+        </button>
+      )}
 
       {/* Logout */}
       <button onClick={handleLogout} style={{ all: 'unset', cursor: 'pointer', display: 'block', textAlign: 'center', width: '100%', marginTop: 10, padding: '15px 0', border: '1px solid var(--line2)', borderRadius: 14, fontFamily: SANS, fontSize: 13, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: '#FF5C5C', boxSizing: 'border-box' }}>

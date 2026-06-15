@@ -185,97 +185,115 @@ export default function ShootsPage() {
         </div>
       </div>
 
-      <div style={{ ...styles.content, padding: isMobile ? '16px' : '20px 32px' }}>
-        {/* Legend */}
-        <div style={styles.legendRow}>
-          {Object.entries(STATUS_LABELS).map(([s, l]) => (
-            <div key={s} style={styles.legendItem}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[s], flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: 'var(--text3)' }}>{l}</span>
-            </div>
-          ))}
-          <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text3)' }}>
-            Нажми на день чтобы добавить съёмку
-          </div>
-        </div>
+      <div style={{ ...styles.content, padding: isMobile ? '0 16px 16px' : '20px 32px' }}>
 
-        {/* Calendar */}
-        <div style={styles.calendarWrap}>
-          <div style={styles.weekdaysRow}>
-            {WEEKDAYS.map(d => (
-              <div key={d} style={{ ...styles.weekday, color: d === 'СБ' || d === 'ВС' ? 'var(--red)' : 'var(--text3)' }}>{d}</div>
-            ))}
-          </div>
-
-          <div style={styles.daysGrid} className="calendar-grid">
-            {days.map((day, idx) => {
+        {isMobile ? (
+          /* ── Mobile agenda view ─────────────────────────── */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {days.filter(d => d.current).map((day, idx) => {
               const dayShootsList = getShootsForDay(day.date)
-              const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
               const isTodayDay = isToday(day.date)
-              const dateStr = day.date.toISOString().split('T')[0]
-              const isDragOver = dragOverDate === dateStr && day.current
-
+              const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
+              if (dayShootsList.length === 0 && !isTodayDay) return null
+              const dayLabel = day.date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })
               return (
-                <div
-                  key={idx}
-                  style={{
-                    ...styles.dayCell,
-                    minHeight: isMobile ? 60 : 110,
-                    background: isDragOver ? 'rgba(255,255,255,0.08)' : isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent',
-                    borderColor: isDragOver ? 'rgba(255,255,255,0.4)' : isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)',
-                    opacity: day.current ? 1 : 0.3,
-                    cursor: day.current ? 'pointer' : 'default',
-                    transition: 'background 0.1s, border-color 0.1s',
-                  }}
-                  onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dateStr) } : undefined}
-                  onDragLeave={() => setDragOverDate(null)}
-                  onDrop={day.current ? e => handleDayDrop(e, dateStr) : undefined}
-                  onClick={() => !dropJustHappened.current && day.current && openAddForm(day.date)}
-                >
-                  <div style={{
-                    ...styles.dayNum,
-                    color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)',
-                    background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent',
-                    borderRadius: isTodayDay ? 6 : 0,
-                    padding: isTodayDay ? '2px 6px' : '2px 0',
-                  }} className="bebas">
-                    {day.date.getDate()}
+                <div key={idx} style={{ borderTop: idx === 0 ? 'none' : '1px solid var(--border)', paddingTop: 14, paddingBottom: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: dayShootsList.length ? 10 : 0 }}>
+                    <div style={{ fontWeight: 800, fontSize: 26, lineHeight: 1, color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text)' }} className="bebas">
+                      {day.date.getDate()}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: 1 }}>
+                      {day.date.toLocaleDateString('ru-RU', { weekday: 'long', month: 'long' }).split(' ').slice(0, 2).join(' ')}
+                    </div>
+                    {isTodayDay && <span style={{ fontSize: 10, background: 'var(--accent)', color: 'var(--on-accent)', borderRadius: 6, padding: '2px 7px', fontWeight: 700, letterSpacing: 0.5 }}>сегодня</span>}
+                    {!isClient && (
+                      <button onClick={() => openAddForm(day.date)}
+                        style={{ marginLeft: 'auto', background: 'none', border: '1px dashed var(--border2)', borderRadius: 8, padding: '4px 10px', color: 'var(--text3)', fontSize: 11, cursor: 'pointer' }}>
+                        + съёмка
+                      </button>
+                    )}
                   </div>
-
-                  <div style={styles.dayShoots}>
-                    {dayShootsList.slice(0, 3).map(shoot => (
-                      <div
-                        key={shoot.id}
-                        draggable
-                        style={{
-                          ...styles.shootChip,
-                          borderLeftColor: shoot.client?.color || 'var(--border2)',
-                          background: `${shoot.client?.color || '#888'}18`,
-                          opacity: draggedShootId === shoot.id ? 0.4 : 1,
-                          cursor: 'grab',
-                          transition: 'opacity 0.15s',
-                        }}
-                        onDragStart={e => { e.stopPropagation(); handleShootDragStart(e, shoot.id) }}
-                        onDragEnd={() => setDraggedShootId(null)}
-                        onClick={e => { e.stopPropagation(); if (!dropJustHappened.current) setSelectedShoot(shoot) }}
-                      >
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_COLORS[shoot.status], flexShrink: 0 }} />
-                        <span style={{ ...styles.shootChipText, maxWidth: isMobile ? 60 : 110 }}>
-                          {shoot.time_start ? shoot.time_start.slice(0, 5) + ' ' : ''}{shoot.client?.name}
-                        </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {dayShootsList.map(shoot => (
+                      <div key={shoot.id}
+                        onClick={() => setSelectedShoot(shoot)}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: `1px solid var(--border)`, borderLeft: `3px solid ${shoot.client?.color || 'var(--border2)'}`, borderRadius: 12, padding: '11px 14px', cursor: 'pointer' }}>
+                        <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[shoot.status], flexShrink: 0 }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{shoot.client?.name || '—'}</div>
+                          <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>
+                            {shoot.time_start ? shoot.time_start.slice(0, 5) : ''}
+                            {shoot.location ? ` · ${shoot.location}` : ''}
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_COLORS[shoot.status] }}>{STATUS_LABELS[shoot.status]}</span>
                       </div>
                     ))}
-                    {dayShootsList.length > 3 && (
-                      <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 700, padding: '2px 4px' }}>
-                        +{dayShootsList.length - 3}
-                      </div>
-                    )}
                   </div>
                 </div>
               )
-            })}
+            }).filter(Boolean)}
+            {shoots.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--text3)', padding: '40px 0', fontSize: 14 }}>Съёмок в этом месяце нет</div>
+            )}
           </div>
-        </div>
+        ) : (
+          /* ── Desktop calendar grid ──────────────────────── */
+          <>
+            <div style={styles.legendRow}>
+              {Object.entries(STATUS_LABELS).map(([s, l]) => (
+                <div key={s} style={styles.legendItem}>
+                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_COLORS[s], flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: 'var(--text3)' }}>{l}</span>
+                </div>
+              ))}
+              <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text3)' }}>Нажми на день чтобы добавить съёмку</div>
+            </div>
+            <div style={styles.calendarWrap}>
+              <div style={styles.weekdaysRow}>
+                {WEEKDAYS.map(d => (
+                  <div key={d} style={{ ...styles.weekday, color: d === 'СБ' || d === 'ВС' ? 'var(--red)' : 'var(--text3)' }}>{d}</div>
+                ))}
+              </div>
+              <div style={styles.daysGrid} className="calendar-grid">
+                {days.map((day, idx) => {
+                  const dayShootsList = getShootsForDay(day.date)
+                  const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
+                  const isTodayDay = isToday(day.date)
+                  const dateStr = day.date.toISOString().split('T')[0]
+                  const isDragOver = dragOverDate === dateStr && day.current
+                  return (
+                    <div key={idx}
+                      style={{ ...styles.dayCell, minHeight: 110, background: isDragOver ? 'rgba(255,255,255,0.08)' : isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent', borderColor: isDragOver ? 'rgba(255,255,255,0.4)' : isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)', opacity: day.current ? 1 : 0.3, cursor: day.current ? 'pointer' : 'default', transition: 'background 0.1s, border-color 0.1s' }}
+                      onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dateStr) } : undefined}
+                      onDragLeave={() => setDragOverDate(null)}
+                      onDrop={day.current ? e => handleDayDrop(e, dateStr) : undefined}
+                      onClick={() => !dropJustHappened.current && day.current && openAddForm(day.date)}
+                    >
+                      <div style={{ ...styles.dayNum, color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)', background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent', borderRadius: isTodayDay ? 6 : 0, padding: isTodayDay ? '2px 6px' : '2px 0' }} className="bebas">
+                        {day.date.getDate()}
+                      </div>
+                      <div style={styles.dayShoots}>
+                        {dayShootsList.slice(0, 3).map(shoot => (
+                          <div key={shoot.id} draggable
+                            style={{ ...styles.shootChip, borderLeftColor: shoot.client?.color || 'var(--border2)', background: `${shoot.client?.color || '#888'}18`, opacity: draggedShootId === shoot.id ? 0.4 : 1, cursor: 'grab' }}
+                            onDragStart={e => { e.stopPropagation(); handleShootDragStart(e, shoot.id) }}
+                            onDragEnd={() => setDraggedShootId(null)}
+                            onClick={e => { e.stopPropagation(); if (!dropJustHappened.current) setSelectedShoot(shoot) }}
+                          >
+                            <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_COLORS[shoot.status], flexShrink: 0 }} />
+                            <span style={{ ...styles.shootChipText, maxWidth: 110 }}>{shoot.time_start ? shoot.time_start.slice(0, 5) + ' ' : ''}{shoot.client?.name}</span>
+                          </div>
+                        ))}
+                        {dayShootsList.length > 3 && <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 700, padding: '2px 4px' }}>+{dayShootsList.length - 3}</div>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Shoot detail modal */}
