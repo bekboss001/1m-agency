@@ -18,7 +18,6 @@ const ALL_NAV = [
   { to: '/content',  icon: FileText,        label: 'Контент-план', page: 'content' },
   { to: '/calendar', icon: Calendar,        label: 'Календарь',   page: 'calendar' },
   { to: '/shoots',   icon: Camera,          label: 'Съёмки',      page: 'shoots' },
-  { to: '/tasks',    icon: CheckSquare,     label: 'Задачи',      page: 'tasks' },
   { to: '/target',   icon: Target,          label: 'Таргет',      page: 'target' },
 ]
 

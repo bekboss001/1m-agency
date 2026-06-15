@@ -32,10 +32,13 @@ export default function HomePage() {
   const now   = new Date()
   const year  = now.getFullYear()
   const month = now.getMonth()
-  const monthStart  = `${year}-${String(month + 1).padStart(2, '0')}-01`
-  const nextMonth   = new Date(year, month + 1, 1).toISOString().split('T')[0]
-  const prevStart   = new Date(year, month - 1, 1).toISOString().split('T')[0]
-  const prevEnd     = `${year}-${String(month + 1).padStart(2, '0')}-01`
+  const mm          = String(month + 1).padStart(2, '0')
+  const pmm         = String(month === 0 ? 12 : month).padStart(2, '0')
+  const py          = month === 0 ? year - 1 : year
+  const monthStart  = `${year}-${mm}-01`
+  const monthEnd    = `${year}-${mm}-${new Date(year, month + 1, 0).getDate()}`
+  const prevStart   = `${py}-${pmm}-01`
+  const prevEnd     = `${py}-${pmm}-${new Date(py, month === 0 ? 12 : month, 0).getDate()}`
   const todayStr   = now.toISOString().split('T')[0]
   const weekEnd    = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
 
@@ -50,8 +53,8 @@ export default function HomePage() {
         { data: shootList },
         { data: clientList },
       ] = await Promise.all([
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('published_at', monthStart).lt('published_at', nextMonth),
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('published_at', prevStart).lt('published_at', prevEnd),
+        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('publish_date', monthStart).lte('publish_date', monthEnd),
+        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('publish_date', prevStart).lte('publish_date', prevEnd),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('posts').select('*', { count: 'exact', head: true }).in('status', ['idea', 'in_progress', 'review']),
         supabase.from('shoots').select('*', { count: 'exact', head: true }).gte('shoot_date', todayStr).lte('shoot_date', weekEnd),
