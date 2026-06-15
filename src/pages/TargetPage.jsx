@@ -231,7 +231,7 @@ export default function TargetPage() {
 
   return (
     <div style={styles.wrap} className="fade-up">
-      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: isMobile ? 56 : 0 }}>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '20px 32px', top: 0 }}>
         <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Таргет</div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <div style={styles.presets}>

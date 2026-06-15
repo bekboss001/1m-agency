@@ -119,7 +119,7 @@ export default function ClientsPage() {
   return (
     <div style={styles.wrap} className="fade-up">
       {/* Topbar */}
-      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '16px 32px', top: isMobile ? 56 : 0 }}>
+      <div style={{ ...styles.topbar, padding: isMobile ? '12px 16px' : '16px 32px', top: 0 }}>
         <div>
           <div style={{ ...styles.pageTitle, fontSize: isMobile ? 20 : 28 }} className="bebas">Клиенты</div>
           {!isMobile && <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, letterSpacing: 0.5, marginTop: 2 }}>{monthLabel}</div>}
