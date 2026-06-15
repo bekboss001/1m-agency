@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { TrendingUp, Eye, MousePointer, DollarSign, Users, Zap, RefreshCw, MessageCircle, Download } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { useProfile } from '../lib/useProfile'
 
 const TOKEN = import.meta.env.VITE_META_ACCESS_TOKEN
 
@@ -87,7 +89,13 @@ async function fetchAccountStats(accountId, datePreset) {
 }
 
 export default function TargetPage() {
+  const navigate = useNavigate()
+  const { profile, loading: profileLoading } = useProfile()
   const isMobile = useMediaQuery('(max-width: 768px)')
+
+  useEffect(() => {
+    if (!profileLoading && profile?.role !== 'admin') navigate('/', { replace: true })
+  }, [profileLoading, profile])
   const [clients, setClients] = useState([])
   const [selectedClient, setSelectedClient] = useState('all')
   const [stats, setStats] = useState(null)

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { logAction } from '../lib/auditLog'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
@@ -77,6 +77,14 @@ export default function ContentPage() {
     setSaving(false)
     setShowForm(false)
     setForm({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
+    loadPosts(selectedClient)
+  }
+
+  async function deletePost(id) {
+    if (!window.confirm('Удалить пост?')) return
+    const title = posts.find(p => p.id === id)?.title || ''
+    await supabase.from('posts').delete().eq('id', id)
+    await logAction(supabase, 'deleted', 'post', title)
     loadPosts(selectedClient)
   }
 
@@ -372,6 +380,15 @@ export default function ContentPage() {
                     <select style={styles.statusSelect} value={post.status} onChange={e => updateStatus(post.id, e.target.value)}>
                       {Object.entries(STATUS_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
+                  )}
+                  {!isClient && (
+                    <button
+                      onClick={() => deletePost(post.id)}
+                      style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, display: 'flex', alignItems: 'center', opacity: 0.6 }}
+                      title="Удалить пост"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   )}
                 </div>
               </div>

@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Plus, X, Check, Trash2, UserCheck, Users, Shield, Lock, Link, Activity } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
 
 const SYSTEM_ROLE_LABELS = { admin: 'Администратор', smm: 'СММ', operator: 'Оператор', client: 'Клиент', pending: 'Ожидает' }
@@ -21,7 +23,13 @@ const ACTION_COLORS = { created: 'var(--green)', deleted: 'var(--red)', updated:
 const ENTITY_LABELS = { client: 'Клиент', post: 'Пост', shoot: 'Съёмка', task: 'Задача', employee: 'Сотрудник', user: 'Пользователь' }
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
+  const { profile, loading: profileLoading } = useProfile()
   const isMobile = useMediaQuery('(max-width: 768px)')
+
+  useEffect(() => {
+    if (!profileLoading && profile?.role !== 'admin') navigate('/', { replace: true })
+  }, [profileLoading, profile])
   const [employees, setEmployees] = useState([])
   const [pendingUsers, setPendingUsers] = useState([])
   const [allUsers, setAllUsers] = useState([])
@@ -284,7 +292,9 @@ export default function SettingsPage() {
                       <button style={styles.approveBtn} onClick={() => approveUser(user.id, document.getElementById(`role-${user.id}`).value)}>
                         <Check size={14} /> Принять
                       </button>
-                      <button style={styles.rejectBtn} onClick={() => rejectUser(user.id)}><X size={14} /></button>
+                      <button style={{ ...styles.rejectBtn, display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', fontSize: 12, fontWeight: 600 }} onClick={() => rejectUser(user.id)}>
+                        <Trash2 size={13} /> Удалить
+                      </button>
                     </div>
                   </div>
                 ))}

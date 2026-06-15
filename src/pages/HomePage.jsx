@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Bell } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
+import { useProfile } from '../lib/useProfile'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -16,9 +18,15 @@ const MON_SHORT = ['янв','фев','мар','апр','май','июн','июл
 const DAYS_RU   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота']
 
 export default function HomePage() {
+  const navigate = useNavigate()
+  const { profile, loading: profileLoading } = useProfile()
   const isMobile = useMediaQuery('(max-width: 768px)')
   const { theme } = useTheme()
   const dark = theme === 'dark'
+
+  useEffect(() => {
+    if (!profileLoading && profile?.role === 'client') navigate('/content', { replace: true })
+  }, [profileLoading, profile])
 
   const [loading, setLoading]             = useState(true)
   const [publishedCount, setPublished]    = useState(0)

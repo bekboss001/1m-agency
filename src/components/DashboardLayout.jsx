@@ -13,7 +13,7 @@ const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
 
 const ALL_NAV = [
-  { to: '/',         icon: LayoutDashboard, label: 'Дашборд',     page: 'dashboard', end: true },
+  { to: '/',         icon: LayoutDashboard, label: 'Дашборд',     page: 'dashboard', end: true, noClient: true },
   { to: '/clients',  icon: Users,           label: 'Клиенты',     page: 'clients' },
   { to: '/content',  icon: FileText,        label: 'Контент-план', page: 'content' },
   { to: '/calendar', icon: Calendar,        label: 'Календарь',   page: 'calendar' },
@@ -22,10 +22,11 @@ const ALL_NAV = [
 ]
 
 const MOB_TABS = [
-  { to: '/',        icon: Home,     label: 'Главная',  end: true },
-  { to: '/calendar',icon: Calendar, label: 'Календарь' },
-  { to: '/target',  icon: Target,   label: 'Таргет',   page: 'target' },
-  { to: '/profile', icon: User,     label: 'Профиль' },
+  { to: '/',        icon: Home,        label: 'Главная',  end: true,           noClient: true },
+  { to: '/content', icon: FileText,    label: 'Контент',                       page: 'content' },
+  { to: '/shoots',  icon: Camera,      label: 'Съёмки',                        page: 'shoots' },
+  { to: '/target',  icon: Target,      label: 'Таргет',                        page: 'target' },
+  { to: '/profile', icon: User,        label: 'Профиль' },
 ]
 
 export default function DashboardLayout({ session }) {
@@ -54,7 +55,11 @@ export default function DashboardLayout({ session }) {
 
   const email = session?.user?.email || ''
   const initials = email[0]?.toUpperCase() || 'A'
-  const navItems = ALL_NAV.filter(item => can(item.page))
+  const isClientRole = profile?.role === 'client'
+  const navItems = ALL_NAV.filter(item => {
+    if (item.noClient && isClientRole) return false
+    return can(item.page)
+  })
 
   // ── Sidebar (desktop) ─────────────────────────────────────
   const Sidebar = () => (
@@ -133,7 +138,12 @@ export default function DashboardLayout({ session }) {
 
   // ── Mobile tab bar ─────────────────────────────────────────
   const TabBar = () => {
-    const tabs = MOB_TABS.filter(t => !t.page || can(t.page))
+    const isClientRole = profile?.role === 'client'
+    const tabs = MOB_TABS.filter(t => {
+      if (t.noClient && isClientRole) return false
+      if (t.page && !can(t.page)) return false
+      return true
+    })
     return (
       <div style={s.tabBar}>
         {tabs.map(({ to, icon: Icon, label, end }) => {

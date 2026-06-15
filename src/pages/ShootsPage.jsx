@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
+import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
 
 const STATUS_LABELS = { planned: 'План', confirmed: 'Подтверждено', done: 'Завершено', cancelled: 'Отменено' }
@@ -10,6 +11,8 @@ const WEEKDAYS = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'ВС']
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
 
 export default function ShootsPage() {
+  const { profile, loading: profileLoading } = useProfile()
+  const isClient = profile?.role === 'client'
   const isMobile = useMediaQuery('(max-width: 768px)')
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -27,17 +30,31 @@ export default function ShootsPage() {
   const [dragOverDate, setDragOverDate] = useState(null)
   const dropJustHappened = useRef(false)
 
-  useEffect(() => { loadData() }, [year, month])
+  useEffect(() => { if (!profileLoading) loadData() }, [year, month, profileLoading, profile])
 
   async function loadData() {
     setLoading(true)
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
     const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
 
+    let shootsQuery = supabase.from('shoots')
+      .select('*, client:client_id(id, name, color), operator:operator_id(name)')
+      .gte('shoot_date', startDate).lte('shoot_date', endDate)
+      .order('shoot_date').order('time_start')
+
+    let clientsQuery = supabase.from('clients').select('id, name, color').eq('is_active', true).order('number')
+
+    if (isClient) {
+      if (!profile?.client_id) {
+        setShoots([]); setClients([]); setEmployees([]); setLoading(false); return
+      }
+      shootsQuery = shootsQuery.eq('client_id', profile.client_id)
+      clientsQuery = clientsQuery.eq('id', profile.client_id)
+    }
+
     const [{ data: s }, { data: c }, { data: e }] = await Promise.all([
-      supabase.from('shoots').select('*, client:client_id(id, name, color), operator:operator_id(name)')
-        .gte('shoot_date', startDate).lte('shoot_date', endDate).order('shoot_date').order('time_start'),
-      supabase.from('clients').select('id, name, color').eq('is_active', true).order('number'),
+      shootsQuery,
+      clientsQuery,
       supabase.from('employees').select('*').order('name'),
     ])
     setShoots(s || [])
@@ -160,9 +177,11 @@ export default function ShootsPage() {
             <span style={{ color: 'var(--text3)', fontSize: 11 }}>Подтверждено</span>
             <span style={{ color: 'var(--green)', fontWeight: 800 }} className="bebas">{confirmedShoots}</span>
           </div>
-          <button className="btn btn-white" onClick={() => { setForm({ client_id: '', operator_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' }); setShowForm(true) }}>
-            <Plus size={16} /> Добавить
-          </button>
+          {!isClient && (
+            <button className="btn btn-white" onClick={() => { setForm({ client_id: '', operator_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' }); setShowForm(true) }}>
+              <Plus size={16} /> Добавить
+            </button>
+          )}
         </div>
       </div>
 
@@ -317,7 +336,7 @@ export default function ShootsPage() {
       )}
 
       {/* Add shoot modal */}
-      {showForm && (
+      {showForm && !isClient && (
         <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowForm(false)}>
           <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalTop}>
