@@ -171,7 +171,7 @@ export default function DashboardLayout({ session }) {
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
       {!isMobile && <Sidebar />}
 
-      <main style={{ flex: 1, minWidth: 0, overflowX: 'hidden', paddingBottom: isMobile ? 80 : 0 }}>
+      <main style={{ flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: isMobile ? 80 : 0 }}>
         <Outlet />
       </main>
 
