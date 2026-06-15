@@ -10,7 +10,8 @@ const EYEBROW = { fontFamily: SANS, fontSize: 10.5, fontWeight: 600, letterSpaci
 
 const TYPE_COLORS = { reels: '#8B7BFF', post: '#3DDC84', carousel: '#FFB020', stories: '#FF5C5C' }
 const TYPE_LABELS = { reels: 'Reels', post: 'Пост', carousel: 'Карусель', stories: 'Stories' }
-const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+const MONTHS_RU   = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
+const MONTHS_PREP = ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре']
 const MON_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек']
 const DAYS_RU   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота']
 
@@ -31,10 +32,10 @@ export default function HomePage() {
   const now   = new Date()
   const year  = now.getFullYear()
   const month = now.getMonth()
-  const monthStart = `${year}-${String(month + 1).padStart(2, '0')}-01`
-  const monthEnd   = new Date(year, month + 1, 0).toISOString().split('T')[0]
-  const prevStart  = `${year}-${String(month).padStart(2, '0')}-01`
-  const prevEnd    = new Date(year, month, 0).toISOString().split('T')[0]
+  const monthStart  = `${year}-${String(month + 1).padStart(2, '0')}-01`
+  const nextMonth   = new Date(year, month + 1, 1).toISOString().split('T')[0]
+  const prevStart   = new Date(year, month - 1, 1).toISOString().split('T')[0]
+  const prevEnd     = `${year}-${String(month + 1).padStart(2, '0')}-01`
   const todayStr   = now.toISOString().split('T')[0]
   const weekEnd    = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
 
@@ -49,8 +50,8 @@ export default function HomePage() {
         { data: shootList },
         { data: clientList },
       ] = await Promise.all([
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('publish_date', monthStart).lte('publish_date', monthEnd),
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('publish_date', prevStart).lte('publish_date', prevEnd),
+        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('published_at', monthStart).lt('published_at', nextMonth),
+        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('status', 'published').gte('published_at', prevStart).lt('published_at', prevEnd),
         supabase.from('clients').select('*', { count: 'exact', head: true }).eq('is_active', true),
         supabase.from('posts').select('*', { count: 'exact', head: true }).in('status', ['idea', 'in_progress', 'review']),
         supabase.from('shoots').select('*', { count: 'exact', head: true }).gte('shoot_date', todayStr).lte('shoot_date', weekEnd),
@@ -144,7 +145,7 @@ export default function HomePage() {
           )}
         </div>
         <div style={{ fontFamily: DISP, fontSize: 30, lineHeight: 0.95, color: 'var(--ink)', textTransform: 'uppercase', marginTop: 4 }}>
-          Постов опубликовано<br />в {MONTHS_RU[month].toLowerCase()}е
+          Постов опубликовано<br />в {MONTHS_PREP[month]}
         </div>
       </div>
 
@@ -185,7 +186,7 @@ export default function HomePage() {
       <div style={{ padding: 40 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 2fr', gap: 18 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, padding: '26px 28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-            <div style={EYEBROW}>Опубликовано за {MONTHS_RU[month].toLowerCase()}</div>
+            <div style={EYEBROW}>Опубликовано за {MONTHS_PREP[month]}</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: DISP, fontSize: 92, lineHeight: 0.78, color: 'var(--accent)', letterSpacing: -1 }}>{publishedCount}</span>
               {delta !== 0 && (
@@ -194,7 +195,7 @@ export default function HomePage() {
                 </span>
               )}
             </div>
-            <div style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink2)', marginTop: 14 }}>Постов опубликовано в {MONTHS_RU[month].toLowerCase()}е</div>
+            <div style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink2)', marginTop: 14 }}>Постов опубликовано в {MONTHS_PREP[month]}</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18 }}>
