@@ -110,11 +110,20 @@ export default function SettingsPage() {
     const user = pendingUsers.find(u => u.id === userId)
     await supabase.from('profiles').update({ is_approved: true, role }).eq('id', userId)
     if ((role === 'smm' || role === 'operator') && user) {
-      await supabase.from('employees').insert({
-        name: user.full_name || user.email.split('@')[0],
-        email: user.email,
-        role,
-      })
+      // check if employee already exists by email
+      const { data: existing } = await supabase.from('employees').select('id').eq('email', user.email).maybeSingle()
+      let empId = existing?.id
+      if (!empId) {
+        const { data: newEmp } = await supabase.from('employees').insert({
+          name: user.full_name || user.email.split('@')[0],
+          email: user.email,
+          role,
+        }).select('id').single()
+        empId = newEmp?.id
+      }
+      if (empId) {
+        await supabase.from('profiles').update({ employee_id: empId }).eq('id', userId)
+      }
     }
     await logAction(supabase, 'approved', 'user', user?.email || userId, { role })
     loadData()
@@ -132,23 +141,47 @@ export default function SettingsPage() {
       const user = allUsers.find(u => u.id === userId)
       if (user) {
         const { data: existing } = await supabase.from('employees').select('id').eq('email', user.email).maybeSingle()
-        if (!existing) {
-          await supabase.from('employees').insert({
+        let empId = existing?.id
+        if (!empId) {
+          const { data: newEmp } = await supabase.from('employees').insert({
             name: user.full_name || user.email.split('@')[0],
             email: user.email,
             role,
-          })
+          }).select('id').single()
+          empId = newEmp?.id
         } else {
           await supabase.from('employees').update({ role }).eq('id', existing.id)
+        }
+        if (empId) {
+          await supabase.from('profiles').update({ employee_id: empId }).eq('id', userId)
         }
       }
     }
     loadData()
   }
 
+  async function autoLinkByEmail() {
+    const unlinked = allUsers.filter(u => (u.role === 'smm' || u.role === 'operator') && !u.employee_id)
+    let count = 0
+    for (const user of unlinked) {
+      const emp = employees.find(e => e.email === user.email)
+      if (emp) {
+        await supabase.from('profiles').update({ employee_id: emp.id }).eq('id', user.id)
+        count++
+      }
+    }
+    alert(count > 0 ? `Привязано: ${count} пользователей` : 'Не найдено совпадений по email')
+    loadData()
+  }
+
   async function revokeUser(userId) {
     if (!window.confirm('Отозвать доступ?')) return
     await supabase.from('profiles').update({ is_approved: false, role: 'pending' }).eq('id', userId)
+    loadData()
+  }
+
+  async function setEmployeeLink(userId, employeeId) {
+    await supabase.from('profiles').update({ employee_id: employeeId || null }).eq('id', userId)
     loadData()
   }
 
@@ -306,26 +339,47 @@ export default function SettingsPage() {
         {/* USERS */}
         {activeTab === 'users' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {allUsers.map(user => (
-              <div key={user.id} style={styles.userCard}>
-                <div style={styles.userAvatar}>{(user.full_name || user.email)?.[0]?.toUpperCase()}</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14 }}>{user.full_name || 'Без имени'}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{user.email}</div>
-                </div>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <select style={styles.roleSelect} value={user.role} onChange={e => changeUserRole(user.id, e.target.value)}>
-                    {roles.filter(r => r.name !== 'pending').map(r => (
-                      <option key={r.id} value={r.name}>{r.label}</option>
-                    ))}
-                  </select>
-                  <span className="badge" style={{ background: `${ROLE_COLORS[user.role] || 'var(--text3)'}22`, color: ROLE_COLORS[user.role] || 'var(--text3)' }}>
-                    {SYSTEM_ROLE_LABELS[user.role] || user.role}
-                  </span>
-                  <button style={styles.rejectBtn} onClick={() => revokeUser(user.id)} title="Отозвать доступ"><X size={14} /></button>
-                </div>
+            {allUsers.some(u => (u.role === 'smm' || u.role === 'operator') && !u.employee_id) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(180,104,255,0.08)', border: '1px solid rgba(180,104,255,0.25)', borderRadius: 12, marginBottom: 4 }}>
+                <Link size={15} style={{ color: '#B468FF', flexShrink: 0 }} />
+                <span style={{ fontSize: 13, color: 'var(--text2)', flex: 1 }}>Есть сотрудники без привязки к аккаунту</span>
+                <button onClick={autoLinkByEmail} style={{ fontSize: 12, fontWeight: 700, color: '#B468FF', background: 'rgba(180,104,255,0.15)', border: '1px solid rgba(180,104,255,0.3)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer' }}>
+                  Автосвязать по email
+                </button>
               </div>
-            ))}
+            )}
+            {allUsers.map(user => {
+              const isStaff = user.role === 'smm' || user.role === 'operator'
+              const matchingEmps = employees.filter(e => e.role === user.role)
+              return (
+                <div key={user.id} style={{ ...styles.userCard, flexWrap: 'wrap' }}>
+                  <div style={styles.userAvatar}>{(user.full_name || user.email)?.[0]?.toUpperCase()}</div>
+                  <div style={{ flex: 1, minWidth: 160 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{user.full_name || 'Без имени'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 2 }}>{user.email}</div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <select style={styles.roleSelect} value={user.role} onChange={e => changeUserRole(user.id, e.target.value)}>
+                      {roles.filter(r => r.name !== 'pending').map(r => (
+                        <option key={r.id} value={r.name}>{r.label}</option>
+                      ))}
+                    </select>
+                    {isStaff && (
+                      <select
+                        style={{ ...styles.roleSelect, borderColor: user.employee_id ? 'rgba(180,104,255,0.5)' : 'var(--border)', color: user.employee_id ? '#B468FF' : 'var(--text3)' }}
+                        value={user.employee_id || ''}
+                        onChange={e => setEmployeeLink(user.id, e.target.value)}
+                        title="Привязать к сотруднику"
+                      >
+                        <option value="">— сотрудник —</option>
+                        {matchingEmps.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                      </select>
+                    )}
+                    <button style={styles.rejectBtn} onClick={() => revokeUser(user.id)} title="Отозвать доступ"><X size={14} /></button>
+                  </div>
+                </div>
+              )
+            })}
             {allUsers.length === 0 && <div style={styles.emptyState}><div style={{ color: 'var(--text3)' }}>Нет активных пользователей</div></div>}
           </div>
         )}
