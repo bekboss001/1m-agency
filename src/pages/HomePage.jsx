@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Bell } from 'lucide-react'
+import { Bell, AlertTriangle, ChevronRight } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
 import { useProfile } from '../lib/useProfile'
@@ -12,21 +12,331 @@ const EYEBROW = { fontFamily: SANS, fontSize: 10.5, fontWeight: 600, letterSpaci
 
 const TYPE_COLORS = { reels: '#8B7BFF', post: '#3DDC84', carousel: '#FFB020', stories: '#FF5C5C' }
 const TYPE_LABELS = { reels: 'Reels', post: 'Пост', carousel: 'Карусель', stories: 'Stories' }
+const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
+const STATUS_HEX = { idea: '#555', in_progress: '#FF4444', review: '#FF9900', published: '#3DDC84' }
 const MONTHS_RU   = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь']
 const MONTHS_PREP = ['январе','феврале','марте','апреле','мае','июне','июле','августе','сентябре','октябре','ноябре','декабре']
 const MON_SHORT = ['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек']
 const DAYS_RU   = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота']
 
+// ─────────────────────────────────────────────
+// EMPLOYEE PERSONAL DASHBOARD
+// ─────────────────────────────────────────────
+function EmployeeDashboard({ profile }) {
+  const navigate = useNavigate()
+  const isMobile = useMediaQuery('(max-width: 768px)')
+  const now = new Date()
+  const todayStr = now.toISOString().split('T')[0]
+  const weekEnd  = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
+
+  const [loading, setLoading] = useState(true)
+  const [myClients, setMyClients] = useState([])
+  const [shoots, setShoots] = useState([])
+  const [activePosts, setActivePosts] = useState([])
+
+  const empName = profile?.full_name || profile?.email?.split('@')[0] || 'Сотрудник'
+  const initials = empName[0]?.toUpperCase() || '?'
+  const dayLabel = `${DAYS_RU[now.getDay()]} · ${now.getDate()} ${MONTHS_RU[now.getMonth()].toLowerCase()}`
+
+  useEffect(() => {
+    async function load() {
+      const eid = profile.employee_id
+      const [{ data: clients }, { data: shootList }, { data: posts }] = await Promise.all([
+        supabase.from('clients')
+          .select('id, name, color, total_posts, published_posts, last_post_date')
+          .or(`smm_id.eq.${eid},operator_id.eq.${eid}`)
+          .eq('is_active', true)
+          .order('name'),
+        supabase.from('shoots')
+          .select('*, client:client_id(id, name, color)')
+          .gte('shoot_date', todayStr)
+          .lte('shoot_date', weekEnd)
+          .order('shoot_date').order('time_start')
+          .limit(6),
+        supabase.from('posts')
+          .select('*, client:client_id(id, name, color)')
+          .in('status', ['in_progress', 'review'])
+          .order('created_at', { ascending: false })
+          .limit(8),
+      ])
+      const myClientIds = new Set((clients || []).map(c => c.id))
+      setMyClients(clients || [])
+      setShoots((shootList || []).filter(s => myClientIds.has(s.client?.id)))
+      setActivePosts((posts || []).filter(p => myClientIds.has(p.client?.id)))
+      setLoading(false)
+    }
+    load()
+  }, [profile.employee_id])
+
+  const alertClients = myClients.filter(c => {
+    if (!c.last_post_date) return (c.total_posts || 0) > 0
+    const days = Math.round((now - new Date(c.last_post_date)) / 86400000)
+    return days > 3
+  })
+
+  const daysSince = (d) => d ? Math.round((now - new Date(d)) / 86400000) : null
+
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
+      <div className="spinner" style={{ width: 28, height: 28 }} />
+    </div>
+  )
+
+  // ── MOBILE ──────────────────────────────────
+  if (isMobile) return (
+    <div style={{ padding: '20px 20px 20px', background: 'var(--bg)', minHeight: '100vh' }}>
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div>
+          <div style={{ ...EYEBROW, marginBottom: 4 }}>{dayLabel}</div>
+          <div style={{ fontFamily: DISP, fontSize: 28, lineHeight: 0.9, color: 'var(--ink)', textTransform: 'uppercase' }}>
+            Привет,<br />{empName.split(' ')[0]}
+          </div>
+        </div>
+        <div style={{ width: 48, height: 48, borderRadius: 14, background: 'var(--accent)', color: 'var(--on-accent)', display: 'grid', placeItems: 'center', fontFamily: DISP, fontSize: 20 }}>
+          {initials}
+        </div>
+      </div>
+
+      {/* Alerts */}
+      {alertClients.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: DISP, fontSize: 18, color: '#FF4444', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <AlertTriangle size={16} style={{ color: '#FF4444' }} /> Требуют внимания
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {alertClients.map(c => {
+              const ds = daysSince(c.last_post_date)
+              return (
+                <div key={c.id} onClick={() => navigate('/content')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: 'rgba(255,68,68,0.06)', border: '1px solid rgba(255,68,68,0.25)', borderLeft: `3px solid #FF4444`, borderRadius: 12, cursor: 'pointer' }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || '#888', flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{c.name}</div>
+                    <div style={{ fontSize: 12, color: '#FF4444', marginTop: 2 }}>
+                      {ds === null ? 'Ни одного поста' : `${ds} ${ds === 1 ? 'день' : ds < 5 ? 'дня' : 'дней'} без поста`}
+                    </div>
+                  </div>
+                  <ChevronRight size={16} style={{ color: '#FF444480' }} />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* My clients */}
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontFamily: DISP, fontSize: 22, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+          Мои клиенты ({myClients.length})
+        </div>
+        {myClients.length === 0 ? (
+          <div style={{ fontSize: 13, color: 'var(--ink3)', padding: '20px 0' }}>Нет назначенных клиентов</div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {myClients.map(c => {
+              const pct = c.total_posts ? Math.round(((c.published_posts || 0) / c.total_posts) * 100) : 0
+              const ds = daysSince(c.last_post_date)
+              const isAlert = alertClients.some(a => a.id === c.id)
+              return (
+                <div key={c.id} onClick={() => navigate('/content')}
+                  style={{ background: 'var(--surface)', border: `1px solid ${isAlert ? 'rgba(255,68,68,0.2)' : 'var(--line)'}`, borderLeft: `3px solid ${c.color || '#888'}`, borderRadius: 14, padding: '14px 16px', cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || '#888', flexShrink: 0 }} />
+                      <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{c.name}</span>
+                    </div>
+                    <span style={{ fontFamily: DISP, fontSize: 20, color: 'var(--ink)' }}>{pct}%</span>
+                  </div>
+                  <div style={{ height: 5, borderRadius: 3, background: 'var(--line2)', overflow: 'hidden', marginBottom: 8 }}>
+                    <div style={{ width: pct + '%', height: '100%', background: pct >= 100 ? 'var(--green)' : pct > 50 ? 'var(--accent)' : '#FF9020', transition: 'width 0.4s' }} />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--ink3)' }}>
+                    <span>{c.published_posts || 0} / {c.total_posts || 0} постов</span>
+                    {ds !== null && (
+                      <span style={{ color: ds > 3 ? '#FF4444' : ds > 1 ? '#FF9020' : 'var(--green)' }}>
+                        {ds === 0 ? 'Сегодня' : `${ds}д назад`}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Upcoming shoots */}
+      {shoots.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: DISP, fontSize: 22, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+            Ближайшие съёмки
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {shoots.map(s => {
+              const d = new Date(s.shoot_date)
+              return (
+                <div key={s.id} onClick={() => navigate('/shoots')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '14px 16px', cursor: 'pointer' }}>
+                  <div style={{ textAlign: 'center', minWidth: 36, flexShrink: 0 }}>
+                    <div style={{ fontFamily: DISP, fontSize: 28, lineHeight: 0.85, color: 'var(--ink)' }}>{d.getDate()}</div>
+                    <div style={{ ...EYEBROW, fontSize: 9, marginTop: 2 }}>{MON_SHORT[d.getMonth()]}</div>
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{s.client?.name || '—'}</div>
+                    <div style={{ fontSize: 12, color: 'var(--ink3)', marginTop: 2 }}>
+                      {s.time_start ? s.time_start.slice(0, 5) : ''}{s.location ? ` · ${s.location}` : ''}
+                    </div>
+                  </div>
+                  <ChevronRight size={16} style={{ color: 'var(--ink3)', flexShrink: 0 }} />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Active posts */}
+      {activePosts.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontFamily: DISP, fontSize: 22, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+            Посты в работе
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {activePosts.map(p => (
+              <div key={p.id} onClick={() => navigate('/content')}
+                style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--surface)', border: '1px solid var(--line)', borderLeft: `3px solid ${STATUS_HEX[p.status] || '#555'}`, borderRadius: 14, padding: '12px 16px', cursor: 'pointer' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 3 }}>{p.client?.name}</div>
+                </div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_HEX[p.status], flexShrink: 0 }}>{STATUS_LABELS[p.status]}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // ── DESKTOP ──────────────────────────────────
+  return (
+    <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '34px 40px 24px', borderBottom: '1px solid var(--line)' }}>
+        <div>
+          <div style={EYEBROW}>{dayLabel}</div>
+          <h1 style={{ fontFamily: DISP, fontSize: 42, lineHeight: 0.85, color: 'var(--ink)', margin: '8px 0 0', textTransform: 'uppercase' }}>
+            Привет, {empName.split(' ')[0]}
+          </h1>
+        </div>
+        {alertClients.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 18px', background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.25)', borderRadius: 12 }}>
+            <AlertTriangle size={16} style={{ color: '#FF4444' }} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#FF4444' }}>{alertClients.length} клиент{alertClients.length > 1 ? 'а' : ''} без поста</span>
+          </div>
+        )}
+      </div>
+
+      <div style={{ padding: 40 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 20 }}>
+
+          {/* Left: clients */}
+          <div>
+            <h2 style={{ fontFamily: DISP, fontSize: 22, color: 'var(--ink)', textTransform: 'uppercase', margin: '0 0 14px' }}>
+              Мои клиенты ({myClients.length})
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {myClients.map(c => {
+                const pct = c.total_posts ? Math.round(((c.published_posts || 0) / c.total_posts) * 100) : 0
+                const ds = daysSince(c.last_post_date)
+                const isAlert = alertClients.some(a => a.id === c.id)
+                return (
+                  <div key={c.id} onClick={() => navigate('/content')}
+                    style={{ background: 'var(--surface)', border: `1px solid ${isAlert ? 'rgba(255,68,68,0.25)' : 'var(--line)'}`, borderLeft: `3px solid ${c.color || '#888'}`, borderRadius: 14, padding: '16px 20px', cursor: 'pointer', transition: 'border-color 0.15s' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || '#888' }} />
+                        <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--ink)' }}>{c.name}</span>
+                        {isAlert && <span style={{ fontSize: 10, fontWeight: 700, color: '#FF4444', background: 'rgba(255,68,68,0.1)', padding: '2px 8px', borderRadius: 6 }}>нет поста {daysSince(c.last_post_date)}д</span>}
+                      </div>
+                      <span style={{ fontFamily: DISP, fontSize: 22, color: 'var(--ink)' }}>{pct}%</span>
+                    </div>
+                    <div style={{ height: 6, borderRadius: 3, background: 'var(--line2)', overflow: 'hidden', marginBottom: 8 }}>
+                      <div style={{ width: pct + '%', height: '100%', background: pct >= 100 ? 'var(--green)' : pct > 50 ? 'var(--accent)' : '#FF9020' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--ink3)' }}>
+                      <span>{c.published_posts || 0} / {c.total_posts || 0} постов опубликовано</span>
+                      {ds !== null && <span style={{ color: ds > 3 ? '#FF4444' : ds > 1 ? '#FF9020' : 'var(--green)' }}>последний {ds === 0 ? 'сегодня' : `${ds}д назад`}</span>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Right: shoots + posts */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>
+              <div style={{ padding: '18px 22px 12px', borderBottom: '1px solid var(--line)' }}>
+                <h2 style={{ fontFamily: DISP, fontSize: 20, color: 'var(--ink)', textTransform: 'uppercase', margin: 0 }}>Ближайшие съёмки</h2>
+              </div>
+              {shoots.length === 0 ? (
+                <div style={{ padding: '20px 22px', color: 'var(--ink3)', fontSize: 13 }}>Нет съёмок на этой неделе</div>
+              ) : shoots.map(s => {
+                const d = new Date(s.shoot_date)
+                return (
+                  <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 22px', borderTop: '1px solid var(--line)', cursor: 'pointer' }} onClick={() => navigate('/shoots')}>
+                    <div style={{ textAlign: 'center', minWidth: 40 }}>
+                      <div style={{ fontFamily: DISP, fontSize: 26, lineHeight: 0.85, color: 'var(--ink)' }}>{d.getDate()}</div>
+                      <div style={{ ...EYEBROW, fontSize: 9, marginTop: 2 }}>{MON_SHORT[d.getMonth()]}</div>
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--ink)' }}>{s.client?.name || '—'}</div>
+                      <div style={{ fontSize: 12, color: 'var(--ink3)', marginTop: 1 }}>{s.time_start?.slice(0, 5)}{s.location ? ` · ${s.location}` : ''}</div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {activePosts.length > 0 && (
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>
+                <div style={{ padding: '18px 22px 12px', borderBottom: '1px solid var(--line)' }}>
+                  <h2 style={{ fontFamily: DISP, fontSize: 20, color: 'var(--ink)', textTransform: 'uppercase', margin: 0 }}>Посты в работе</h2>
+                </div>
+                {activePosts.map(p => (
+                  <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px', borderTop: '1px solid var(--line)', borderLeft: `3px solid ${STATUS_HEX[p.status]}`, cursor: 'pointer' }} onClick={() => navigate('/content')}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</div>
+                      <div style={{ fontSize: 11, color: 'var(--ink3)', marginTop: 2 }}>{p.client?.name}</div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: STATUS_HEX[p.status], flexShrink: 0 }}>{STATUS_LABELS[p.status]}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// ADMIN / GENERAL DASHBOARD
+// ─────────────────────────────────────────────
 export default function HomePage() {
   const navigate = useNavigate()
   const { profile, loading: profileLoading } = useProfile()
   const isMobile = useMediaQuery('(max-width: 768px)')
   const { theme } = useTheme()
-  const dark = theme === 'dark'
 
   useEffect(() => {
     if (!profileLoading && profile?.role === 'client') navigate('/content', { replace: true })
   }, [profileLoading, profile])
+
+  const isEmployee = !profileLoading && (profile?.role === 'smm' || profile?.role === 'operator')
 
   const [loading, setLoading]             = useState(true)
   const [publishedCount, setPublished]    = useState(0)
@@ -37,19 +347,14 @@ export default function HomePage() {
   const [clientProgress, setClientProgress] = useState([])
 
   const now   = new Date()
-  const year  = now.getFullYear()
   const month = now.getMonth()
-  const mm          = String(month + 1).padStart(2, '0')
-  const pmm         = String(month === 0 ? 12 : month).padStart(2, '0')
-  const py          = month === 0 ? year - 1 : year
-  const monthStart  = `${year}-${mm}-01`
-  const monthEnd    = `${year}-${mm}-${new Date(year, month + 1, 0).getDate()}`
-  const prevStart   = `${py}-${pmm}-01`
-  const prevEnd     = `${py}-${pmm}-${new Date(py, month === 0 ? 12 : month, 0).getDate()}`
-  const todayStr   = now.toISOString().split('T')[0]
-  const weekEnd    = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
+  const mm    = String(month + 1).padStart(2, '0')
+  const year  = now.getFullYear()
+  const todayStr = now.toISOString().split('T')[0]
+  const weekEnd  = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
 
   useEffect(() => {
+    if (isEmployee) return // employee has its own loader
     async function load() {
       const [
         { data: clientStats },
@@ -76,9 +381,28 @@ export default function HomePage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [isEmployee])
 
   const dayLabel = `${DAYS_RU[now.getDay()]} · ${now.getDate()} ${MONTHS_RU[month].toLowerCase()}`
+
+  // Show employee dashboard
+  if (isEmployee) {
+    if (profileLoading) return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
+        <div className="spinner" style={{ width: 28, height: 28 }} />
+      </div>
+    )
+    if (!profile.employee_id) return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)', padding: 32, flexDirection: 'column', gap: 16, textAlign: 'center' }}>
+        <AlertTriangle size={40} style={{ color: 'var(--ink3)' }} />
+        <div style={{ fontFamily: DISP, fontSize: 22, color: 'var(--ink)', textTransform: 'uppercase' }}>Аккаунт не привязан</div>
+        <div style={{ fontFamily: SANS, fontSize: 14, color: 'var(--ink3)', maxWidth: 320, lineHeight: 1.6 }}>
+          Попросите администратора привязать ваш аккаунт к профилю сотрудника в разделе Настройки → Пользователи
+        </div>
+      </div>
+    )
+    return <EmployeeDashboard profile={profile} />
+  }
 
   const Head = () => (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
@@ -136,21 +460,16 @@ export default function HomePage() {
     </div>
   )
 
-  // ── MOBILE ──────────────────────────────────────────────────
   if (isMobile) return (
     <div style={{ padding: '54px 20px 20px', background: 'var(--bg)', minHeight: '100vh' }} className="press-swap">
       <Head />
       <div style={EYEBROW}>{dayLabel}</div>
-
       <div style={{ marginTop: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ fontFamily: DISP, fontSize: 108, lineHeight: 0.82, color: 'var(--accent)', letterSpacing: -1 }}>{publishedCount}</div>
-        </div>
+        <div style={{ fontFamily: DISP, fontSize: 108, lineHeight: 0.82, color: 'var(--accent)', letterSpacing: -1 }}>{publishedCount}</div>
         <div style={{ fontFamily: DISP, fontSize: 30, lineHeight: 0.95, color: 'var(--ink)', textTransform: 'uppercase', marginTop: 4 }}>
           Постов опубликовано<br />всего по клиентам
         </div>
       </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8, marginTop: 24 }}>
         {[
           { val: activeClients, label: 'Активных клиентов' },
@@ -163,19 +482,16 @@ export default function HomePage() {
           </div>
         ))}
       </div>
-
       <h2 style={{ fontFamily: DISP, fontSize: 26, color: 'var(--ink)', textTransform: 'uppercase', margin: '32px 0 14px' }}>Ближайшие съёмки</h2>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {upcomingShoots.length === 0 && <div style={{ color: 'var(--ink3)', fontSize: 13 }}>Нет ближайших съёмок</div>}
         {upcomingShoots.map(s => <ShootCard key={s.id} s={s} />)}
       </div>
-
       <h2 style={{ fontFamily: DISP, fontSize: 26, color: 'var(--ink)', textTransform: 'uppercase', margin: '32px 0 14px' }}>Прогресс по клиентам</h2>
       <ProgressList />
     </div>
   )
 
-  // ── DESKTOP ──────────────────────────────────────────────────
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }} className="press-swap">
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', padding: '34px 40px 24px', borderBottom: '1px solid var(--line)' }}>
@@ -184,17 +500,13 @@ export default function HomePage() {
           <h1 style={{ fontFamily: DISP, fontSize: 46, lineHeight: 0.85, color: 'var(--ink)', margin: '10px 0 0', textTransform: 'uppercase' }}>Сводка</h1>
         </div>
       </div>
-
       <div style={{ padding: 40 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1.15fr 2fr', gap: 18 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, padding: '26px 28px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
             <div style={EYEBROW}>Опубликовано за {MONTHS_PREP[month]}</div>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, marginTop: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontFamily: DISP, fontSize: 92, lineHeight: 0.78, color: 'var(--accent)', letterSpacing: -1 }}>{publishedCount}</span>
-            </div>
+            <span style={{ fontFamily: DISP, fontSize: 92, lineHeight: 0.78, color: 'var(--accent)', letterSpacing: -1 }}>{publishedCount}</span>
             <div style={{ fontFamily: SANS, fontSize: 13, color: 'var(--ink2)', marginTop: 14 }}>Постов опубликовано всего по клиентам</div>
           </div>
-
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18 }}>
             {[
               { val: activeClients, label: 'Активных клиентов' },
@@ -208,16 +520,14 @@ export default function HomePage() {
             ))}
           </div>
         </div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 18, marginTop: 18 }}>
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, overflow: 'hidden' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '22px 26px 16px' }}>
+            <div style={{ padding: '22px 26px 16px' }}>
               <h2 style={{ fontFamily: DISP, fontSize: 24, color: 'var(--ink)', textTransform: 'uppercase', margin: 0 }}>Ближайшие съёмки</h2>
             </div>
             {upcomingShoots.length === 0 && <div style={{ padding: '20px 26px', color: 'var(--ink3)', fontSize: 13 }}>Нет ближайших съёмок</div>}
             {upcomingShoots.map(s => <ShootCard key={s.id} s={s} desktop />)}
           </div>
-
           <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 18, padding: '22px 26px 26px' }}>
             <h2 style={{ fontFamily: DISP, fontSize: 24, color: 'var(--ink)', textTransform: 'uppercase', margin: '0 0 18px' }}>Прогресс</h2>
             <ProgressList gap={18} />
