@@ -23,7 +23,8 @@ export default function ClientsPage() {
   const [employees, setEmployees]   = useState([])
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]         = useState('')
-  const [filterSmm, setFilterSmm]   = useState('')
+  const [filterSmm, setFilterSmm]       = useState('')
+  const [filterOperator, setFilterOperator] = useState('')
   const [showForm, setShowForm]     = useState(false)
   const [form, setForm]             = useState({ number: '', name: '', color: '#7B9FE8', contract_start: '', contract_end: '', smm_id: '', operator_id: '', total_posts: 12, notes: '' })
   const [saving, setSaving]         = useState(false)
@@ -99,12 +100,14 @@ export default function ClientsPage() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'
   const daysSince = (d) => d ? Math.round((today - new Date(d)) / 86400000) : null
 
-  const smms = [...new Set(employees.filter(e => e.role === 'smm').map(e => e.name))]
+  const smms      = [...new Set(employees.filter(e => e.role === 'smm').map(e => e.name))]
+  const operators = [...new Set(employees.filter(e => e.role === 'operator').map(e => e.name))]
 
   const filtered = clients.filter(c => {
-    const matchSearch = c.name.toLowerCase().includes(search.toLowerCase())
-    const matchSmm = !filterSmm || c.smm?.name === filterSmm
-    return matchSearch && matchSmm
+    const matchSearch   = c.name.toLowerCase().includes(search.toLowerCase())
+    const matchSmm      = !filterSmm      || c.smm?.name      === filterSmm
+    const matchOperator = !filterOperator || c.operator?.name === filterOperator
+    return matchSearch && matchSmm && matchOperator
   })
 
   if (loading) return (
@@ -170,11 +173,18 @@ export default function ClientsPage() {
           ))}
         </div>
 
-        {/* SMM filter chips */}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-          <button style={styles.chip(!filterSmm)} onClick={() => setFilterSmm('')}>Все ({clients.length})</button>
+        {/* Team filter chips */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14, alignItems: 'center' }}>
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: GC.team, marginRight: 2 }}>СММ:</span>
+          <button style={styles.chip(!filterSmm)} onClick={() => setFilterSmm('')}>Все</button>
           {smms.map(s => (
             <button key={s} style={styles.chip(filterSmm === s)} onClick={() => setFilterSmm(filterSmm === s ? '' : s)}>{s}</button>
+          ))}
+          <span style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
+          <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: GC.team, marginRight: 2 }}>Оператор:</span>
+          <button style={styles.chip(!filterOperator)} onClick={() => setFilterOperator('')}>Все</button>
+          {operators.map(o => (
+            <button key={o} style={styles.chip(filterOperator === o)} onClick={() => setFilterOperator(filterOperator === o ? '' : o)}>{o}</button>
           ))}
         </div>
 
