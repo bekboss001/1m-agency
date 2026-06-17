@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { ChevronRight } from 'lucide-react'
 import { useTheme } from '../lib/ThemeContext'
+import { dateStr, nowAstana } from '../lib/tz'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -43,9 +44,9 @@ export default function ProfilePage() {
       setUser(u)
       if (!u) return
 
-      const now = new Date()
+      const now = nowAstana()
       const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-      const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0]
+      const monthEnd   = dateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0))
 
       const [
         { data: prof },

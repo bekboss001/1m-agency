@@ -5,6 +5,7 @@ import { Bell, AlertTriangle, ChevronRight } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
 import { useProfile } from '../lib/useProfile'
+import { today as tzToday, daysFromNow, nowAstana } from '../lib/tz'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -24,9 +25,9 @@ const DAYS_RU   = ['Воскресенье','Понедельник','Вторн
 // ─────────────────────────────────────────────
 function ClientDashboard({ profile }) {
   const isMobile = useMediaQuery('(max-width: 768px)')
-  const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
-  const weekEnd  = new Date(now.getTime() + 14 * 86400000).toISOString().split('T')[0]
+  const now = nowAstana()
+  const todayStr = tzToday()
+  const weekEnd  = daysFromNow(14)
   const dayLabel = `${DAYS_RU[now.getDay()]} · ${now.getDate()} ${MONTHS_RU[now.getMonth()].toLowerCase()}`
 
   const [loading, setLoading] = useState(true)
@@ -234,9 +235,9 @@ function ClientDashboard({ profile }) {
 function EmployeeDashboard({ profile }) {
   const navigate = useNavigate()
   const isMobile = useMediaQuery('(max-width: 768px)')
-  const now = new Date()
-  const todayStr = now.toISOString().split('T')[0]
-  const weekEnd  = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
+  const now = nowAstana()
+  const todayStr = tzToday()
+  const weekEnd  = daysFromNow(7)
 
   const [loading, setLoading] = useState(true)
   const [myClients, setMyClients] = useState([])
@@ -552,12 +553,12 @@ export default function HomePage() {
   const [upcomingShoots, setUpcomingShoots] = useState([])
   const [clientProgress, setClientProgress] = useState([])
 
-  const now   = new Date()
+  const now   = nowAstana()
   const month = now.getMonth()
   const mm    = String(month + 1).padStart(2, '0')
   const year  = now.getFullYear()
-  const todayStr = now.toISOString().split('T')[0]
-  const weekEnd  = new Date(now.getTime() + 7 * 86400000).toISOString().split('T')[0]
+  const todayStr = tzToday()
+  const weekEnd  = daysFromNow(7)
 
   useEffect(() => {
     if (isEmployee || isClient) return // these have their own loaders

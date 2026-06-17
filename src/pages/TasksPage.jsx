@@ -4,6 +4,7 @@ import { Plus, X, MessageSquare, Calendar, Trash2 } from 'lucide-react'
 import { logAction } from '../lib/auditLog'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useProfile } from '../lib/useProfile'
+import { today as tzToday } from '../lib/tz'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -169,7 +170,7 @@ export default function TasksPage() {
     loadComments(task.id)
   }
 
-  const today = new Date().toISOString().split('T')[0]
+  const today = tzToday()
   const isOverdue = d => d && d < today
   const formatDate = d => d ? new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : null
   const formatFull = d => d ? new Date(d).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '—'

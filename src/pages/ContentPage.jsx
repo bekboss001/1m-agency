@@ -4,6 +4,7 @@ import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { logAction } from '../lib/auditLog'
+import { dateStr as tzDateStr, today as tzToday, nowAstana } from '../lib/tz'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
 const STATUS_COLORS = { idea: 'badge-dim', in_progress: 'badge-red', review: 'badge-orange', published: 'badge-green' }
@@ -24,8 +25,8 @@ export default function ContentPage() {
   const [form, setForm] = useState({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
   const [saving, setSaving] = useState(false)
   const [view, setView] = useState('list')
-  const [calYear, setCalYear] = useState(() => new Date().getFullYear())
-  const [calMonth, setCalMonth] = useState(() => new Date().getMonth())
+  const [calYear, setCalYear] = useState(() => nowAstana().getFullYear())
+  const [calMonth, setCalMonth] = useState(() => nowAstana().getMonth())
   const [draggedPostId, setDraggedPostId] = useState(null)
   const [dragOverDate, setDragOverDate] = useState(null)
   const dropJustHappened = useRef(false)
@@ -117,7 +118,7 @@ export default function ContentPage() {
   }
 
   function localStr(date) {
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+    return tzDateStr(date)
   }
 
   function getPostsForDay(dateStr) {

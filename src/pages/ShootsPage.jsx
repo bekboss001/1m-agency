@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
+import { today as todayStr, dateStr, nowAstana } from '../lib/tz'
 
 const STATUS_LABELS = { planned: 'План', confirmed: 'Подтверждено', done: 'Завершено', cancelled: 'Отменено' }
 const STATUS_COLORS = { planned: '#888888', confirmed: '#3ddc84', done: '#ffffff', cancelled: '#ff4444' }
@@ -14,7 +15,7 @@ export default function ShootsPage() {
   const { profile, loading: profileLoading } = useProfile()
   const isClient = profile?.role === 'client'
   const isMobile = useMediaQuery('(max-width: 768px)')
-  const now = new Date()
+  const now = nowAstana()
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [shoots, setShoots] = useState([])
@@ -35,7 +36,7 @@ export default function ShootsPage() {
   async function loadData() {
     setLoading(true)
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
+    const endDate = dateStr(new Date(year, month + 1, 0))
 
     let shootsQuery = supabase.from('shoots')
       .select('*, client:client_id(id, name, color), operator:operator_id(name)')
@@ -93,17 +94,17 @@ export default function ShootsPage() {
   }
 
   const days = buildCalendar()
-  const today = now.toISOString().split('T')[0]
-  const isToday = (date) => date.toISOString().split('T')[0] === today
+  const today = todayStr()
+  const isToday = (date) => dateStr(date) === today
 
   function getShootsForDay(date) {
-    const dateStr = date.toISOString().split('T')[0]
-    return shoots.filter(s => s.shoot_date === dateStr)
+    const ds = dateStr(date)
+    return shoots.filter(s => s.shoot_date === ds)
   }
 
   function openAddForm(date) {
-    const dateStr = date.toISOString().split('T')[0]
-    setForm({ client_id: '', operator_id: '', shoot_date: dateStr, time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
+    const ds = dateStr(date)
+    setForm({ client_id: '', operator_id: '', shoot_date: ds, time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
     setShowForm(true)
   }
 
@@ -260,14 +261,14 @@ export default function ShootsPage() {
                   const dayShootsList = getShootsForDay(day.date)
                   const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
                   const isTodayDay = isToday(day.date)
-                  const dateStr = day.date.toISOString().split('T')[0]
-                  const isDragOver = dragOverDate === dateStr && day.current
+                  const dayDateStr = dateStr(day.date)
+                  const isDragOver = dragOverDate === dayDateStr && day.current
                   return (
                     <div key={idx}
                       style={{ ...styles.dayCell, minHeight: 110, background: isDragOver ? 'rgba(255,255,255,0.08)' : isTodayDay ? 'rgba(255,255,255,0.04)' : 'transparent', borderColor: isDragOver ? 'rgba(255,255,255,0.4)' : isTodayDay ? 'rgba(255,255,255,0.2)' : 'var(--border)', opacity: day.current ? 1 : 0.3, cursor: day.current ? 'pointer' : 'default', transition: 'background 0.1s, border-color 0.1s' }}
-                      onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dateStr) } : undefined}
+                      onDragOver={day.current ? e => { e.preventDefault(); setDragOverDate(dayDateStr) } : undefined}
                       onDragLeave={() => setDragOverDate(null)}
-                      onDrop={day.current ? e => handleDayDrop(e, dateStr) : undefined}
+                      onDrop={day.current ? e => handleDayDrop(e, dayDateStr) : undefined}
                       onClick={() => !dropJustHappened.current && day.current && openAddForm(day.date)}
                     >
                       <div style={{ ...styles.dayNum, color: isTodayDay ? 'var(--accent)' : isWeekend ? 'var(--red)' : 'var(--text2)', background: isTodayDay ? 'rgba(255,255,255,0.12)' : 'transparent', borderRadius: isTodayDay ? 6 : 0, padding: isTodayDay ? '2px 6px' : '2px 0' }} className="bebas">

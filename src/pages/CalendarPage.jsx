@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, Download, Bell, Plus } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
 import { buildMonth } from '../lib/buildMonth'
+import { dateStr, nowAstana } from '../lib/tz'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -29,7 +30,7 @@ export default function CalendarPage() {
   const { theme } = useTheme()
   const dark = theme === 'dark'
 
-  const now = new Date()
+  const now = nowAstana()
   const [year,  setYear]  = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
   const [posts,      setPosts]      = useState([])
@@ -42,7 +43,7 @@ export default function CalendarPage() {
 
   async function loadData() {
     const start = `${year}-${String(month + 1).padStart(2,'0')}-01`
-    const end   = new Date(year, month + 1, 0).toISOString().split('T')[0]
+    const end   = dateStr(new Date(year, month + 1, 0))
     const [{ data: p }, { data: c }] = await Promise.all([
       supabase.from('posts')
         .select('*, client:client_id(id,name,color)')
