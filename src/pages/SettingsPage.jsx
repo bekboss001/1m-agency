@@ -218,10 +218,17 @@ export default function SettingsPage() {
   }
 
   async function toggleClientUser(clientId, userId, isAssigned) {
+    const user = allUsers.find(u => u.id === userId)
     if (isAssigned) {
       await supabase.from('client_users').delete().eq('client_id', clientId).eq('user_id', userId)
+      if (user?.role === 'client') {
+        await supabase.from('profiles').update({ client_id: null }).eq('id', userId)
+      }
     } else {
       await supabase.from('client_users').insert({ client_id: clientId, user_id: userId })
+      if (user?.role === 'client') {
+        await supabase.from('profiles').update({ client_id: clientId }).eq('id', userId)
+      }
     }
     loadData()
   }
