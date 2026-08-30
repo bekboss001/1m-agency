@@ -33,6 +33,15 @@ export default function ShootsPage() {
 
   useEffect(() => { if (!profileLoading) loadData() }, [year, month, profileLoading, profile])
 
+  // Freeze the page behind an open sheet, otherwise a touch-scroll aimed at the
+  // sheet keeps scrolling the calendar underneath it.
+  useEffect(() => {
+    if (!showForm && !selectedShoot) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [showForm, selectedShoot])
+
   async function loadData() {
     setLoading(true)
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
@@ -300,7 +309,7 @@ export default function ShootsPage() {
       {/* Shoot detail modal */}
       {selectedShoot && (
         <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setSelectedShoot(null)}>
-          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
+          <div className="sheet" style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={{ ...styles.modalTop, borderBottomColor: selectedShoot.client?.color || 'var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div style={{ width: 4, height: 44, borderRadius: 2, background: selectedShoot.client?.color || 'var(--text2)', flexShrink: 0 }} />
@@ -311,7 +320,7 @@ export default function ShootsPage() {
               </div>
               <button style={styles.closeBtn} onClick={() => setSelectedShoot(null)}><X size={18} /></button>
             </div>
-            <div style={{ padding: '20px 24px' }}>
+            <div className="sheet-body" style={{ padding: '20px 24px', paddingBottom: isMobile ? 'calc(20px + env(safe-area-inset-bottom))' : 20 }}>
               <div style={styles.detailRow}>
                 <span style={styles.detailLabel}>Дата</span>
                 <span style={styles.detailVal}>{selectedShoot.shoot_date ? parseYmd(selectedShoot.shoot_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span>
@@ -357,12 +366,12 @@ export default function ShootsPage() {
       {/* Add shoot modal */}
       {showForm && !isClient && (
         <div style={{ ...styles.overlay, alignItems: isMobile ? 'flex-end' : 'center', padding: isMobile ? 0 : 20 }} onClick={() => setShowForm(false)}>
-          <div style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
+          <div className="sheet" style={{ ...styles.modal, borderRadius: isMobile ? '20px 20px 0 0' : 18 }} onClick={e => e.stopPropagation()}>
             <div style={styles.modalTop}>
               <div style={styles.pageTitle} className="bebas">Новая съёмка</div>
               <button style={styles.closeBtn} onClick={() => setShowForm(false)}><X size={18} /></button>
             </div>
-            <form onSubmit={saveShoot} style={{ padding: '24px' }}>
+            <form onSubmit={saveShoot} className="sheet-body" style={{ padding: 24, paddingBottom: isMobile ? 'calc(24px + env(safe-area-inset-bottom))' : 24 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={styles.label}>Клиент *</label>
@@ -453,9 +462,9 @@ const styles = {
     cursor: 'pointer', transition: 'opacity 0.15s',
   },
   shootChipText: { fontSize: 11, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 110 },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20, overscrollBehavior: 'contain' },
   modal: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 18, width: '100%', maxWidth: 460, overflow: 'hidden' },
-  modalTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '2px solid var(--border)' },
+  modalTop: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '2px solid var(--border)', flexShrink: 0 },
   closeBtn: { background: 'none', border: 'none', color: 'var(--text2)', cursor: 'pointer' },
   detailRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--border)' },
   detailLabel: { fontSize: 12, color: 'var(--text3)', fontWeight: 600 },

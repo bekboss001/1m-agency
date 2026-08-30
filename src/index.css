@@ -177,9 +177,27 @@ input, select, textarea { font-family: 'Space Grotesk', system-ui, sans-serif; }
   from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-up, .press-swap { animation: pressSwapIn 0.32s cubic-bezier(.2,.7,.2,1) forwards; }
+/* No `forwards`: it would retain `transform: translateY(0)` from the last keyframe,
+   and any transform makes the element a containing block for its position:fixed
+   descendants — which would anchor every modal overlay to the page instead of the
+   viewport. The end state already equals the element's natural state. */
+.fade-up, .press-swap { animation: pressSwapIn 0.32s cubic-bezier(.2,.7,.2,1); }
 @media (prefers-reduced-motion: reduce) {
   .fade-up, .press-swap { animation: none; }
+}
+
+/* Modal / bottom-sheet: header pinned, body scrolls, never taller than the viewport.
+   dvh follows the mobile browser chrome as it collapses; vh is the fallback. */
+.sheet {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  max-height: 90dvh;
+}
+.sheet-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
