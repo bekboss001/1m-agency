@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus, X } from 'lucide-react'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
-import { today as todayStr, dateStr, nowAstana } from '../lib/tz'
+import { today as todayStr, ymd, parseYmd, nowAstana } from '../lib/tz'
 
 const STATUS_LABELS = { planned: 'План', confirmed: 'Подтверждено', done: 'Завершено', cancelled: 'Отменено' }
 const STATUS_COLORS = { planned: '#888888', confirmed: '#3ddc84', done: '#ffffff', cancelled: '#ff4444' }
@@ -36,7 +36,7 @@ export default function ShootsPage() {
   async function loadData() {
     setLoading(true)
     const startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
-    const endDate = dateStr(new Date(year, month + 1, 0))
+    const endDate = ymd(new Date(year, month + 1, 0))
 
     let shootsQuery = supabase.from('shoots')
       .select('*, client:client_id(id, name, color), operator:operator_id(name)')
@@ -95,15 +95,15 @@ export default function ShootsPage() {
 
   const days = buildCalendar()
   const today = todayStr()
-  const isToday = (date) => dateStr(date) === today
+  const isToday = (date) => ymd(date) === today
 
   function getShootsForDay(date) {
-    const ds = dateStr(date)
+    const ds = ymd(date)
     return shoots.filter(s => s.shoot_date === ds)
   }
 
   function openAddForm(date) {
-    const ds = dateStr(date)
+    const ds = ymd(date)
     setForm({ client_id: '', operator_id: '', shoot_date: ds, time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
     setShowForm(true)
   }
@@ -143,14 +143,14 @@ export default function ShootsPage() {
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  async function handleDayDrop(e, dateStr) {
+  async function handleDayDrop(e, newDate) {
     e.preventDefault()
     setDragOverDate(null)
     if (!draggedShootId) return
     dropJustHappened.current = true
     setTimeout(() => { dropJustHappened.current = false }, 100)
-    setShoots(prev => prev.map(s => s.id === draggedShootId ? { ...s, shoot_date: dateStr } : s))
-    await supabase.from('shoots').update({ shoot_date: dateStr }).eq('id', draggedShootId)
+    setShoots(prev => prev.map(s => s.id === draggedShootId ? { ...s, shoot_date: newDate } : s))
+    await supabase.from('shoots').update({ shoot_date: newDate }).eq('id', draggedShootId)
     setDraggedShootId(null)
   }
 
@@ -261,7 +261,7 @@ export default function ShootsPage() {
                   const dayShootsList = getShootsForDay(day.date)
                   const isWeekend = day.date.getDay() === 0 || day.date.getDay() === 6
                   const isTodayDay = isToday(day.date)
-                  const dayDateStr = dateStr(day.date)
+                  const dayDateStr = ymd(day.date)
                   const isDragOver = dragOverDate === dayDateStr && day.current
                   return (
                     <div key={idx}
@@ -314,7 +314,7 @@ export default function ShootsPage() {
             <div style={{ padding: '20px 24px' }}>
               <div style={styles.detailRow}>
                 <span style={styles.detailLabel}>Дата</span>
-                <span style={styles.detailVal}>{selectedShoot.shoot_date ? new Date(selectedShoot.shoot_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span>
+                <span style={styles.detailVal}>{selectedShoot.shoot_date ? parseYmd(selectedShoot.shoot_date).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</span>
               </div>
               <div style={styles.detailRow}>
                 <span style={styles.detailLabel}>Время</span>

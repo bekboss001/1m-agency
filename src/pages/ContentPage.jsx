@@ -4,7 +4,7 @@ import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
 import { logAction } from '../lib/auditLog'
-import { dateStr as tzDateStr, today as tzToday, nowAstana } from '../lib/tz'
+import { ymd, today as tzToday, nowAstana } from '../lib/tz'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
 const STATUS_COLORS = { idea: 'badge-dim', in_progress: 'badge-red', review: 'badge-orange', published: 'badge-green' }
@@ -118,7 +118,7 @@ export default function ContentPage() {
   }
 
   function localStr(date) {
-    return tzDateStr(date)
+    return ymd(date)
   }
 
   function getPostsForDay(dateStr) {
@@ -158,7 +158,7 @@ export default function ContentPage() {
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '—'
   const smms = employees.filter(e => e.role === 'smm')
   const operators = employees.filter(e => e.role === 'operator')
-  const todayStr = localStr(new Date())
+  const todayStr = tzToday()
   const unscheduledPosts = posts.filter(p => !p.publish_date)
 
   return (
