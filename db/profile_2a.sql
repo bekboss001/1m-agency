@@ -6,10 +6,9 @@
 -- Выполнить один раз в Supabase → SQL Editor.
 
 -- ── 1. Личные поля сотрудника ───────────────────────────────────────────────
+-- Сотрудник правит только имя и фото: телеграм и рабочие часы из хендоффа
+-- убраны по решению заказчика, поэтому и колонок под них нет.
 alter table public.employees add column if not exists avatar_url text;
-alter table public.employees add column if not exists telegram   text;
-alter table public.employees add column if not exists work_from  time;
-alter table public.employees add column if not exists work_to    time;
 
 
 -- ── 2. Когда задача закрыта ─────────────────────────────────────────────────
@@ -41,15 +40,18 @@ create trigger tasks_completed_at_upd before update on public.tasks
 
 
 -- ── 3. Правка своих данных ──────────────────────────────────────────────────
--- Сотрудник меняет только имя, телеграм, часы и фото. Роль, доступы и
--- распределение клиентов остаются за владельцем — поэтому это не политика на
--- update (которая пускала бы к любой колонке), а функция с фиксированным
--- набором полей. Всё остальное сервер просто не примет.
+-- Сотрудник меняет только имя и фото. Роль, доступы и распределение клиентов
+-- остаются за владельцем — поэтому это не политика на update (которая пускала
+-- бы к любой колонке), а функция с фиксированным набором полей. Всё остальное
+-- сервер просто не примет.
+
+-- Снимаем прежнюю версию с пятью аргументами, если её успели создать: иначе
+-- вызов с одним именованным аргументом подойдёт под обе и Postgres не сможет
+-- выбрать между ними.
+drop function if exists public.update_my_profile(text, text, time, time, text);
+
 create or replace function public.update_my_profile(
   p_name       text default null,
-  p_telegram   text default null,
-  p_work_from  time default null,
-  p_work_to    time default null,
   p_avatar_url text default null
 )
 returns public.employees
@@ -70,18 +72,9 @@ begin
     raise exception 'Имя должно быть от 2 до 24 символов';
   end if;
 
-  if p_telegram is not null and p_telegram <> '' and p_telegram !~ '^@[a-zA-Z0-9_]{4,32}$' then
-    raise exception 'Телеграм должен быть вида @username';
-  end if;
-
   update public.employees set
-    -- пустая строка очищает поле, null оставляет как было
+    -- пустая строка оставляет как было, чтобы имя нельзя было стереть случайно
     name       = coalesce(nullif(trim(coalesce(p_name, '')), ''), name),
-    telegram   = case when p_telegram is null then telegram
-                      when p_telegram = ''    then null
-                      else p_telegram end,
-    work_from  = coalesce(p_work_from, work_from),
-    work_to    = coalesce(p_work_to, work_to),
     avatar_url = case when p_avatar_url is null then avatar_url
                       when p_avatar_url = ''    then null
                       else p_avatar_url end
@@ -92,8 +85,8 @@ begin
 end;
 $$;
 
-revoke all on function public.update_my_profile(text, text, time, time, text) from public;
-grant execute on function public.update_my_profile(text, text, time, time, text) to authenticated;
+revoke all on function public.update_my_profile(text, text) from public;
+grant execute on function public.update_my_profile(text, text) to authenticated;
 
 
 -- ── 4. Хранилище для фото профиля ───────────────────────────────────────────

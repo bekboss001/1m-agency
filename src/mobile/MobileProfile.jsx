@@ -46,7 +46,7 @@ export default function MobileProfile() {
   const [team, setTeam] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const [editing, setEditing] = useState(null)  // 'name' | 'telegram' | 'hours' | 'photo'
+  const [editing, setEditing] = useState(null)  // сейчас только 'name'
   const [draft, setDraft] = useState({})
   const [saving, setSaving] = useState(false)
 
@@ -362,16 +362,6 @@ export default function MobileProfile() {
               value={me.name || '—'}
               onClick={() => { setDraft({ name: me.name || '' }); setEditing('name') }}
             />
-            <PersonalRow
-              label="Телеграм для связи"
-              value={me.telegram || 'УКАЗАТЬ'}
-              onClick={() => { setDraft({ telegram: me.telegram || '' }); setEditing('telegram') }}
-            />
-            <PersonalRow
-              label="Рабочие часы"
-              value={me.work_from && me.work_to ? `${me.work_from.slice(0, 5)}–${me.work_to.slice(0, 5)}` : 'УКАЗАТЬ'}
-              onClick={() => { setDraft({ from: me.work_from?.slice(0, 5) || '10:00', to: me.work_to?.slice(0, 5) || '19:00' }); setEditing('hours') }}
-            />
           </div>
           <div style={{ marginTop: 8, font: `400 11px/1.5 ${SANS}`, color: 'rgba(255,255,255,.3)' }}>
             Роль, доступы и список клиентов меняет только владелец.
@@ -435,41 +425,6 @@ export default function MobileProfile() {
             maxLength={24}
             style={inputStyle}
           />
-        </EditForm>
-      </Sheet>
-
-      <Sheet open={editing === 'telegram'} title="Телеграм" onClose={() => setEditing(null)}>
-        <EditForm
-          saving={saving}
-          onSubmit={() => savePersonal({ p_telegram: draft.telegram })}
-          hint="Вид @username. Оставьте пустым, чтобы убрать."
-        >
-          <input
-            autoFocus
-            value={draft.telegram || ''}
-            onChange={e => setDraft({ telegram: e.target.value })}
-            placeholder="@username"
-            style={inputStyle}
-          />
-        </EditForm>
-      </Sheet>
-
-      <Sheet open={editing === 'hours'} title="Рабочие часы" onClose={() => setEditing(null)}>
-        <EditForm
-          saving={saving}
-          onSubmit={() => savePersonal({ p_work_from: draft.from, p_work_to: draft.to })}
-          hint="По ним подсказываем, когда съёмка ставится вне вашего времени."
-        >
-          <div style={{ display: 'flex', gap: 10 }}>
-            <label style={{ flex: 1 }}>
-              <span style={{ display: 'block', marginBottom: 6, color: T.muted, ...mono(500, 9.5, '.12em') }}>С</span>
-              <input type="time" value={draft.from || ''} onChange={e => setDraft({ ...draft, from: e.target.value })} style={inputStyle} />
-            </label>
-            <label style={{ flex: 1 }}>
-              <span style={{ display: 'block', marginBottom: 6, color: T.muted, ...mono(500, 9.5, '.12em') }}>ДО</span>
-              <input type="time" value={draft.to || ''} onChange={e => setDraft({ ...draft, to: e.target.value })} style={inputStyle} />
-            </label>
-          </div>
         </EditForm>
       </Sheet>
 
