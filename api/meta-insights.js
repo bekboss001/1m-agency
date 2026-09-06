@@ -57,7 +57,7 @@ export default async function handler(req, res) {
   const [profile] = profileRes.ok ? await profileRes.json() : []
   if (profile?.role !== 'admin') return res.status(403).json({ error: 'Недостаточно прав' })
 
-  const { accountId, datePreset } = req.body || {}
+  const { accountId, datePreset, since, until } = req.body || {}
   // Мобильному экрану кампании не нужны, зато нужен ряд по дням для спарклайна;
   // десктопному — наоборот. Оба флага только включают/выключают наши же запросы.
   const withCampaigns = req.body?.withCampaigns !== false
@@ -66,9 +66,35 @@ export default async function handler(req, res) {
   if (!/^\d{1,32}$/.test(String(accountId ?? ''))) {
     return res.status(400).json({ error: 'Некорректный accountId' })
   }
-  if (!DATE_PRESETS.has(datePreset)) {
+
+  // Период задаётся либо пресетом, либо своим диапазоном — второе Meta
+  // принимает как time_range. Даты проверяем сами: они уходят в URL запроса.
+  const isRange = since !== undefined || until !== undefined
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+  if (isRange) {
+    if (!DATE_RE.test(String(since ?? '')) || !DATE_RE.test(String(until ?? ''))) {
+      return res.status(400).json({ error: 'Некорректные даты периода' })
+    }
+    if (since > until) {
+      return res.status(400).json({ error: 'Начало периода позже конца' })
+    }
+    // Год с запасом: более длинные выборки Meta всё равно режет, а запрос
+    // становится тяжёлым для всех кабинетов сразу.
+    if ((Date.parse(until) - Date.parse(since)) / 86400000 > 366) {
+      return res.status(400).json({ error: 'Диапазон больше года' })
+    }
+  } else if (!DATE_PRESETS.has(datePreset)) {
     return res.status(400).json({ error: 'Некорректный период' })
   }
+
+  // Окно для обычного запроса и то же окно внутри фильтра insights у кампаний.
+  const windowParams = isRange
+    ? { time_range: JSON.stringify({ since, until }) }
+    : { date_preset: datePreset }
+  const campaignWindow = isRange
+    ? `insights.time_range(${encodeURIComponent(JSON.stringify({ since, until }))})`
+    : `insights.date_preset(${datePreset})`
 
   // Токен видит все кабинеты бизнес-менеджера, а приложению нужны только те,
   // что привязаны к клиентам — иначе любой админ мог бы вытащить чужую статистику.
@@ -84,13 +110,13 @@ export default async function handler(req, res) {
   const base = `${GRAPH}/act_${accountId}`
   const insightsParams = new URLSearchParams({
     fields: FIELDS,
-    date_preset: datePreset,
+    ...windowParams,
     access_token: metaToken,
   })
 
   const seriesParams = new URLSearchParams({
     fields: 'spend',
-    date_preset: datePreset,
+    ...windowParams,
     time_increment: '1',
     access_token: metaToken,
   })
@@ -100,7 +126,7 @@ export default async function handler(req, res) {
       fetch(`${base}/insights?${insightsParams}`),
       withCampaigns
         ? fetch(
-            `${base}/campaigns?fields=name,status,objective,insights.date_preset(${datePreset}){${FIELDS}}` +
+            `${base}/campaigns?fields=name,status,objective,${campaignWindow}{${FIELDS}}` +
               `&limit=50&access_token=${encodeURIComponent(metaToken)}`,
           )
         : null,

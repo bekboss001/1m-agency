@@ -6,6 +6,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
+import { ymd } from '../lib/tz'
+import { todayDate, addDays } from './todayTasks'
 import {
   T, SANS, OSW, MONO, mono, useToast, Toast, Sheet, SheetRow, ClientSelector, SectionTitle,
 } from './ui'
@@ -16,6 +18,20 @@ const PERIODS = [
   ['last_7d', '7 ДНЕЙ'],
   ['last_30d', '30 ДНЕЙ'],
   ['this_month', 'ЭТОТ МЕСЯЦ'],
+]
+
+// Готовые диапазоны для шторки: закрывают почти все реальные запросы,
+// чтобы не выставлять две даты вручную ради «прошлого месяца».
+const QUICK_RANGES = [
+  ['14 ДНЕЙ', () => ({ since: ymd(addDays(todayDate(), -13)), until: ymd(todayDate()) })],
+  ['ПРОШЛЫЙ МЕСЯЦ', () => {
+    const t = todayDate()
+    return {
+      since: ymd(new Date(t.getFullYear(), t.getMonth() - 1, 1)),
+      until: ymd(new Date(t.getFullYear(), t.getMonth(), 0)),
+    }
+  }],
+  ['КВАРТАЛ', () => ({ since: ymd(addDays(todayDate(), -89)), until: ymd(todayDate()) })],
 ]
 
 const MESSAGING_TYPES = [
@@ -74,6 +90,10 @@ export default function MobileTarget() {
   const [clients, setClients] = useState([])
   const [rows, setRows] = useState([])           // [{client, m, series}]
   const [period, setPeriod] = useState('last_7d')
+  // Свой диапазон: пока он задан, пресет не используется.
+  const [range, setRange] = useState(null)          // {since, until} | null
+  const [rangeOpen, setRangeOpen] = useState(false)
+  const [rangeDraft, setRangeDraft] = useState({ since: '', until: '' })
   const [targetClient, setTargetClient] = useState('all')
   const [picker, setPicker] = useState(false)
   const [openRow, setOpenRow] = useState(null)
@@ -89,6 +109,12 @@ export default function MobileTarget() {
       .eq('is_active', true).order('number')
       .then(({ data }) => setClients(data || []))
   }, [])
+
+  // Что уходит в функцию: либо пресет, либо диапазон.
+  const windowBody = useMemo(
+    () => (range ? { since: range.since, until: range.until } : { datePreset: period }),
+    [range, period],
+  )
 
   const load = useCallback(async () => {
     const connected = clients.filter(c => c.meta_account_id)
@@ -112,7 +138,7 @@ export default function MobileTarget() {
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
           body: JSON.stringify({
             accountId: c.meta_account_id,
-            datePreset: period,
+            ...windowBody,
             withCampaigns: single,
             withSeries: true,
           }),
@@ -139,7 +165,7 @@ export default function MobileTarget() {
     setRows(results.sort((a, b) => (b.m?.spend || 0) - (a.m?.spend || 0)))
     setUpdatedAt(new Date())
     setLoading(false)
-  }, [clients, period, targetClient])
+  }, [clients, windowBody, targetClient])
 
   useEffect(() => { load() }, [load])
 
@@ -180,7 +206,10 @@ export default function MobileTarget() {
   const maxSpend = Math.max(...rows.map(r => r.m?.spend || 0), 1)
   const maxBar = Math.max(...series, 1)
   const active = clients.find(c => c.id === targetClient)
-  const periodLabel = PERIODS.find(p => p[0] === period)?.[1] || ''
+  const dmy = s => (s ? s.slice(8, 10) + '.' + s.slice(5, 7) : '')
+  const periodLabel = range
+    ? `${dmy(range.since)} — ${dmy(range.until)}`
+    : PERIODS.find(p => p[0] === period)?.[1] || ''
 
   // Экспорт разворачивает статистику по рекламным кампаниям. Кампании для всех
   // кабинетов сразу на экране не грузятся (это пятнадцать лишних запросов на
@@ -201,7 +230,7 @@ export default function MobileTarget() {
         const res = await fetch('/api/meta-insights', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-          body: JSON.stringify({ accountId: r.client.meta_account_id, datePreset: period, withSeries: false }),
+          body: JSON.stringify({ accountId: r.client.meta_account_id, ...windowBody, withSeries: false }),
         })
         if (!res.ok) return r
         const data = await res.json()
@@ -289,11 +318,11 @@ export default function MobileTarget() {
 
         <div className="m-hscroll" style={{ display: 'flex', gap: 6, margin: '0 -20px', padding: '0 20px' }}>
           {PERIODS.map(([id, label]) => {
-            const on = period === id
+            const on = !range && period === id
             return (
               <button
                 key={id}
-                onClick={() => setPeriod(id)}
+                onClick={() => { setRange(null); setPeriod(id) }}
                 style={{
                   flex: 'none', padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
                   background: on ? T.accent : T.surface2,
@@ -305,6 +334,25 @@ export default function MobileTarget() {
               </button>
             )
           })}
+
+          {/* Свой диапазон — последним в той же ленте, чтобы не заводить
+              отдельную строку ради редкого действия. */}
+          <button
+            onClick={() => {
+              setRangeDraft(range || { since: ymd(addDays(todayDate(), -6)), until: ymd(todayDate()) })
+              setRangeOpen(true)
+            }}
+            style={{
+              flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
+              padding: '9px 12px', borderRadius: 11, minHeight: 36,
+              background: range ? T.accent : 'transparent',
+              border: `1px dashed ${range ? T.accent : T.soft}`,
+              color: range ? T.onAccent : 'rgba(255,255,255,.6)',
+              ...mono(600, 10.5, '.06em'),
+            }}
+          >
+            {range ? periodLabel : 'СВОЙ ПЕРИОД'}
+          </button>
         </div>
       </div>
 
@@ -521,6 +569,76 @@ export default function MobileTarget() {
           </div>
         )}
       </div>
+
+      <Sheet open={rangeOpen} title="Свой период" onClose={() => setRangeOpen(false)}>
+        <form
+          onSubmit={e => {
+            e.preventDefault()
+            if (rangeDraft.since > rangeDraft.until) { flash('НАЧАЛО ПОЗЖЕ КОНЦА'); return }
+            setRange({ ...rangeDraft })
+            setRangeOpen(false)
+            setOpenRow(null)
+          }}
+          style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+        >
+          <div style={{ display: 'flex', gap: 10 }}>
+            {[['since', 'С'], ['until', 'ПО']].map(([key, label]) => (
+              <label key={key} style={{ flex: 1 }}>
+                <span style={{ display: 'block', marginBottom: 6, color: T.muted, ...mono(500, 9.5, '.12em') }}>{label}</span>
+                <input
+                  required
+                  type="date"
+                  max={ymd(todayDate())}
+                  value={rangeDraft[key]}
+                  onChange={e => setRangeDraft({ ...rangeDraft, [key]: e.target.value })}
+                  style={{
+                    width: '100%', minHeight: 44, padding: '11px 13px', borderRadius: 12,
+                    background: T.surface2, border: `1px solid ${T.soft}`, color: T.text,
+                    font: `500 14px ${SANS}`, outline: 'none',
+                  }}
+                />
+              </label>
+            ))}
+          </div>
+
+          {/* Быстрые заготовки: чаще всего нужен прошлый месяц для отчёта. */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {QUICK_RANGES.map(([label, make]) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => setRangeDraft(make())}
+                style={{
+                  padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
+                  background: T.surface2, color: 'rgba(255,255,255,.6)', ...mono(600, 10, '.04em'),
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <button type="submit" style={{
+            marginTop: 4, minHeight: 48, borderRadius: 13, border: 'none',
+            background: T.accent, color: T.onAccent, ...mono(700, 12, '.06em'),
+          }}>
+            ПОКАЗАТЬ
+          </button>
+
+          {range && (
+            <button
+              type="button"
+              onClick={() => { setRange(null); setRangeOpen(false) }}
+              style={{
+                minHeight: 44, borderRadius: 13, background: 'none',
+                border: `1px solid ${T.soft}`, color: T.text2, ...mono(600, 11, '.06em'),
+              }}
+            >
+              ВЕРНУТЬСЯ К ПРЕСЕТАМ
+            </button>
+          )}
+        </form>
+      </Sheet>
 
       <Sheet open={exportOpen} title="Выгрузка" onClose={() => setExportOpen(false)}>
         {exporting ? (
