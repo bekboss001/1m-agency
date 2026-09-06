@@ -20,6 +20,8 @@ import MobileContent from './mobile/MobileContent'
 import MobileShoots from './mobile/MobileShoots'
 import MobileTarget from './mobile/MobileTarget'
 import MobileProfile from './mobile/MobileProfile'
+import MobileClients from './mobile/MobileClients'
+import MobileTasks from './mobile/MobileTasks'
 import MobileClientCard from './mobile/MobileClientCard'
 
 // Редизайн 1a пока только для телефонов: на широких экранах остаётся прежний
@@ -70,12 +72,12 @@ export default function App() {
         <Route path="/" element={session ? <DashboardLayout session={session} /> : <Navigate to="/login" />}>
           <Route index element={<Responsive mobile={MobileHome} desktop={HomePage} />} />
           <Route path="client/:id" element={<MobileClientCard />} />
-          <Route path="clients"  element={<GuardedRoute perm="clients"><ClientsPage /></GuardedRoute>} />
+          <Route path="clients"  element={<GuardedRoute perm="clients"><Responsive mobile={MobileClients} desktop={ClientsPage} /></GuardedRoute>} />
           <Route path="content"  element={<GuardedRoute perm="content"><Responsive mobile={MobileContent} desktop={ContentPage} /></GuardedRoute>} />
           <Route path="shoots"   element={<GuardedRoute perm="shoots"><Responsive mobile={MobileShoots} desktop={ShootsPage} /></GuardedRoute>} />
           <Route path="target"   element={<GuardedRoute adminOnly><Responsive mobile={MobileTarget} desktop={TargetPage} /></GuardedRoute>} />
           <Route path="calendar" element={<GuardedRoute perm="calendar"><CalendarPage /></GuardedRoute>} />
-          <Route path="tasks"    element={<GuardedRoute perm="tasks"><TasksPage /></GuardedRoute>} />
+          <Route path="tasks"    element={<GuardedRoute perm="tasks"><Responsive mobile={MobileTasks} desktop={TasksPage} /></GuardedRoute>} />
           <Route path="settings" element={<GuardedRoute adminOnly><SettingsPage /></GuardedRoute>} />
           <Route path="profile"  element={<Responsive mobile={MobileProfile} desktop={ProfilePage} />} />
         </Route>

@@ -137,10 +137,21 @@ export async function toggleTask(supabase, task, userId) {
   return next
 }
 
-// Полоса недели: понедельник — воскресенье вокруг сегодняшнего дня.
-export function weekDays() {
+// Сегодняшняя дата как обычный Date (в UTC+5), без времени.
+export function todayDate() {
   const n = nowAstana()
-  const base = new Date(n.getFullYear(), n.getMonth(), n.getDate())
+  return new Date(n.getFullYear(), n.getMonth(), n.getDate())
+}
+
+const sameDay = (a, b) =>
+  a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+
+// Полоса недели: понедельник — воскресенье вокруг переданной даты
+// (по умолчанию — вокруг сегодняшнего дня). `isToday` всегда считается от
+// настоящего сегодня, чтобы при листании недель подсветка не уезжала.
+export function weekDays(anchor) {
+  const base = anchor || todayDate()
+  const now = todayDate()
   const shift = (base.getDay() + 6) % 7 // понедельник — начало недели
   const monday = new Date(base.getFullYear(), base.getMonth(), base.getDate() - shift)
 
@@ -151,9 +162,13 @@ export function weekDays() {
       date: d,
       dow: DOW_SHORT[d.getDay()],
       num: d.getDate(),
-      isToday: d.getDate() === base.getDate() && d.getMonth() === base.getMonth() && d.getFullYear() === base.getFullYear(),
+      isToday: sameDay(d, now),
     }
   })
+}
+
+export function addDays(date, n) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + n)
 }
 
 export { parseYmd }

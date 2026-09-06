@@ -149,12 +149,13 @@ export default function DashboardLayout({ session }) {
         {tabs.map(({ to, icon: Icon, label, end }) => {
           const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
           return (
-            // Редизайн 1a: вместо иконок — моно-подпись капсом с акцентной
-            // полоской над ней. Иконки в MOB_TABS оставлены для десктопного меню.
+            // Иконка + моно-подпись капсом под акцентной полоской: хендофф
+            // разрешает вернуть иконки, если полоска-индикатор остаётся.
             <button key={to} onClick={() => navigate(to)}
-              style={{ ...s.tabItem, gap: 7, minHeight: 44, color: isActive ? 'var(--m-accent)' : 'rgba(255,255,255,.35)' }}>
+              style={{ ...s.tabItem, gap: 4, minHeight: 44, color: isActive ? 'var(--m-accent)' : 'rgba(255,255,255,.35)' }}>
               <span style={{ width: 22, height: 2, borderRadius: 1, background: isActive ? 'var(--m-accent)' : 'transparent' }} />
-              <span style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 9.5, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase' }}>
+              <Icon size={19} strokeWidth={isActive ? 2.1 : 1.7} />
+              <span style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 9, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' }}>
                 {label}
               </span>
             </button>

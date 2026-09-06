@@ -175,12 +175,6 @@ export default function MobileClientCard() {
           >
             + СЪЁМКА
           </button>
-          <button
-            onClick={() => navigate('/target')}
-            style={{ flex: 1, minHeight: 46, borderRadius: 13, border: `1px solid ${T.soft}`, background: 'none', color: T.text, ...mono(600, 12, '.06em') }}
-          >
-            ОТЧЁТ
-          </button>
         </div>
 
         {/* Ближайшая съёмка */}

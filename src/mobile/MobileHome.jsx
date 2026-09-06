@@ -83,6 +83,7 @@ export default function MobileHome() {
       key: d.key,
       dow: d.dow,
       num: d.num,
+      date: d.date,
       active: d.isToday,
       dots: [
         ...Array(Math.min(posts, 4)).fill(T.accent),
@@ -213,7 +214,8 @@ export default function MobileHome() {
       {/* Эта неделя */}
       <div>
         <SectionTitle>ЭТА НЕДЕЛЯ</SectionTitle>
-        <WeekStrip days={strip} />
+        {/* Тап по дню открывает съёмки этого дня — там же виден весь его состав. */}
+        <WeekStrip days={strip} onPick={day => navigate(`/shoots?date=${ymd(day.date)}`)} />
         <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
           {[['ПОСТЫ', T.accent], ['СЪЁМКИ', T.hot]].map(([label, color]) => (
             <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.muted, ...mono(500, 10, '.1em') }}>

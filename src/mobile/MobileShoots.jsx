@@ -2,11 +2,12 @@
 // выбранного дня. Пустой день — не заглушка, а призыв поставить съёмку.
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
 import { ymd, parseYmd } from '../lib/tz'
-import { weekDays } from './todayTasks'
+import { weekDays, todayDate, addDays } from './todayTasks'
 import {
   T, SANS, OSW, mono, useToast, Toast, Sheet, WeekStrip, Fab, EmptyState,
 } from './ui'
@@ -25,10 +26,13 @@ export default function MobileShoots() {
   const { profile } = useProfile()
   const [toast, flash] = useToast()
 
-  const days = useMemo(() => weekDays(), [])
-  const todayIdx = Math.max(days.findIndex(d => d.isToday), 0)
+  // Выбранный день — единственное состояние: неделя выводится из него, поэтому
+  // стрелки просто сдвигают дату на ±7 дней, а переход с главной по ?date=
+  // сразу открывает нужную неделю.
+  const [params, setParams] = useSearchParams()
+  const [picked, setPicked] = useState(() => parseYmd(params.get('date')) || todayDate())
+  const days = useMemo(() => weekDays(picked), [picked])
 
-  const [pickedIdx, setPickedIdx] = useState(todayIdx)
   const [shoots, setShoots] = useState([])
   const [clients, setClients] = useState([])
   const [employees, setEmployees] = useState([])
@@ -38,8 +42,13 @@ export default function MobileShoots() {
   const [form, setForm] = useState({ client_id: '', operator_id: '', time_start: '', location: '' })
 
   const isClient = profile?.role === 'client'
-  const picked = days[pickedIdx]
-  const pickedKey = ymd(picked.date)
+  const pickedKey = ymd(picked)
+
+  // Держим ?date= в адресе, чтобы возврат назад не сбрасывал выбранный день.
+  function pick(date) {
+    setPicked(date)
+    setParams(ymd(date) === ymd(todayDate()) ? {} : { date: ymd(date) }, { replace: true })
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -60,17 +69,17 @@ export default function MobileShoots() {
 
   useEffect(() => { load() }, [load])
 
-  const strip = days.map((d, i) => {
+  const strip = days.map(d => {
     const key = ymd(d.date)
     return {
       key: d.key,
       dow: d.dow,
       num: d.num,
-      active: i === pickedIdx,
+      active: key === pickedKey,
       activeWhite: true,
       badge: shoots.filter(s => s.shoot_date === key).length,
       dots: [],
-      index: i,
+      date: d.date,
     }
   })
 
@@ -98,7 +107,7 @@ export default function MobileShoots() {
     load()
   }
 
-  const d = picked.date
+  const d = picked
 
   return (
     <div style={{ paddingBottom: 24 }}>
@@ -117,7 +126,18 @@ export default function MobileShoots() {
 
       <div style={{ padding: '18px 20px 0', display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-        <WeekStrip days={strip} onPick={day => setPickedIdx(day.index)} />
+        {/* Листание недель: стрелки сдвигают выбранный день на ±7 дней. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <WeekArrow label="‹" onClick={() => pick(addDays(picked, -7))} />
+          <span style={{ flex: 1, textAlign: 'center', color: T.muted, ...mono(500, 10, '.12em') }}>
+            {ymd(days[0].date) === ymd(weekDays()[0].date)
+              ? 'ЭТА НЕДЕЛЯ'
+              : `${days[0].num} ${MONTHS_GEN[days[0].date.getMonth()]} — ${days[6].num} ${MONTHS_GEN[days[6].date.getMonth()]}`}
+          </span>
+          <WeekArrow label="›" onClick={() => pick(addDays(picked, 7))} />
+        </div>
+
+        <WeekStrip days={strip} onPick={day => pick(day.date)} />
 
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{ flex: 1, background: T.surface, borderRadius: 14, padding: '12px 14px' }}>
@@ -248,6 +268,22 @@ const inputStyle = {
   width: '100%', minHeight: 44, padding: '11px 13px', borderRadius: 12,
   background: T.surface2, border: `1px solid ${T.soft}`, color: T.text,
   font: `500 14px ${SANS}`, outline: 'none',
+}
+
+function WeekArrow({ label, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={label === '‹' ? 'Предыдущая неделя' : 'Следующая неделя'}
+      style={{
+        width: 44, height: 36, flex: 'none', borderRadius: 11,
+        background: T.surface2, border: `1px solid ${T.hair}`, color: T.text,
+        font: `600 16px ${OSW}`,
+      }}
+    >
+      {label}
+    </button>
+  )
 }
 
 function Field({ label, children }) {

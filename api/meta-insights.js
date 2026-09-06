@@ -18,7 +18,9 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Метод не поддерживается' })
   }
 
-  const metaToken = process.env.META_ACCESS_TOKEN
+  // Токен часто копируют из .env вместе с переносом строки или кавычками —
+  // Meta на такое отвечает «Cannot parse access token». Чистим на входе.
+  const metaToken = (process.env.META_ACCESS_TOKEN || '').trim().replace(/^["']|["']$/g, '')
 
   // Адрес и anon-ключ Supabase публичны by design — они и так лежат в клиентском
   // бандле, поэтому переиспользуем уже заведённые VITE_-переменные, а не заводим
@@ -107,8 +109,20 @@ export default async function handler(req, res) {
 
     if (!insightsRes.ok) {
       const body = await insightsRes.json().catch(() => null)
+      const meta = body?.error
+
+      // 190 — проблема с самим токеном. Отвечаем так, чтобы было понятно, где
+      // чинить: сообщение Meta про «cannot parse» ничего не говорит о том, что
+      // виновата переменная окружения.
+      if (meta?.code === 190) {
+        console.error('meta-insights: токен отклонён Meta —', meta.message)
+        return res.status(502).json({
+          error: 'Токен Meta не принят. Проверьте META_ACCESS_TOKEN в настройках Vercel: значение должно быть без кавычек, пробелов и переносов строки.',
+        })
+      }
+
       // Наружу отдаём только текст ошибки Meta — не тело запроса и не URL с токеном.
-      return res.status(502).json({ error: body?.error?.message || 'Ошибка Meta API' })
+      return res.status(502).json({ error: meta?.message || 'Ошибка Meta API' })
     }
 
     const insights = await insightsRes.json()
