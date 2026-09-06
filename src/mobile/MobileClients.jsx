@@ -158,8 +158,10 @@ export default function MobileClients() {
           }}
         />
 
+        {/* Фильтр по СММ переносится строками, а не скроллится: имён больше,
+            чем влезает в ширину экрана, и в прокрутке часть просто не видна. */}
         {smmList.length > 0 && (
-          <div className="m-hscroll" style={{ display: 'flex', gap: 6, margin: '0 -20px', padding: '0 20px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {[{ id: 'all', name: 'ВСЕ СММ' }, ...smmList].map(e => {
               const on = smm === e.id
               return (
@@ -167,7 +169,7 @@ export default function MobileClients() {
                   key={e.id}
                   onClick={() => setSmm(e.id)}
                   style={{
-                    flex: 'none', padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
+                    padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
                     background: on ? '#fff' : T.surface2,
                     color: on ? T.onAccent : 'rgba(255,255,255,.6)',
                     ...mono(600, 10.5, '.06em'),

@@ -34,7 +34,10 @@ export default function MobileContent() {
   const [saving, setSaving] = useState(false)
 
   const isClient = profile?.role === 'client'
-  const now = new Date()
+  // Месяц, который смотрим: 0 — текущий, -1 — прошлый и так далее.
+  const [monthShift, setMonthShift] = useState(0)
+  const today0 = new Date()
+  const now = new Date(today0.getFullYear(), today0.getMonth() + monthShift, 1)
   const first = ymd(new Date(now.getFullYear(), now.getMonth(), 1))
   const last = ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0))
 
@@ -173,7 +176,23 @@ export default function MobileContent() {
           />
         )}
 
-        <div className="m-hscroll" style={{ display: 'flex', gap: 6, margin: '0 -20px', padding: '0 20px' }}>
+        {/* Переключение месяцев */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <MonthArrow label="‹" onClick={() => setMonthShift(m => m - 1)} title="Предыдущий месяц" />
+          <button
+            onClick={() => setMonthShift(0)}
+            style={{
+              flex: 1, minHeight: 36, borderRadius: 11, border: 'none', background: 'none',
+              color: monthShift === 0 ? T.muted : T.accent, ...mono(600, 10.5, '.12em'),
+            }}
+          >
+            {MONTHS[now.getMonth()]} {now.getFullYear()}
+            {monthShift !== 0 && ' · К ТЕКУЩЕМУ'}
+          </button>
+          <MonthArrow label="›" onClick={() => setMonthShift(m => m + 1)} title="Следующий месяц" />
+        </div>
+
+        <div className="m-hscroll" style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, margin: '0 -20px', padding: '0 20px' }}>
           {[['all', 'ВСЕ'], ...FLOW.map(s => [s, STATUS_LABEL[s].toUpperCase()])].map(([id, label]) => {
             const on = statusFilter === id
             return (
@@ -352,6 +371,22 @@ const inputStyle = {
   width: '100%', minHeight: 44, padding: '11px 13px', borderRadius: 12,
   background: T.surface2, border: `1px solid ${T.soft}`, color: T.text,
   font: `500 14px ${SANS}`, outline: 'none',
+}
+
+function MonthArrow({ label, onClick, title }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={title}
+      style={{
+        width: 44, height: 36, flex: 'none', borderRadius: 11,
+        background: T.surface2, border: `1px solid ${T.hair}`, color: T.text,
+        font: `600 16px ${OSW}`,
+      }}
+    >
+      {label}
+    </button>
+  )
 }
 
 function Field({ label, children }) {

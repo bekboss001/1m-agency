@@ -43,7 +43,7 @@ export default function MobileHome() {
 
     const [tasksRes, clientsRes, postsRes, shootsRes] = await Promise.all([
       loadTodayTasks(supabase, profile, uid),
-      supabase.from('clients').select('id, name, color, total_posts, published_posts').eq('is_active', true).order('number'),
+      supabase.from('clients').select('id, name, color, total_posts, published_posts, smm_id, operator_id').eq('is_active', true).order('number'),
       supabase.from('posts').select('id, client_id, status, publish_date').gte('publish_date', first).lte('publish_date', last),
       supabase.from('shoots').select('id, shoot_date').gte('shoot_date', weekFrom).lte('shoot_date', weekTo).neq('status', 'cancelled'),
     ])
@@ -92,13 +92,26 @@ export default function MobileHome() {
     }
   })
 
+  // Сотрудник видит только своих клиентов — те, где он СММ или оператор.
+  // Админ видит всех, клиент — свою компанию. Смысл блока в том, чтобы человек
+  // видел, где горит лично у него, а не общий список из пятнадцати.
+  const isAdmin = profile?.role === 'admin'
+  const isClientRole = profile?.role === 'client'
+  const myClients = isAdmin
+    ? clients
+    : isClientRole
+      ? clients.filter(c => c.id === profile?.client_id)
+      : profile?.employee_id
+        ? clients.filter(c => c.smm_id === profile.employee_id || c.operator_id === profile.employee_id)
+        : []
+
   // «Требуют внимания» — три клиента с худшей готовностью плана.
   //
   // Выпущенное берём из clients.published_posts, а не из записей в posts:
   // это число ведут вручную во вкладке «Клиенты» и синхронизируют с рабочей
   // таблицей, тогда как контент-план заполняется не для всех клиентов. Считать
   // по posts значило бы показывать 0% там, где на деле план закрыт.
-  const risk = clients
+  const risk = myClients
     .map(c => {
       const total = c.total_posts || 0
       const done = c.published_posts || 0
@@ -233,8 +246,8 @@ export default function MobileHome() {
 
       {/* Требуют внимания */}
       <div>
-        <SectionTitle action={`ВСЕ ${clients.length} →`} onAction={() => navigate('/content')}>
-          ТРЕБУЮТ ВНИМАНИЯ
+        <SectionTitle action={`ВСЕ ${myClients.length} →`} onAction={() => navigate('/clients')}>
+          {isAdmin ? 'ТРЕБУЮТ ВНИМАНИЯ' : 'МОИ КЛИЕНТЫ · ТРЕБУЮТ ВНИМАНИЯ'}
         </SectionTitle>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {risk.map(c => {
@@ -277,7 +290,9 @@ export default function MobileHome() {
           })}
           {!loading && risk.length === 0 && (
             <div style={{ color: T.muted, font: `400 12px ${SANS}` }}>
-              У клиентов не задан план постов — укажите его в карточке клиента.
+              {myClients.length === 0
+                ? 'За вами пока не закреплён ни один клиент.'
+                : 'У клиентов не задан план постов — укажите его во вкладке «Клиенты».'}
             </div>
           )}
         </div>

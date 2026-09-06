@@ -261,8 +261,16 @@ input, select, textarea { font-family: 'Space Grotesk', system-ui, sans-serif; }
   .m-sheet, .m-overlay, .m-toast { animation: none; }
 }
 
-/* Горизонтальные ленты чипов: скроллятся без видимой полосы. */
-.m-hscroll { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+/* Горизонтальные ленты чипов: скроллятся без видимой полосы.
+   overflow-y: hidden обязателен — при auto по одной оси браузер делает auto и
+   по второй, и вертикальный свайп начинает застревать в самой ленте. */
+.m-hscroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
 .m-hscroll::-webkit-scrollbar { display: none; }
 
 /* Modal / bottom-sheet: header pinned, body scrolls, never taller than the viewport.
