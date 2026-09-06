@@ -1,0 +1,1154 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics><meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#e8e6e1;font-family:'IBM Plex Sans',system-ui,sans-serif}
+a{color:#1a1a1a}a:hover{color:#000}
+.dv-turn{padding:44px 48px 36px;border-bottom:1px solid rgba(0,0,0,.09)}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 22px}
+.dv-tid{font:600 10px 'IBM Plex Mono',monospace;padding:3px 7px;background:#141414;color:#fff;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 13px/1.2 'IBM Plex Sans',sans-serif;color:#141414}
+.dv-opts{display:flex;flex-wrap:wrap;gap:34px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px}
+.dv-oid{font:600 10.5px 'IBM Plex Mono',monospace;padding:3px 7px;background:rgba(0,0,0,.09);color:#141414;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 11.5px/1.4 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.55);max-width:390px}
+.dv-opt:target .dv-oid{background:#2a78d6;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.6 'IBM Plex Sans',sans-serif;color:rgba(0,0,0,.5)}
+.sc::-webkit-scrollbar{display:none}
+.sc{scrollbar-width:none}
+</style></helmet>
+
+<section class="dv-turn" id="t2">
+<div class="dv-thd"><a class="dv-tid" href="#t2">2</a><span class="dv-tname">Профиль для сотрудника — два направления</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="2a">
+<div class="dv-olabel"><a class="dv-oid" href="#2a">2a</a><b>Рабочий кабинет.</b> Профиль = инструмент, а не витрина: моя неделя в цифрах, мои клиенты с прогрессом, ниже — безопасное редактирование (фото, имя, телеграм, рабочие часы). Владелец видит тот же экран, но с блоком «Команда».</div>
+<div style="width:390px;height:844px;border-radius:46px;background:#000;border:1px solid rgba(255,255,255,.14);box-shadow:0 26px 64px rgba(0,0,0,.42);position:relative;overflow:hidden">
+<div style="position:absolute;inset:0;background:#0A0A0B;color:#fff;display:flex;flex-direction:column">
+  <div style="height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.85)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid rgba(255,255,255,.6);border-radius:2px;display:block"></span></div>
+  <div class="sc" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:8px 20px 24px;display:flex;flex-direction:column;gap:20px">
+
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="font:700 15px/1 'Oswald',sans-serif;letter-spacing:.06em">1M<span style="color:#D6F53E">.</span>AGENCY</div>
+      <div style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.4)">МОЙ ПРОФИЛЬ</div>
+    </div>
+
+    <div style="display:flex;gap:16px;align-items:center">
+      <div style="position:relative;width:78px;height:78px;flex:none">
+        <div style="width:78px;height:78px;border-radius:26px;background:#22242A;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font:700 28px 'Oswald',sans-serif;color:rgba(255,255,255,.75)">АИ</div>
+        <div style="position:absolute;right:-4px;bottom:-4px;width:30px;height:30px;border-radius:11px;background:#D6F53E;border:3px solid #0A0A0B;display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:#0A0A0B">+</div>
+      </div>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+        <div style="font:700 28px/1 'Oswald',sans-serif">АИДА</div>
+        <div style="font:500 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.42)">SMM-МЕНЕДЖЕР · 6 КЛИЕНТОВ</div>
+        <div style="font:500 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.28)">В КОМАНДЕ С МАРТА 2025</div>
+      </div>
+    </div>
+
+    <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:15px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.4)">МОЯ НЕДЕЛЯ</div>
+        <div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.28)">1–7 СЕН</div>
+      </div>
+      <div style="display:flex">
+        <div style="flex:1"><div style="font:700 30px/1 'Oswald',sans-serif">18</div><div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:rgba(255,255,255,.4);padding-top:5px">ПОСТОВ СДАНО</div></div>
+        <div style="flex:1"><div style="font:700 30px/1 'Oswald',sans-serif">4</div><div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:rgba(255,255,255,.4);padding-top:5px">СЪЁМКИ</div></div>
+        <div style="flex:1"><div style="font:700 30px/1 'Oswald',sans-serif;color:#D6F53E">94%</div><div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:rgba(255,255,255,.4);padding-top:5px">ВОВРЕМЯ</div></div>
+      </div>
+      <div style="display:flex;gap:4px;height:34px;align-items:flex-end">
+        <div style="flex:1;height:48%;border-radius:3px;background:rgba(255,255,255,.16)"></div>
+        <div style="flex:1;height:72%;border-radius:3px;background:rgba(255,255,255,.16)"></div>
+        <div style="flex:1;height:60%;border-radius:3px;background:rgba(255,255,255,.16)"></div>
+        <div style="flex:1;height:88%;border-radius:3px;background:rgba(255,255,255,.16)"></div>
+        <div style="flex:1;height:100%;border-radius:3px;background:#D6F53E"></div>
+        <div style="flex:1;height:34%;border-radius:3px;background:rgba(255,255,255,.16)"></div>
+        <div style="flex:1;height:26%;border-radius:3px;background:rgba(255,255,255,.16)"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;border-top:1px solid rgba(255,255,255,.08);padding-top:13px">
+        <div style="flex:1;min-width:0">
+          <div style="font:600 12.5px 'IBM Plex Sans',sans-serif">Загрузка на неделю</div>
+          <div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38);padding-top:3px">22 ИЗ 26 ЗАДАЧ · ЕЩЁ ЕСТЬ МЕСТО</div>
+        </div>
+        <div style="width:74px;flex:none;height:6px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:84%;height:100%;background:#D6F53E;border-radius:3px"></div></div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">МОИ КЛИЕНТЫ</div>
+        <div style="font:500 11px 'IBM Plex Mono',monospace;color:#D6F53E">ВСЕ 6 →</div>
+      </div>
+      <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:11px;padding:13px 15px">
+          <span style="width:10px;height:10px;border-radius:3px;background:#E8452F;display:block;flex:none"></span>
+          <div style="flex:1;min-width:0;font:600 13.5px 'IBM Plex Sans',sans-serif">КТВ</div>
+          <div style="width:62px;height:5px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:17%;height:100%;background:#F2622E"></div></div>
+          <div style="font:600 11px 'IBM Plex Mono',monospace;color:#F2622E;min-width:32px;text-align:right">17%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;border-top:1px solid rgba(255,255,255,.06)">
+          <span style="width:10px;height:10px;border-radius:3px;background:#4E7BE8;display:block;flex:none"></span>
+          <div style="flex:1;min-width:0;font:600 13.5px 'IBM Plex Sans',sans-serif">Бэйби Рум</div>
+          <div style="width:62px;height:5px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:67%;height:100%;background:#D6F53E"></div></div>
+          <div style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.7);min-width:32px;text-align:right">67%</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:11px;padding:13px 15px;border-top:1px solid rgba(255,255,255,.06)">
+          <span style="width:10px;height:10px;border-radius:3px;background:#E8D44E;display:block;flex:none"></span>
+          <div style="flex:1;min-width:0;font:600 13.5px 'IBM Plex Sans',sans-serif">Craft</div>
+          <div style="width:62px;height:5px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:90%;height:100%;background:#D6F53E"></div></div>
+          <div style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.7);min-width:32px;text-align:right">90%</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">ЛИЧНЫЕ ДАННЫЕ</div>
+      <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 15px;min-height:44px;box-sizing:border-box">
+          <div style="flex:1;font:500 13.5px 'IBM Plex Sans',sans-serif">Фото профиля</div>
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;color:#D6F53E">ЗАГРУЗИТЬ</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 15px;border-top:1px solid rgba(255,255,255,.06);min-height:44px;box-sizing:border-box">
+          <div style="flex:1;font:500 13.5px 'IBM Plex Sans',sans-serif">Имя в приложении</div>
+          <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.45)">АИДА →</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 15px;border-top:1px solid rgba(255,255,255,.06);min-height:44px;box-sizing:border-box">
+          <div style="flex:1;font:500 13.5px 'IBM Plex Sans',sans-serif">Телеграм для связи</div>
+          <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.45)">@AIDA →</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:14px 15px;border-top:1px solid rgba(255,255,255,.06);min-height:44px;box-sizing:border-box">
+          <div style="flex:1;font:500 13.5px 'IBM Plex Sans',sans-serif">Рабочие часы</div>
+          <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.45)">10:00–19:00 →</div>
+        </div>
+      </div>
+      <div style="font:400 11px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.3)">Роль, доступы и список клиентов меняет только владелец.</div>
+    </div>
+
+  </div>
+  <div style="flex:none;height:78px;display:flex;border-top:1px solid rgba(255,255,255,.08);padding:0 6px 14px">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">ГЛАВНАЯ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">КОНТЕНТ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">СЪЁМКИ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">ТАРГЕТ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:#D6F53E"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#D6F53E">ПРОФИЛЬ</div></div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="dv-opt" id="2b">
+<div class="dv-olabel"><a class="dv-oid" href="#2b">2b</a><b>Личный итог месяца.</b> Смелее: экран как персональная сводка — крупный результат месяца, серия дней без просрочек, вклад в общий объём агентства и разбор по типам контента. Аватар редактируется прямо в шапке, настройки убраны в один пункт снизу.</div>
+<div style="width:390px;height:844px;border-radius:46px;background:#000;border:1px solid rgba(255,255,255,.14);box-shadow:0 26px 64px rgba(0,0,0,.42);position:relative;overflow:hidden">
+<div style="position:absolute;inset:0;background:#0A0A0B;color:#fff;display:flex;flex-direction:column">
+  <div style="height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.85)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid rgba(255,255,255,.6);border-radius:2px;display:block"></span></div>
+  <div class="sc" style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:18px;padding-bottom:24px">
+
+    <div style="background:#D6F53E;color:#0A0A0B;border-radius:0 0 28px 28px;padding:14px 20px 20px;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em">СЕНТЯБРЬ · МОЙ ИТОГ</div>
+        <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;opacity:.6">НАСТРОЙКИ</div>
+      </div>
+      <div style="display:flex;gap:14px;align-items:center">
+        <div style="position:relative;width:60px;height:60px;flex:none">
+          <div style="width:60px;height:60px;border-radius:20px;background:#0A0A0B;color:#D6F53E;display:flex;align-items:center;justify-content:center;font:700 22px 'Oswald',sans-serif">АИ</div>
+          <div style="position:absolute;right:-5px;bottom:-5px;width:26px;height:26px;border-radius:9px;background:#fff;border:3px solid #D6F53E;display:flex;align-items:center;justify-content:center;font:700 10px 'IBM Plex Mono',monospace;color:#0A0A0B">+</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font:700 30px/1 'Oswald',sans-serif">АИДА</div>
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;opacity:.65;padding-top:5px">SMM · 6 КЛИЕНТОВ · НА МЕСТЕ</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between;border-top:1px solid rgba(10,10,11,.18);padding-top:14px">
+        <div style="font:700 34px/.92 'Oswald',sans-serif">СДАНО<br>ВОВРЕМЯ</div>
+        <div style="text-align:right"><div style="font:700 58px/.8 'Oswald',sans-serif">62</div><div style="font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;opacity:.65;padding-top:5px">ИЗ 66 ПОСТОВ</div></div>
+      </div>
+    </div>
+
+    <div style="padding:0 20px;display:flex;flex-direction:column;gap:18px">
+
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px">
+          <div style="font:700 26px/1 'Oswald',sans-serif;color:#D6F53E">12</div>
+          <div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:rgba(255,255,255,.4);padding-top:5px">ДНЕЙ БЕЗ ПРОСРОЧЕК</div>
+        </div>
+        <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px">
+          <div style="font:700 26px/1 'Oswald',sans-serif">14</div>
+          <div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:rgba(255,255,255,.4);padding-top:5px">СЪЁМОК ЗА МЕСЯЦ</div>
+        </div>
+        <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px">
+          <div style="font:700 26px/1 'Oswald',sans-serif">2.1<span style="font-size:16px">Д</span></div>
+          <div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:rgba(255,255,255,.4);padding-top:5px">СРЕДНИЙ СРОК ПОСТА</div>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">МОЙ ВКЛАД В ОБЪЁМ АГЕНТСТВА</div>
+        <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;gap:2px">
+          <div style="width:38%;background:#D6F53E"></div>
+          <div style="width:31%;background:rgba(255,255,255,.28)"></div>
+          <div style="width:19%;background:rgba(255,255,255,.16)"></div>
+          <div style="flex:1;background:rgba(255,255,255,.1)"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38)">
+          <span style="color:#D6F53E">Я · 38%</span><span>ДАНА · 31%</span><span>BEKSULTAN · 19%</span><span>ДР. · 12%</span>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">ЧТО Я ДЕЛАЛА ЧАЩЕ</div>
+        <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:12px;padding:13px 15px">
+            <div style="width:36px;height:36px;flex:none;border-radius:12px;background:#1D1F24;color:rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font:600 10.5px 'IBM Plex Mono',monospace">RE</div>
+            <div style="flex:1;min-width:0"><div style="font:600 13.5px 'IBM Plex Sans',sans-serif">Reels</div><div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.36);padding-top:2px">28 ШТ · 45%</div></div>
+            <div style="width:60px;height:5px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:100%;height:100%;background:#D6F53E"></div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-top:1px solid rgba(255,255,255,.06)">
+            <div style="width:36px;height:36px;flex:none;border-radius:12px;background:#1D1F24;color:rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font:600 10.5px 'IBM Plex Mono',monospace">CA</div>
+            <div style="flex:1;min-width:0"><div style="font:600 13.5px 'IBM Plex Sans',sans-serif">Карусели</div><div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.36);padding-top:2px">19 ШТ · 31%</div></div>
+            <div style="width:60px;height:5px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:69%;height:100%;background:rgba(255,255,255,.4)"></div></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-top:1px solid rgba(255,255,255,.06)">
+            <div style="width:36px;height:36px;flex:none;border-radius:12px;background:#1D1F24;color:rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font:600 10.5px 'IBM Plex Mono',monospace">ST</div>
+            <div style="flex:1;min-width:0"><div style="font:600 13.5px 'IBM Plex Sans',sans-serif">Сторис</div><div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.36);padding-top:2px">15 ШТ · 24%</div></div>
+            <div style="width:60px;height:5px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden"><div style="width:54%;height:100%;background:rgba(255,255,255,.4)"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <div style="border:1px solid rgba(214,245,62,.4);color:#D6F53E;border-radius:9px;padding:8px 11px;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.06em">СЕРИЯ 12 ДНЕЙ</div>
+        <div style="border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.55);border-radius:9px;padding:8px 11px;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.06em">ТОП ПО REELS</div>
+        <div style="border:1px solid rgba(255,255,255,.14);color:rgba(255,255,255,.55);border-radius:9px;padding:8px 11px;font:600 10px 'IBM Plex Mono',monospace;letter-spacing:.06em">18 МЕС В КОМАНДЕ</div>
+      </div>
+
+    </div>
+  </div>
+  <div style="flex:none;height:78px;display:flex;border-top:1px solid rgba(255,255,255,.08);padding:0 6px 14px">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">ГЛАВНАЯ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">КОНТЕНТ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">СЪЁМКИ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">ТАРГЕТ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:#D6F53E"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#D6F53E">ПРОФИЛЬ</div></div>
+  </div>
+</div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Что сознательно НЕ добавлял: рейтинг сотрудников между собой (демотивирует), «часы онлайн» и любую слежку, публичные оценки качества. Личная статистика показывает объём и соблюдение сроков — то, что человек контролирует сам.<br>Дальше: «вживи <a class="dv-oid" href="#2a">2a</a> в прототип» · «смешай: шапка из <a class="dv-oid" href="#2b">2b</a> + блоки из <a class="dv-oid" href="#2a">2a</a>» · «покажи экран редактирования профиля» · «сделай переключатель роли владелец/сотрудник в прототипе»</p>
+</section>
+
+<section class="dv-turn" id="t1">
+<div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">1M.AGENCY — редизайн: рабочий прототип + два направления главной</span></div>
+<div class="dv-opts">
+
+<div class="dv-opt" id="1a">
+<div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Рабочий прототип, все 5 экранов. Тот же чёрно-лимонный стиль, но: главная = «дела на сегодня» (тап — закрыть дело), один селектор клиента вместо облака чипов, статус меняется тапом по чипу, съёмки — недельная полоса. Тап по клиенту в блоке «требуют внимания» открывает карточку клиента целиком.</div>
+<div style="width:390px;height:844px;border-radius:46px;background:#000;border:1px solid rgba(255,255,255,.14);box-shadow:0 26px 64px rgba(0,0,0,.42);position:relative;overflow:hidden">
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;background:#0A0A0B;color:#fff">
+
+    <div style="height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.85)">
+      <span>9:41</span>
+      <div style="display:flex;gap:5px;align-items:center"><span style="width:15px;height:8px;border:1px solid rgba(255,255,255,.6);border-radius:2px;display:block"></span><span style="width:6px;height:6px;border-radius:50%;background:#D6F53E;display:block"></span></div>
+    </div>
+
+    <div style="flex:1;min-height:0;overflow-y:auto;overflow-x:hidden" class="sc">
+
+      <sc-if value="{{ isHome }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:8px 20px 24px;display:flex;flex-direction:column;gap:22px">
+
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div style="font:700 15px/1 'Oswald',sans-serif;letter-spacing:.06em">1M<span style="color:#D6F53E">.</span>AGENCY</div>
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="width:36px;height:36px;border-radius:12px;border:1px solid rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font:500 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.6);position:relative">3<span style="position:absolute;top:7px;right:7px;width:5px;height:5px;border-radius:50%;background:#F2622E"></span></div>
+            <div style="width:36px;height:36px;border-radius:12px;background:#D6F53E;color:#0A0A0B;display:flex;align-items:center;justify-content:center;font:700 14px 'Oswald',sans-serif">A</div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.4)">ВС · 6 СЕНТЯБРЯ</div>
+            <div style="font:600 11px 'IBM Plex Mono',monospace;color:#D6F53E">{{ tasksLeftLabel }}</div>
+          </div>
+          <div style="background:#D6F53E;border-radius:22px;padding:20px;color:#0A0A0B;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between">
+              <div style="font:700 40px/.9 'Oswald',sans-serif;letter-spacing:-.01em">ДЕЛА<br>НА СЕГОДНЯ</div>
+              <div style="font:700 56px/.8 'Oswald',sans-serif">{{ tasksLeft }}</div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <sc-for list="{{ tasks }}" as="t" hint-placeholder-count="4">
+                <div onClick="{{ t.toggle }}" style="display:flex;gap:12px;align-items:center;padding:11px 0;border-top:1px solid rgba(10,10,11,.16);cursor:pointer;min-height:44px;box-sizing:border-box">
+                  <span style="{{ t.boxStyle }}">{{ t.mark }}</span>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+                    <div style="{{ t.titleStyle }}">{{ t.title }}</div>
+                    <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(10,10,11,.6)">{{ t.meta }}</div>
+                  </div>
+                  <span style="{{ t.dotStyle }}"></span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.4)">ЭТА НЕДЕЛЯ</div>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ week }}" as="d" hint-placeholder-count="7">
+              <div style="{{ d.cellStyle }}">
+                <div style="{{ d.dowStyle }}">{{ d.dow }}</div>
+                <div style="{{ d.numStyle }}">{{ d.num }}</div>
+                <div style="display:flex;gap:3px;height:6px;align-items:center">
+                  <sc-for list="{{ d.dots }}" as="dot" hint-placeholder-count="2">
+                    <span style="{{ dot.style }}"></span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:flex;gap:16px;font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.35);padding-top:2px">
+            <span style="display:flex;gap:5px;align-items:center"><span style="width:6px;height:6px;border-radius:50%;background:#D6F53E;display:block"></span>ПОСТЫ</span>
+            <span style="display:flex;gap:5px;align-items:center"><span style="width:6px;height:6px;border-radius:50%;background:#F2622E;display:block"></span>СЪЁМКИ</span>
+          </div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.4)">ТРЕБУЮТ ВНИМАНИЯ</div>
+            <div onClick="{{ goContent }}" style="font:500 11px 'IBM Plex Mono',monospace;color:#D6F53E;cursor:pointer">ВСЕ 15 →</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ riskClients }}" as="c" hint-placeholder-count="3">
+              <div onClick="{{ c.open }}" style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;cursor:pointer">
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="{{ c.dotStyle }}"></span>
+                  <div style="flex:1;min-width:0;font:600 14px/1.2 'IBM Plex Sans',sans-serif">{{ c.name }}</div>
+                  <div style="{{ c.badgeStyle }}">{{ c.badge }}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:12px">
+                  <div style="flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.09);overflow:hidden">
+                    <div style="{{ c.barStyle }}"></div>
+                  </div>
+                  <div style="font:600 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.75);min-width:34px;text-align:right">{{ c.pct }}</div>
+                </div>
+                <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38)">{{ c.meta }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isClient }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column;gap:20px;padding-bottom:24px">
+        <div style="{{ cardHeadStyle }}">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div onClick="{{ cardBack }}" style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;cursor:pointer;min-height:32px;display:flex;align-items:center">← НАЗАД</div>
+            <div style="font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.08em;opacity:.65">КАРТОЧКА КЛИЕНТА</div>
+          </div>
+          <div style="font:700 40px/.92 'Oswald',sans-serif">{{ cardName }}</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;opacity:.7">{{ cardPlan }}</div>
+              <div style="font:700 20px/1 'Oswald',sans-serif">{{ cardPct }}</div>
+            </div>
+            <div style="height:8px;border-radius:4px;background:rgba(10,10,11,.2);overflow:hidden"><div style="{{ cardBarStyle }}"></div></div>
+          </div>
+        </div>
+        <div style="padding:0 20px;display:flex;gap:8px">
+          <sc-for list="{{ cardStats }}" as="s" hint-placeholder-count="3">
+            <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:13px">
+              <div style="font:700 22px/1 'Oswald',sans-serif">{{ s.value }}</div>
+              <div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.09em;color:rgba(255,255,255,.4);padding-top:5px">{{ s.label }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="padding:0 20px;display:flex;gap:8px">
+          <sc-for list="{{ cardActions }}" as="a" hint-placeholder-count="3">
+            <div onClick="{{ a.act }}" style="{{ a.style }}">{{ a.label }}</div>
+          </sc-for>
+        </div>
+        <div style="padding:0 20px;display:flex;flex-direction:column;gap:10px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">БЛИЖАЙШАЯ СЪЁМКА</div>
+          <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px 16px;font:500 11.5px/1.5 'IBM Plex Mono',monospace;color:rgba(255,255,255,.6)">{{ cardNextShootLine }}</div>
+        </div>
+        <div style="padding:0 20px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">КОНТЕНТ КЛИЕНТА</div>
+            <div onClick="{{ cardOpenPlan }}" style="font:500 11px 'IBM Plex Mono',monospace;color:#D6F53E;cursor:pointer">ВЕСЬ ПЛАН →</div>
+          </div>
+          <sc-for list="{{ cardPosts }}" as="p" hint-placeholder-count="3">
+            <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:8px">
+              <div style="font:600 14px/1.25 'IBM Plex Sans',sans-serif">{{ p.title }}</div>
+              <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4)">{{ p.meta }}</div>
+              <div onClick="{{ p.cycle }}" style="{{ p.statusStyle }}">{{ p.status }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isContent }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column">
+        <div style="position:sticky;top:0;z-index:3;background:#0A0A0B;padding:8px 20px 12px;display:flex;flex-direction:column;gap:14px;border-bottom:1px solid rgba(255,255,255,.07)">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font:700 26px/1 'Oswald',sans-serif;letter-spacing:.01em">КОНТЕНТ-ПЛАН</div>
+            <div style="display:flex;background:#17171A;border-radius:11px;padding:3px">
+              <div onClick="{{ setList }}" style="{{ listBtnStyle }}">СПИСОК</div>
+              <div onClick="{{ setCal }}" style="{{ calBtnStyle }}">КАЛЕНДАРЬ</div>
+            </div>
+          </div>
+          <div onClick="{{ openPicker }}" style="display:flex;align-items:center;gap:10px;background:#17171A;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;cursor:pointer;min-height:48px;box-sizing:border-box">
+            <span style="{{ currentClientDot }}"></span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+              <div style="font:600 14px/1.1 'IBM Plex Sans',sans-serif">{{ currentClientName }}</div>
+              <div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4);letter-spacing:.08em">{{ currentClientMeta }}</div>
+            </div>
+            <div style="font:500 11px 'IBM Plex Mono',monospace;color:#D6F53E">СМЕНИТЬ</div>
+          </div>
+          <div style="display:flex;gap:6px;overflow-x:auto" class="sc">
+            <sc-for list="{{ statusTabs }}" as="s" hint-placeholder-count="5">
+              <div onClick="{{ s.pick }}" style="{{ s.style }}">{{ s.label }}<span style="{{ s.countStyle }}">{{ s.count }}</span></div>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:16px 20px 24px;display:flex;flex-direction:column;gap:18px">
+          <sc-for list="{{ postGroups }}" as="g" hint-placeholder-count="2">
+            <div style="display:flex;flex-direction:column;gap:9px">
+              <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">{{ g.label }}</div>
+              <sc-for list="{{ g.items }}" as="p" hint-placeholder-count="3">
+                <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;display:flex;gap:12px">
+                  <div style="{{ p.typeStyle }}">{{ p.typeMark }}</div>
+                  <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+                    <div style="font:600 14px/1.25 'IBM Plex Sans',sans-serif">{{ p.title }}</div>
+                    <div style="font:500 10.5px/1.5 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4)">{{ p.meta }}</div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                      <div onClick="{{ p.cycle }}" style="{{ p.statusStyle }}">{{ p.status }}</div>
+                      <div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.28)">ТАП — ДАЛЬШЕ</div>
+                    </div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-for>
+          <sc-if value="{{ noPosts }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px dashed rgba(255,255,255,.16);border-radius:18px;padding:28px 18px;text-align:center;display:flex;flex-direction:column;gap:10px;align-items:center">
+              <div style="font:700 18px/1.1 'Oswald',sans-serif;color:rgba(255,255,255,.8)">ПУСТО В ЭТОМ ФИЛЬТРЕ</div>
+              <div style="font:400 12px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.4);max-width:230px">Смените статус или клиента — либо добавьте первый пост.</div>
+            </div>
+          </sc-if>
+        </div>
+        </sc-if>
+
+        <sc-if value="{{ isCal }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:16px 20px 24px;display:flex;flex-direction:column;gap:12px">
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">
+            <sc-for list="{{ calDows }}" as="d" hint-placeholder-count="7">
+              <div style="font:500 9.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.3);text-align:center;padding-bottom:2px">{{ d }}</div>
+            </sc-for>
+            <sc-for list="{{ calCells }}" as="c" hint-placeholder-count="30">
+              <div style="{{ c.style }}">
+                <div style="{{ c.numStyle }}">{{ c.num }}</div>
+                <div style="display:flex;gap:2px;flex-wrap:wrap;justify-content:center">
+                  <sc-for list="{{ c.dots }}" as="dot" hint-placeholder-count="1">
+                    <span style="{{ dot.style }}"></span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="font:400 11.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.4)">Точка = пост, оранжевая = съёмка. Тап по дню открывает список этого дня.</div>
+        </div>
+        </sc-if>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isShoots }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column">
+        <div style="position:sticky;top:0;z-index:3;background:#0A0A0B;padding:8px 20px 12px;display:flex;flex-direction:column;gap:14px;border-bottom:1px solid rgba(255,255,255,.07)">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font:700 26px/1 'Oswald',sans-serif">СЪЁМКИ</div>
+            <div style="font:500 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.45);letter-spacing:.1em">СЕНТЯБРЬ 2026</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ shootWeek }}" as="d" hint-placeholder-count="7">
+              <div onClick="{{ d.pick }}" style="{{ d.style }}">
+                <div style="{{ d.dowStyle }}">{{ d.dow }}</div>
+                <div style="{{ d.numStyle }}">{{ d.num }}</div>
+                <div style="{{ d.badgeStyle }}">{{ d.count }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:18px 20px 24px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;gap:10px">
+            <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px 14px">
+              <div style="font:700 22px/1 'Oswald',sans-serif;color:#D6F53E">{{ shootDayCount }}</div>
+              <div style="font:500 9.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4);letter-spacing:.1em;padding-top:4px">СЪЁМОК В ЭТОТ ДЕНЬ</div>
+            </div>
+            <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:12px 14px">
+              <div style="font:700 22px/1 'Oswald',sans-serif">{{ shootWeekCount }}</div>
+              <div style="font:500 9.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4);letter-spacing:.1em;padding-top:4px">ЗА НЕДЕЛЮ</div>
+            </div>
+          </div>
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">{{ shootDayLabel }}</div>
+          <div style="display:flex;flex-direction:column;gap:0">
+            <sc-for list="{{ shootList }}" as="s" hint-placeholder-count="3">
+              <div style="display:flex;gap:14px">
+                <div style="width:52px;flex:none;padding-top:14px;font:600 13px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.75)">{{ s.time }}</div>
+                <div style="flex:1;min-width:0;border-left:1px solid rgba(255,255,255,.09);padding:0 0 14px 14px;position:relative">
+                  <span style="{{ s.pinStyle }}"></span>
+                  <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:9px">
+                    <div style="display:flex;align-items:center;gap:9px">
+                      <div style="flex:1;min-width:0;font:600 15px/1.2 'IBM Plex Sans',sans-serif">{{ s.client }}</div>
+                      <div style="{{ s.stateStyle }}">{{ s.state }}</div>
+                    </div>
+                    <div style="font:500 10.5px/1.5 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4)">{{ s.meta }}</div>
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <sc-for list="{{ s.crew }}" as="m" hint-placeholder-count="2">
+                        <div style="width:26px;height:26px;border-radius:9px;background:#22242A;color:rgba(255,255,255,.7);display:flex;align-items:center;justify-content:center;font:600 10px 'IBM Plex Mono',monospace">{{ m }}</div>
+                      </sc-for>
+                      <div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.3);padding-left:4px">{{ s.crewLabel }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <sc-if value="{{ shootEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px dashed rgba(255,255,255,.16);border-radius:18px;padding:26px 18px;display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center">
+              <div style="font:700 18px/1.1 'Oswald',sans-serif;color:rgba(255,255,255,.8)">ДЕНЬ СВОБОДЕН</div>
+              <div style="font:400 12px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.4);max-width:230px">Лучшее время поставить съёмку клиенту, у которого горит план.</div>
+              <div style="background:#D6F53E;color:#0A0A0B;border-radius:12px;padding:12px 18px;font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.06em;min-height:44px;display:flex;align-items:center">+ ПОСТАВИТЬ СЪЁМКУ</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isTarget }}" hint-placeholder-val="{{ false }}">
+      <div style="display:flex;flex-direction:column">
+        <div style="position:sticky;top:0;z-index:3;background:#0A0A0B;padding:8px 20px 12px;display:flex;flex-direction:column;gap:12px;border-bottom:1px solid rgba(255,255,255,.07)">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="font:700 26px/1 'Oswald',sans-serif">ТАРГЕТ</div>
+            <div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.35);letter-spacing:.08em">ОБНОВЛЕНО 9:12</div>
+          </div>
+          <div onClick="{{ openTargetPicker }}" style="display:flex;align-items:center;gap:10px;background:#17171A;border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:12px 14px;cursor:pointer;min-height:48px;box-sizing:border-box">
+            <span style="{{ targetSelDot }}"></span>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:1px">
+              <div style="font:600 14px/1.1 'IBM Plex Sans',sans-serif">{{ targetSelName }}</div>
+              <div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4);letter-spacing:.08em">{{ targetSelMeta }}</div>
+            </div>
+            <div style="font:500 11px 'IBM Plex Mono',monospace;color:#D6F53E">СМЕНИТЬ</div>
+          </div>
+          <div style="display:flex;gap:6px;overflow-x:auto" class="sc">
+            <sc-for list="{{ periods }}" as="p" hint-placeholder-count="5">
+              <div onClick="{{ p.pick }}" style="{{ p.style }}">{{ p.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="padding:18px 20px 24px;display:flex;flex-direction:column;gap:20px">
+          <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:20px;padding:18px;display:flex;flex-direction:column;gap:16px">
+            <div style="display:flex;align-items:flex-end;justify-content:space-between">
+              <div>
+                <div style="font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.4)">ПОТРАЧЕНО · {{ periodLabel }}</div>
+                <div style="font:700 42px/1 'Oswald',sans-serif;padding-top:6px">{{ spendTotal }}</div>
+              </div>
+              <div style="font:600 12px 'IBM Plex Mono',monospace;color:#D6F53E;padding-bottom:6px">{{ spendDelta }}</div>
+            </div>
+            <div style="display:flex;gap:3px;height:36px;align-items:flex-end">
+              <sc-for list="{{ spark }}" as="b" hint-placeholder-count="14">
+                <div style="{{ b.style }}"></div>
+              </sc-for>
+            </div>
+            <div style="display:flex;gap:0;border-top:1px solid rgba(255,255,255,.08);padding-top:14px">
+              <sc-for list="{{ totals }}" as="t" hint-placeholder-count="3">
+                <div style="flex:1;display:flex;flex-direction:column;gap:3px">
+                  <div style="font:700 18px/1 'Oswald',sans-serif">{{ t.value }}</div>
+                  <div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.38)">{{ t.label }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;align-items:baseline;justify-content:space-between">
+            <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">{{ targetRowsLabel }}</div>
+            <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.3)">ЭКСПОРТ</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <sc-for list="{{ targetRows }}" as="r" hint-placeholder-count="15">
+              <div onClick="{{ r.toggle }}" style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:11px;cursor:pointer">
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="{{ r.dotStyle }}"></span>
+                  <div style="flex:1;min-width:0;font:600 14px/1.2 'IBM Plex Sans',sans-serif">{{ r.name }}</div>
+                  <div style="font:600 14px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.9)">{{ r.spend }}</div>
+                </div>
+                <div style="height:4px;border-radius:3px;background:rgba(255,255,255,.08);overflow:hidden"><div style="{{ r.barStyle }}"></div></div>
+                <div style="display:flex;justify-content:space-between;font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.42)">
+                  <span>{{ r.reachLabel }}</span><span>{{ r.cpcLabel }}</span><span style="{{ r.trendStyle }}">{{ r.trend }}</span>
+                </div>
+                <sc-if value="{{ r.open }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:0;border-top:1px solid rgba(255,255,255,.08);padding-top:11px">
+                    <sc-for list="{{ r.details }}" as="d" hint-placeholder-count="4">
+                      <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+                        <div style="font:700 15px/1 'Oswald',sans-serif">{{ d.value }}</div>
+                        <div style="font:500 8.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">{{ d.label }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:8px 20px 24px;display:flex;flex-direction:column;gap:22px">
+        <div style="font:700 15px/1 'Oswald',sans-serif;letter-spacing:.06em">1M<span style="color:#D6F53E">.</span>AGENCY</div>
+        <div style="display:flex;gap:16px;align-items:center">
+          <div style="width:72px;height:72px;border-radius:24px;background:#D6F53E;color:#0A0A0B;display:flex;align-items:center;justify-content:center;font:700 30px 'Oswald',sans-serif">A</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="font:700 26px/1 'Oswald',sans-serif">АДМИН</div>
+            <div style="font:500 10.5px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:rgba(255,255,255,.4)">ВЛАДЕЛЕЦ · ВСЕ ПРАВА</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px">
+            <div style="font:700 22px/1 'Oswald',sans-serif">15</div>
+            <div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.4);padding-top:4px">КЛИЕНТОВ</div>
+          </div>
+          <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px">
+            <div style="font:700 22px/1 'Oswald',sans-serif">104</div>
+            <div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.4);padding-top:4px">ПОСТОВ / МЕС</div>
+          </div>
+          <div style="flex:1;background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:14px;padding:13px">
+            <div style="font:700 22px/1 'Oswald',sans-serif;color:#D6F53E">6</div>
+            <div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.4);padding-top:4px">В КОМАНДЕ</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">КОМАНДА</div>
+          <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;overflow:hidden">
+            <sc-for list="{{ team }}" as="m" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:12px;padding:13px 15px;border-top:1px solid rgba(255,255,255,.06)">
+                <div style="width:32px;height:32px;border-radius:11px;background:#22242A;color:rgba(255,255,255,.75);display:flex;align-items:center;justify-content:center;font:600 11px 'IBM Plex Mono',monospace">{{ m.ini }}</div>
+                <div style="flex:1;min-width:0"><div style="font:600 13px/1.2 'IBM Plex Sans',sans-serif">{{ m.name }}</div><div style="font:500 10px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38);padding-top:2px">{{ m.role }}</div></div>
+                <div style="font:600 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.5)">{{ m.load }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.36)">НАСТРОЙКИ</div>
+          <div style="background:#141416;border:1px solid rgba(255,255,255,.07);border-radius:16px;overflow:hidden">
+            <sc-for list="{{ settings }}" as="s" hint-placeholder-count="4">
+              <div onClick="{{ s.act }}" style="display:flex;align-items:center;gap:12px;padding:15px;border-top:1px solid rgba(255,255,255,.06);cursor:pointer;min-height:44px;box-sizing:border-box">
+                <div style="flex:1;font:500 13.5px 'IBM Plex Sans',sans-serif">{{ s.label }}</div>
+                <div style="{{ s.valStyle }}">{{ s.value }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="border:1px solid rgba(242,98,46,.35);border-radius:14px;padding:15px;text-align:center;font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#F2622E">ВЫЙТИ ИЗ АККАУНТА</div>
+      </div>
+      </sc-if>
+
+    </div>
+
+    <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+      <div style="position:absolute;left:20px;right:20px;bottom:104px;background:#fff;color:#0A0A0B;border-radius:14px;padding:13px 16px;font:600 12px 'IBM Plex Mono',monospace;letter-spacing:.04em;display:flex;gap:10px;align-items:center;box-shadow:0 12px 30px rgba(0,0,0,.5)">
+        <span style="width:8px;height:8px;border-radius:50%;background:#D6F53E;display:block"></span>{{ toast }}
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ pickerOpen }}" hint-placeholder-val="{{ false }}">
+      <div onClick="{{ closePicker }}" style="position:absolute;inset:0;background:rgba(0,0,0,.6);z-index:8"></div>
+      <div style="position:absolute;left:0;right:0;bottom:0;z-index:9;background:#141416;border-top:1px solid rgba(255,255,255,.12);border-radius:26px 26px 0 0;padding:18px 20px 26px;display:flex;flex-direction:column;gap:14px;max-height:78%">
+        <div style="width:38px;height:4px;border-radius:2px;background:rgba(255,255,255,.2);align-self:center"></div>
+        <div style="display:flex;align-items:baseline;justify-content:space-between">
+          <div style="font:700 20px/1 'Oswald',sans-serif">{{ pickerTitle }}</div>
+          <div onClick="{{ closePicker }}" style="font:500 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.45);cursor:pointer">ЗАКРЫТЬ</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;overflow-y:auto" class="sc">
+          <sc-for list="{{ pickerRows }}" as="c" hint-placeholder-count="8">
+            <div onClick="{{ c.pick }}" style="{{ c.rowStyle }}">
+              <span style="{{ c.dotStyle }}"></span>
+              <div style="flex:1;min-width:0;font:600 14px 'IBM Plex Sans',sans-serif">{{ c.name }}</div>
+              <div style="font:500 11px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.4)">{{ c.meta }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <div style="flex:none;height:78px;display:flex;align-items:stretch;border-top:1px solid rgba(255,255,255,.08);background:rgba(10,10,11,.96);padding:0 6px 14px">
+      <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+        <div onClick="{{ n.pick }}" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:8px;padding-top:0;cursor:pointer">
+          <div style="{{ n.barStyle }}"></div>
+          <div style="{{ n.labelStyle }}">{{ n.label }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div onClick="{{ fabAction }}" style="{{ fabStyle }}">{{ fabLabel }}</div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1b">
+<div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Главная как «лента дня»: без карточек, только крупная типографика и линии. Сначала то, что произойдёт по часам, потом цифры.</div>
+<div style="width:390px;height:844px;border-radius:46px;background:#000;border:1px solid rgba(255,255,255,.14);box-shadow:0 26px 64px rgba(0,0,0,.42);position:relative;overflow:hidden">
+  <div style="position:absolute;inset:0;background:#0A0A0B;color:#fff;display:flex;flex-direction:column">
+    <div style="height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.85)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid rgba(255,255,255,.6);border-radius:2px;display:block"></span></div>
+    <div style="flex:1;min-height:0;overflow:hidden;padding:14px 22px 0;display:flex;flex-direction:column;gap:26px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font:500 11px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.4)">ВС · 6 СЕН · 9:41</div>
+        <div style="width:30px;height:30px;border-radius:10px;background:#D6F53E;color:#0A0A0B;display:flex;align-items:center;justify-content:center;font:700 12px 'Oswald',sans-serif">A</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="font:700 54px/.86 'Oswald',sans-serif;letter-spacing:-.015em">ШЕСТЬ ДЕЛ<br><span style="color:#D6F53E">ДО ВЕЧЕРА</span></div>
+        <div style="font:400 13px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.5);padding-top:10px;max-width:270px">Две съёмки, три поста на проверке, один дедлайн по плану КТВ.</div>
+      </div>
+      <div style="display:flex;flex-direction:column">
+        <div style="display:flex;gap:16px;padding:15px 0;border-top:1px solid rgba(255,255,255,.1)">
+          <div style="width:46px;flex:none;font:600 12px 'IBM Plex Mono',monospace;color:#D6F53E">10:00</div>
+          <div style="flex:1"><div style="font:600 15px/1.25 'IBM Plex Sans',sans-serif">Съёмка · Диханкол</div><div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38);padding-top:3px">ОБЪЕКТ · ОПЕР. BEKSULTAN</div></div>
+          <div style="font:600 10px 'IBM Plex Mono',monospace;color:#F2622E;padding-top:2px">СКОРО</div>
+        </div>
+        <div style="display:flex;gap:16px;padding:15px 0;border-top:1px solid rgba(255,255,255,.1)">
+          <div style="width:46px;flex:none;font:600 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.6)">13:00</div>
+          <div style="flex:1"><div style="font:600 15px/1.25 'IBM Plex Sans',sans-serif">Проверить 3 Reels</div><div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38);padding-top:3px">АРНУР КРЕДИТ · БЭЙБИ РУМ</div></div>
+        </div>
+        <div style="display:flex;gap:16px;padding:15px 0;border-top:1px solid rgba(255,255,255,.1)">
+          <div style="width:46px;flex:none;font:600 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.6)">15:00</div>
+          <div style="flex:1"><div style="font:600 15px/1.25 'IBM Plex Sans',sans-serif">Съёмка · Craft</div><div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38);padding-top:3px">СТУДИЯ · КАРУСЕЛЬ ×4</div></div>
+        </div>
+        <div style="display:flex;gap:16px;padding:15px 0;border-top:1px solid rgba(255,255,255,.1);border-bottom:1px solid rgba(255,255,255,.1)">
+          <div style="width:46px;flex:none;font:600 12px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.6)">18:00</div>
+          <div style="flex:1"><div style="font:600 15px/1.25 'IBM Plex Sans',sans-serif">Дедлайн плана · КТВ</div><div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(255,255,255,.38);padding-top:3px">17% ГОТОВО · 10 ПОСТОВ</div></div>
+          <div style="font:600 10px 'IBM Plex Mono',monospace;color:#F2622E;padding-top:2px">РИСК</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:22px">
+        <div><div style="font:700 32px/1 'Oswald',sans-serif">104</div><div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.38);padding-top:5px">ОПУБЛИКОВАНО</div></div>
+        <div><div style="font:700 32px/1 'Oswald',sans-serif;color:#D6F53E">20</div><div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.38);padding-top:5px">В РАБОТЕ</div></div>
+        <div><div style="font:700 32px/1 'Oswald',sans-serif;color:#F2622E">3</div><div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(255,255,255,.38);padding-top:5px">ГОРЯТ</div></div>
+      </div>
+    </div>
+    <div style="flex:none;height:78px;display:flex;border-top:1px solid rgba(255,255,255,.08);padding:0 6px 14px">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:#D6F53E"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#D6F53E">ГЛАВНАЯ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">КОНТЕНТ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">СЪЁМКИ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">ТАРГЕТ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(255,255,255,.35)">ПРОФИЛЬ</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div class="dv-opt" id="1c">
+<div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Светлая тема: тот же лимон, но как акцент на бумажном фоне. Читается на улице, цвета клиентов работают заметнее.</div>
+<div style="width:390px;height:844px;border-radius:46px;background:#111;border:1px solid rgba(0,0,0,.2);box-shadow:0 26px 64px rgba(0,0,0,.3);position:relative;overflow:hidden">
+  <div style="position:absolute;inset:0;background:#F4F2ED;color:#15150F;display:flex;flex-direction:column">
+    <div style="height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:rgba(0,0,0,.8)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid rgba(0,0,0,.5);border-radius:2px;display:block"></span></div>
+    <div style="flex:1;min-height:0;overflow:hidden;padding:12px 20px 0;display:flex;flex-direction:column;gap:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font:700 15px/1 'Oswald',sans-serif;letter-spacing:.06em">1M.AGENCY</div>
+        <div style="width:32px;height:32px;border-radius:11px;background:#15150F;color:#D6F53E;display:flex;align-items:center;justify-content:center;font:700 13px 'Oswald',sans-serif">A</div>
+      </div>
+      <div style="background:#15150F;border-radius:22px;padding:20px;color:#fff;display:flex;flex-direction:column;gap:14px">
+        <div style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(255,255,255,.45)">ВС · 6 СЕНТЯБРЯ</div>
+        <div style="display:flex;align-items:flex-end;justify-content:space-between">
+          <div style="font:700 36px/.92 'Oswald',sans-serif">ДЕЛА<br>НА СЕГОДНЯ</div>
+          <div style="font:700 52px/.8 'Oswald',sans-serif;color:#D6F53E">6</div>
+        </div>
+        <div style="display:flex;gap:8px;padding-top:4px">
+          <div style="flex:1;background:#D6F53E;color:#15150F;border-radius:12px;padding:12px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.04em">+ ПОСТ</div>
+          <div style="flex:1;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:12px;text-align:center;font:600 11px 'IBM Plex Mono',monospace;letter-spacing:.04em;color:#fff">+ СЪЁМКА</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:16px;padding:13px"><div style="font:700 24px/1 'Oswald',sans-serif">15</div><div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(0,0,0,.45);padding-top:4px">КЛИЕНТОВ</div></div>
+        <div style="flex:1;background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:16px;padding:13px"><div style="font:700 24px/1 'Oswald',sans-serif">20</div><div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(0,0,0,.45);padding-top:4px">В РАБОТЕ</div></div>
+        <div style="flex:1;background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:16px;padding:13px"><div style="font:700 24px/1 'Oswald',sans-serif;color:#C4453A">3</div><div style="font:500 9px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:rgba(0,0,0,.45);padding-top:4px">ГОРЯТ</div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:rgba(0,0,0,.42)">ПЛАН ПО КЛИЕНТАМ</div>
+        <div style="background:#fff;border:1px solid rgba(0,0,0,.07);border-radius:18px;overflow:hidden">
+          <div style="padding:14px 15px;display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:3px;background:#E8452F;display:block"></span><div style="flex:1;font:600 14px 'IBM Plex Sans',sans-serif">КТВ</div><div style="font:600 12px 'IBM Plex Mono',monospace;color:#C4453A">17%</div></div>
+            <div style="height:6px;border-radius:3px;background:rgba(0,0,0,.07);overflow:hidden"><div style="width:17%;height:100%;background:#C4453A"></div></div>
+            <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(0,0,0,.42)">2 ИЗ 12 · ДЕДЛАЙН СЕГОДНЯ 18:00</div>
+          </div>
+          <div style="padding:14px 15px;display:flex;flex-direction:column;gap:9px;border-top:1px solid rgba(0,0,0,.07)">
+            <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:3px;background:#4E7BE8;display:block"></span><div style="flex:1;font:600 14px 'IBM Plex Sans',sans-serif">Бэйби Рум</div><div style="font:600 12px 'IBM Plex Mono',monospace">67%</div></div>
+            <div style="height:6px;border-radius:3px;background:rgba(0,0,0,.07);overflow:hidden"><div style="width:67%;height:100%;background:#15150F"></div></div>
+            <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(0,0,0,.42)">8 ИЗ 12 · СЪЁМКА В СРЕДУ</div>
+          </div>
+          <div style="padding:14px 15px;display:flex;flex-direction:column;gap:9px;border-top:1px solid rgba(0,0,0,.07)">
+            <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:3px;background:#F2622E;display:block"></span><div style="flex:1;font:600 14px 'IBM Plex Sans',sans-serif">Арнур Кредит</div><div style="font:600 12px 'IBM Plex Mono',monospace">83%</div></div>
+            <div style="height:6px;border-radius:3px;background:rgba(0,0,0,.07);overflow:hidden"><div style="width:83%;height:100%;background:#15150F"></div></div>
+            <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:rgba(0,0,0,.42)">10 ИЗ 12 · ВСЁ ПО ПЛАНУ</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="flex:none;height:78px;display:flex;border-top:1px solid rgba(0,0,0,.09);background:#fff;padding:0 6px 14px">
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:#15150F"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:#15150F">ГЛАВНАЯ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(0,0,0,.4)">КОНТЕНТ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(0,0,0,.4)">СЪЁМКИ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(0,0,0,.4)">ТАРГЕТ</div></div>
+      <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:2px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:rgba(0,0,0,.4)">ПРОФИЛЬ</div></div>
+    </div>
+  </div>
+</div>
+</div>
+
+</div>
+<p class="dv-next">Дальше: «раскрой <a class="dv-oid" href="#1b">1b</a> на все экраны» · «сделай <a class="dv-oid" href="#1c">1c</a> светлым вариантом прототипа» · «добавь экран клиента целиком» · «покажи вариант с иконками в навигации»</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;color&quot;,&quot;default&quot;:&quot;#D6F53E&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;options&quot;:[&quot;#D6F53E&quot;,&quot;#B4FF3A&quot;,&quot;#FF6B2C&quot;,&quot;#5BE8C6&quot;],&quot;section&quot;:&quot;Стиль&quot;}}">
+const ACCENT = '#D6F53E';
+const CLIENTS = [
+  {id:'arnur', name:'Арнур Кредит', color:'#F2622E', total:12, done:10},
+  {id:'baby', name:'Бэйби Рум', color:'#4E7BE8', total:12, done:8},
+  {id:'ktv', name:'КТВ', color:'#E8452F', total:12, done:2},
+  {id:'gec', name:'GEC', color:'#C7C7C7', total:8, done:5},
+  {id:'ktvtt', name:'КТВ ТТ', color:'#F2892E', total:10, done:6},
+  {id:'craft', name:'Craft', color:'#E8D44E', total:10, done:9},
+  {id:'newcolor', name:'NEW COLOR', color:'#FFFFFF', total:8, done:3},
+  {id:'asyl', name:'Asyl Fasad', color:'#D6F53E', total:8, done:7},
+  {id:'finrise', name:'FinRise', color:'#4EC3E8', total:10, done:4},
+  {id:'viva', name:'ВИВА', color:'#E8DCC0', total:8, done:6},
+  {id:'revita', name:'REVITA', color:'#A24EE8', total:8, done:2},
+  {id:'akvafor', name:'Аквафор', color:'#4EE8B0', total:10, done:8},
+  {id:'persp', name:'Перспектива', color:'#7B4EE8', total:8, done:5},
+  {id:'kazlog', name:'KazLog', color:'#4EE86A', total:8, done:7},
+  {id:'dihan', name:'Диханкол', color:'#F2622E', total:12, done:4}
+];
+const FLOW = ['Идея','В работе','На проверке','Опубликовано'];
+const SCOL = {'Идея':'#8B8B8B','В работе':'#F5A524','На проверке':'#6AA6FF','Опубликовано':'#D6F53E'};
+const POSTS = [
+  {id:1, client:'ktv', title:'Кейс — Разговорное (Карабулак)', type:'Reels', day:'6 сентября · сегодня', meta:'REELS · СММ АИДА · ОПЕР. BEKSULTAN', status:'В работе'},
+  {id:2, client:'ktv', title:'Карусель «5 ошибок ремонта»', type:'Carousel', day:'6 сентября · сегодня', meta:'CAROUSEL ×6 · СММ АИДА', status:'На проверке'},
+  {id:3, client:'arnur', title:'Сторис-опрос про рассрочку', type:'Story', day:'6 сентября · сегодня', meta:'STORIES ×3 · СММ ДАНА', status:'Опубликовано'},
+  {id:4, client:'baby', title:'Reels с распаковкой коляски', type:'Reels', day:'7 сентября · пн', meta:'REELS · СММ АИДА', status:'Идея'},
+  {id:5, client:'ktv', title:'Отзыв клиента — вертикальное видео', type:'Reels', day:'7 сентября · пн', meta:'REELS · СЪЁМКА 3 СЕН', status:'В работе'},
+  {id:6, client:'craft', title:'Пост-подборка «мебель под заказ»', type:'Post', day:'8 сентября · вт', meta:'POST · СММ ДАНА', status:'На проверке'},
+  {id:7, client:'dihan', title:'Обзор объекта на Абая', type:'Reels', day:'8 сентября · вт', meta:'REELS · ОПЕР. BEKSULTAN', status:'Идея'},
+  {id:8, client:'arnur', title:'Карусель «как считать платёж»', type:'Carousel', day:'9 сентября · ср', meta:'CAROUSEL ×5 · СММ ДАНА', status:'В работе'}
+];
+const TYPEMARK = {Reels:'RE', Carousel:'CA', Story:'ST', Post:'PO'};
+const SHOOTS = [
+  {day:3, time:'09:30', client:'Диханкол', color:'#F2622E', state:'План', meta:'ОБЪЕКТ · 4 РОЛИКА', crew:['BK','АИ'], crewLabel:'BEKSULTAN · АИДА'},
+  {day:3, time:'15:00', client:'Craft', color:'#E8D44E', state:'План', meta:'СТУДИЯ · КАРУСЕЛЬ ×4', crew:['BK'], crewLabel:'BEKSULTAN'},
+  {day:8, time:'11:00', client:'Бэйби Рум', color:'#4E7BE8', state:'Подтв.', meta:'МАГАЗИН · REELS ×3', crew:['BK','ДН'], crewLabel:'BEKSULTAN · ДАНА'},
+  {day:9, time:'10:00', client:'КТВ', color:'#E8452F', state:'Подтв.', meta:'ОБЪЕКТ КАРАБУЛАК · ИНТЕРВЬЮ', crew:['BK','АИ'], crewLabel:'BEKSULTAN · АИДА'},
+  {day:9, time:'16:30', client:'REVITA', color:'#A24EE8', state:'План', meta:'КЛИНИКА · СТОРИС', crew:['ДН'], crewLabel:'ДАНА'}
+];
+const TARGET = {
+  'Вчера':{spend:412, rows:[['baby',148],['ktv',131],['arnur',78],['dihan',55]]},
+  'Сегодня':{spend:196, rows:[['ktv',82],['baby',54],['arnur',36],['dihan',24]]},
+  '7 дней':{spend:2140, rows:[['ktv',812],['baby',576],['arnur',402],['dihan',350]]},
+  '30 дней':{spend:8492, rows:[['ktv',3130],['baby',2287],['arnur',1620],['dihan',1455]]},
+  'Этот месяц':{spend:1904, rows:[['ktv',702],['baby',513],['arnur',389],['dihan',300]]}
+};
+
+class Component extends DCLogic {
+  state = {
+    tab: 'home', client: 'ktv', view: 'list', statusFilter: 'Все',
+    statuses: {}, doneTasks: {}, picker: false, toast: null,
+    shootDay: 3, period: '7 дней', openRow: null,
+    targetClient: 'all', pickerMode: 'content'
+  };
+
+  flash(msg){
+    clearTimeout(this._t);
+    this.setState({toast: msg});
+    this._t = setTimeout(() => this.setState({toast: null}), 1900);
+  }
+  cli(id){ return CLIENTS.find(c => c.id === id) || CLIENTS[0]; }
+  statusOf(p){ return this.state.statuses[p.id] || p.status; }
+
+  renderVals(){
+    const s = this.state;
+    const accent = this.props.accent || ACCENT;
+    const mono = "'IBM Plex Mono',monospace";
+    const nav = [['home','ГЛАВНАЯ'],['content','КОНТЕНТ'],['shoots','СЪЁМКИ'],['target','ТАРГЕТ'],['profile','ПРОФИЛЬ']].map(([id,label]) => ({
+      id, label,
+      pick: () => this.setState({tab:id, picker:false, openRow:null}),
+      barStyle: {width:'22px', height:'2px', background: s.tab===id ? accent : 'transparent'},
+      labelStyle: {font:`600 9.5px ${mono}`, letterSpacing:'.08em', color: s.tab===id ? accent : 'rgba(255,255,255,.35)'}
+    }));
+
+    // --- today tasks
+    const rawTasks = [
+      {id:'t1', title:'Съёмка Диханкол', meta:'10:00 · ОБЪЕКТ', dot:'#F2622E'},
+      {id:'t2', title:'Проверить 3 Reels', meta:'АРНУР · БЭЙБИ РУМ', dot:'#6AA6FF'},
+      {id:'t3', title:'Съёмка Craft', meta:'15:00 · СТУДИЯ', dot:'#E8D44E'},
+      {id:'t4', title:'Дедлайн плана КТВ', meta:'18:00 · 17% ГОТОВО', dot:'#E8452F'},
+      {id:'t5', title:'Отчёт клиенту REVITA', meta:'ТАРГЕТ ЗА НЕДЕЛЮ', dot:'#A24EE8'},
+      {id:'t6', title:'Согласовать бюджет KazLog', meta:'ДО КОНЦА ДНЯ', dot:'#4EE86A'}
+    ];
+    const tasks = rawTasks.map(t => {
+      const done = !!s.doneTasks[t.id];
+      return {
+        title: t.title, meta: t.meta, mark: done ? '✓' : '',
+        toggle: () => { this.setState(p => ({doneTasks: Object.assign({}, p.doneTasks, {[t.id]: !p.doneTasks[t.id]})})); if(!done) this.flash('ГОТОВО: ' + t.title.toUpperCase()); },
+        boxStyle: {width:'22px', height:'22px', flex:'none', borderRadius:'7px', border:'1.5px solid rgba(10,10,11,.55)', background: done ? '#0A0A0B' : 'transparent', color:'#D6F53E', display:'flex', alignItems:'center', justifyContent:'center', font:`700 11px ${mono}`},
+        titleStyle: {font:"600 14.5px/1.2 'IBM Plex Sans',sans-serif", textDecoration: done ? 'line-through' : 'none', opacity: done ? .45 : 1},
+        dotStyle: {width:'8px', height:'8px', borderRadius:'50%', background:t.dot, display:'block', flex:'none', opacity: done ? .3 : 1}
+      };
+    });
+    const tasksLeft = rawTasks.filter(t => !s.doneTasks[t.id]).length;
+
+    const week = [['ПН',31,2,0],['ВТ',1,3,0],['СР',2,2,0],['ЧТ',3,4,2],['ПТ',4,3,0],['СБ',5,1,0],['ВС',6,3,0]].map(([dow,num,posts,shoots]) => {
+      const today = num === 6;
+      const dots = [];
+      for(let i=0;i<Math.min(posts,4);i++) dots.push({style:{width:'5px',height:'5px',borderRadius:'50%',background:accent,display:'block',opacity: today?1:.7}});
+      for(let i=0;i<shoots;i++) dots.push({style:{width:'5px',height:'5px',borderRadius:'50%',background:'#F2622E',display:'block'}});
+      return {
+        dow, num, dots,
+        cellStyle: {flex:'1', minWidth:'0', background: today ? accent : '#141416', border:'1px solid ' + (today ? accent : 'rgba(255,255,255,.07)'), borderRadius:'14px', padding:'10px 4px', display:'flex', flexDirection:'column', alignItems:'center', gap:'6px'},
+        dowStyle: {font:`500 9px ${mono}`, letterSpacing:'.06em', color: today ? 'rgba(10,10,11,.65)' : 'rgba(255,255,255,.38)'},
+        numStyle: {font:"700 17px/1 'Oswald',sans-serif", color: today ? '#0A0A0B' : '#fff'}
+      };
+    });
+
+    const riskClients = CLIENTS.map(c => Object.assign({}, c, {pctN: Math.round(c.done/c.total*100)}))
+      .sort((a,b) => a.pctN - b.pctN).slice(0,3).map(c => {
+        const hot = c.pctN < 40;
+        return {
+          name: c.name, pct: c.pctN + '%',
+          meta: c.done + ' ИЗ ' + c.total + ' ПОСТОВ · ' + (hot ? 'ДЕДЛАЙН СЕГОДНЯ' : 'ДЕДЛАЙН 12 СЕН'),
+          badge: hot ? 'ГОРИТ' : 'ОТСТАЁТ',
+          open: () => { this.setState({tab:'client', client:c.id, statusFilter:'Все'}); },
+          dotStyle: {width:'10px', height:'10px', borderRadius:'3px', background:c.color, display:'block', flex:'none'},
+          badgeStyle: {font:`600 9.5px ${mono}`, letterSpacing:'.08em', color: hot ? '#F2622E' : '#F5A524', border:'1px solid ' + (hot ? 'rgba(242,98,46,.4)' : 'rgba(245,165,36,.35)'), borderRadius:'7px', padding:'4px 7px'},
+          barStyle: {width: c.pctN + '%', height:'100%', background: hot ? '#F2622E' : accent, borderRadius:'3px'}
+        };
+      });
+
+    // --- content
+    const cur = this.cli(s.client);
+    const curPosts = POSTS.filter(p => p.client === s.client);
+    const counts = {'Все': curPosts.length};
+    FLOW.forEach(f => { counts[f] = curPosts.filter(p => this.statusOf(p) === f).length; });
+    const statusTabs = ['Все'].concat(FLOW).map(label => {
+      const on = s.statusFilter === label;
+      return {
+        label: label.toUpperCase(), count: counts[label],
+        pick: () => this.setState({statusFilter: label}),
+        style: {flex:'none', display:'flex', gap:'7px', alignItems:'center', padding:'9px 12px', borderRadius:'11px', cursor:'pointer', background: on ? '#fff' : '#17171A', color: on ? '#0A0A0B' : 'rgba(255,255,255,.6)', font:`600 10.5px ${mono}`, letterSpacing:'.06em', border:'1px solid ' + (on ? '#fff' : 'rgba(255,255,255,.07)')},
+        countStyle: {font:`600 10.5px ${mono}`, color: on ? 'rgba(10,10,11,.5)' : 'rgba(255,255,255,.3)'}
+      };
+    });
+    const shown = curPosts.filter(p => s.statusFilter === 'Все' || this.statusOf(p) === s.statusFilter);
+    const groupMap = [];
+    shown.forEach(p => {
+      let g = groupMap.find(x => x.label === p.day.toUpperCase());
+      if(!g){ g = {label: p.day.toUpperCase(), items: []}; groupMap.push(g); }
+      const st = this.statusOf(p);
+      g.items.push({
+        title: p.title, meta: p.meta, status: st.toUpperCase(),
+        typeMark: TYPEMARK[p.type], 
+        typeStyle: {width:'40px', height:'40px', flex:'none', borderRadius:'13px', background:'#1D1F24', color:'rgba(255,255,255,.55)', display:'flex', alignItems:'center', justifyContent:'center', font:`600 11px ${mono}`},
+        statusStyle: {display:'inline-flex', alignItems:'center', minHeight:'32px', padding:'7px 11px', borderRadius:'9px', cursor:'pointer', font:`600 10px ${mono}`, letterSpacing:'.06em', color: st==='Опубликовано' ? '#0A0A0B' : SCOL[st], background: st==='Опубликовано' ? accent : 'rgba(255,255,255,.05)', border:'1px solid ' + (st==='Опубликовано' ? accent : SCOL[st] + '55')},
+        cycle: () => {
+          const next = FLOW[(FLOW.indexOf(st) + 1) % FLOW.length];
+          this.setState(prev => ({statuses: Object.assign({}, prev.statuses, {[p.id]: next})}));
+          this.flash('СТАТУС → ' + next.toUpperCase());
+        }
+      });
+    });
+
+    const calDows = ['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС'];
+    const calCells = [];
+    for(let d=1; d<=30; d++){
+      const today = d === 6;
+      const dots = [];
+      const np = POSTS.filter(p => p.day.indexOf(d + ' сентября') === 0).length;
+      for(let i=0;i<np;i++) dots.push({style:{width:'4px',height:'4px',borderRadius:'50%',background: today ? '#0A0A0B' : accent, display:'block'}});
+      if(SHOOTS.some(x => x.day === d)) dots.push({style:{width:'4px',height:'4px',borderRadius:'50%',background:'#F2622E',display:'block'}});
+      calCells.push({
+        num: d, dots,
+        style: {aspectRatio:'1', borderRadius:'10px', background: today ? accent : '#141416', border:'1px solid ' + (today ? accent : 'rgba(255,255,255,.06)'), display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'4px'},
+        numStyle: {font:`500 11px ${mono}`, color: today ? '#0A0A0B' : 'rgba(255,255,255,.65)'}
+      });
+    }
+
+    const isTargetPicker = s.pickerMode === 'target';
+    const pickerRows = [{id:'__all', name:'Все клиенты', color:'#FFFFFF', done:0, total:0}].concat(CLIENTS).map(c => {
+      const on = isTargetPicker ? (c.id === '__all' ? s.targetClient === 'all' : c.id === s.targetClient) : c.id === s.client;
+      return {
+        name: c.name,
+        meta: c.id === '__all' ? '15' : c.done + '/' + c.total,
+        pick: () => {
+          if(isTargetPicker) this.setState({targetClient: c.id === '__all' ? 'all' : c.id, picker:false, openRow:null});
+          else this.setState({client: c.id === '__all' ? 'ktv' : c.id, picker:false});
+          this.flash('КЛИЕНТ: ' + c.name.toUpperCase());
+        },
+        rowStyle: {display:'flex', alignItems:'center', gap:'11px', padding:'13px 14px', borderRadius:'13px', cursor:'pointer', minHeight:'48px', boxSizing:'border-box', background: on ? 'rgba(214,245,62,.12)' : 'transparent', border:'1px solid ' + (on ? 'rgba(214,245,62,.4)' : 'rgba(255,255,255,.06)')},
+        dotStyle: {width:'10px', height:'10px', borderRadius:'3px', background:c.color, display:'block', flex:'none'}
+      };
+    });
+
+    // --- shoots
+    const shootWeek = [['ПН',31],['ВТ',1],['СР',2],['ЧТ',3],['ПТ',4],['СБ',5],['ВС',6]].map(([dow,num]) => {
+      const cnt = SHOOTS.filter(x => x.day === num).length;
+      const on = s.shootDay === num;
+      return {
+        dow, num, count: cnt,
+        pick: () => this.setState({shootDay: num}),
+        style: {flex:'1', minWidth:'0', cursor:'pointer', background: on ? '#fff' : '#141416', border:'1px solid ' + (on ? '#fff' : 'rgba(255,255,255,.07)'), borderRadius:'14px', padding:'9px 3px', display:'flex', flexDirection:'column', alignItems:'center', gap:'5px'},
+        dowStyle: {font:`500 9px ${mono}`, color: on ? 'rgba(10,10,11,.6)' : 'rgba(255,255,255,.38)'},
+        numStyle: {font:"700 17px/1 'Oswald',sans-serif", color: on ? '#0A0A0B' : '#fff'},
+        badgeStyle: {font:`600 9px ${mono}`, minWidth:'16px', textAlign:'center', borderRadius:'6px', padding:'2px 0', background: cnt ? (on ? '#0A0A0B' : 'rgba(214,245,62,.15)') : 'transparent', color: cnt ? (on ? accent : accent) : 'transparent'}
+      };
+    });
+    const dayShoots = SHOOTS.filter(x => x.day === s.shootDay);
+    const shootList = dayShoots.map(x => ({
+      time: x.time, client: x.client, meta: x.meta, crew: x.crew, crewLabel: x.crewLabel, state: x.state.toUpperCase(),
+      pinStyle: {position:'absolute', left:'-4.5px', top:'22px', width:'9px', height:'9px', borderRadius:'50%', background:x.color, display:'block'},
+      stateStyle: {font:`600 9.5px ${mono}`, letterSpacing:'.08em', padding:'4px 8px', borderRadius:'7px', color: x.state==='Подтв.' ? '#0A0A0B' : 'rgba(255,255,255,.6)', background: x.state==='Подтв.' ? accent : 'rgba(255,255,255,.06)'}
+    }));
+    const dowNames = {31:'ПОНЕДЕЛЬНИК',1:'ВТОРНИК',2:'СРЕДА',3:'ЧЕТВЕРГ',4:'ПЯТНИЦА',5:'СУББОТА',6:'ВОСКРЕСЕНЬЕ'};
+
+    // --- target
+    const t = TARGET[s.period];
+    const WEIGHT = {ktv:37, baby:27, arnur:19, dihan:17, ktvtt:12, revita:11, finrise:9, akvafor:8, persp:7, craft:6, gec:5, viva:4, asyl:4, kazlog:3, newcolor:2};
+    const wSum = Object.keys(WEIGHT).reduce((a,k) => a + WEIGHT[k], 0);
+    const allRows = CLIENTS.map(c => [c.id, Math.max(1, Math.round(t.spend * (WEIGHT[c.id]||2) / wSum))]).sort((a,b) => b[1] - a[1]);
+    const activeRows = s.targetClient === 'all' ? allRows : allRows.filter(r => r[0] === s.targetClient);
+    const shownSpend = activeRows.reduce((a,r) => a + r[1], 0);
+    const targetClientObj = s.targetClient === 'all' ? null : this.cli(s.targetClient);
+    const maxSpend = Math.max.apply(null, allRows.map(r => r[1]));
+    const targetRows = activeRows.map(([id, spend]) => {
+      const c = this.cli(id);
+      const open = s.openRow === id;
+      const F = {ktv:{r:214,k:2.6,d:+18}, baby:{r:168,k:4.1,d:+7}, arnur:{r:132,k:5.4,d:-6}, dihan:{r:196,k:3.2,d:+31}, ktvtt:{r:240,k:2.2,d:+14}, revita:{r:151,k:4.8,d:-11}, finrise:{r:118,k:6.1,d:+3}, akvafor:{r:203,k:3.6,d:+9}, persp:{r:144,k:4.4,d:-8}, craft:{r:176,k:3.9,d:+21}, gec:{r:129,k:5.1,d:-3}, viva:{r:188,k:3.1,d:+6}, asyl:{r:161,k:4.6,d:+12}, kazlog:{r:137,k:5.7,d:-5}, newcolor:{r:222,k:2.9,d:+27}}[id] || {r:178,k:3.4,d:+5};
+      const reach = Math.round(spend * F.r);
+      const clicks = Math.round(spend * F.k);
+      return {
+        name: c.name, spend: '$' + spend.toLocaleString('ru-RU'), open,
+        reachLabel: 'ОХВАТ ' + (reach/1000).toFixed(1) + 'K',
+        cpcLabel: 'CPC $' + (spend/clicks).toFixed(2),
+        trend: (F.d > 0 ? '↑ ' : '↓ ') + Math.abs(F.d) + '%',
+        toggle: () => this.setState({openRow: open ? null : id}),
+        dotStyle: {width:'10px', height:'10px', borderRadius:'3px', background:c.color, display:'block', flex:'none'},
+        barStyle: {width: Math.round(spend/maxSpend*100) + '%', height:'100%', background:c.color, borderRadius:'3px', opacity:.85},
+        trendStyle: {color: F.d > 0 ? accent : '#F2622E'},
+        details: [
+          {value:(reach/1000).toFixed(0)+'K', label:'ОХВАТ'},
+          {value:(clicks/1000).toFixed(1)+'K', label:'КЛИКИ'},
+          {value:Math.round(clicks*.09), label:'ПЕРЕПИСКИ'},
+          {value:'$'+(spend/Math.max(1,Math.round(clicks*.09))).toFixed(1), label:'ЦЕНА ЛИДА'}
+        ]
+      };
+    });
+    const periods = Object.keys(TARGET).map(label => ({
+      label: label.toUpperCase(),
+      pick: () => this.setState({period: label, openRow: null}),
+      style: {flex:'none', padding:'9px 14px', borderRadius:'11px', cursor:'pointer', font:`600 10.5px ${mono}`, letterSpacing:'.06em', background: s.period===label ? accent : '#17171A', color: s.period===label ? '#0A0A0B' : 'rgba(255,255,255,.6)', border:'1px solid ' + (s.period===label ? accent : 'rgba(255,255,255,.07)')}
+    }));
+    const sparkVals = [42,58,35,71,64,48,80,55,62,90,74,66,85,58];
+    const spark = sparkVals.map((v,i) => ({style:{flex:'1', height: v + '%', borderRadius:'2px', background: i > 10 ? accent : 'rgba(255,255,255,.16)'}}));
+
+    const fabVisible = s.tab === 'content' || s.tab === 'shoots';
+    const fabLabel = s.tab === 'shoots' ? '+ СЪЁМКА' : '+ ПОСТ';
+
+    return {
+      nav, tasks, tasksLeft, tasksLeftLabel: tasksLeft ? 'ОСТАЛОСЬ ' + tasksLeft : 'ВСЁ ЗАКРЫТО',
+      week, riskClients, toast: s.toast,
+      isHome: s.tab==='home', isContent: s.tab==='content', isShoots: s.tab==='shoots', isTarget: s.tab==='target', isProfile: s.tab==='profile',
+      isClient: s.tab==='client',
+      cardName: cur.name.toUpperCase(),
+      cardHeadStyle: {background: cur.color, color:'#0A0A0B', borderRadius:'0 0 28px 28px', padding:'14px 20px 20px', display:'flex', flexDirection:'column', gap:'16px'},
+      cardBack: () => this.setState({tab:'home'}),
+      cardPct: Math.round(cur.done/cur.total*100) + '%',
+      cardPlan: cur.done + ' ИЗ ' + cur.total + ' ПОСТОВ · СЕНТЯБРЬ',
+      cardBarStyle: {width: Math.round(cur.done/cur.total*100) + '%', height:'100%', background:'#0A0A0B', borderRadius:'4px'},
+      cardStats: [
+        {value: String(cur.total - cur.done), label:'ОСТАЛОСЬ ПОСТОВ'},
+        {value: String(SHOOTS.filter(x => x.client === cur.name).length), label: SHOOTS.filter(x => x.client === cur.name).length === 1 ? 'СЪЁМКА В ПЛАНЕ' : 'СЪЁМОК В ПЛАНЕ'},
+        {value: '$' + ((TARGET['30 дней'].rows.find(r => r[0] === cur.id) || [0,0])[1]).toLocaleString('ru-RU'), label:'ТАРГЕТ / 30 ДН'}
+      ],
+      cardActions: [
+        {label:'+ ПОСТ', act: () => this.flash('НОВЫЙ ПОСТ · ' + cur.name.toUpperCase()), style:{flex:'1', minHeight:'46px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'13px', background:accent, color:'#0A0A0B', font:`700 11px ${mono}`, letterSpacing:'.06em', cursor:'pointer'}},
+        {label:'+ СЪЁМКА', act: () => this.setState({tab:'shoots'}), style:{flex:'1', minHeight:'46px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'13px', border:'1px solid rgba(255,255,255,.18)', color:'#fff', font:`700 11px ${mono}`, letterSpacing:'.06em', cursor:'pointer'}},
+        {label:'ОТЧЁТ', act: () => this.flash('ОТЧЁТ ОТПРАВЛЕН КЛИЕНТУ'), style:{flex:'1', minHeight:'46px', display:'flex', alignItems:'center', justifyContent:'center', borderRadius:'13px', border:'1px solid rgba(255,255,255,.18)', color:'#fff', font:`700 11px ${mono}`, letterSpacing:'.06em', cursor:'pointer'}}
+      ],
+      cardPosts: curPosts.slice(0,4).map(p => {
+        const st = this.statusOf(p);
+        return {
+          title: p.title, meta: p.meta.split(' · ')[0] + ' · ' + p.day.toUpperCase(), status: st.toUpperCase(),
+          cycle: () => { const next = FLOW[(FLOW.indexOf(st) + 1) % FLOW.length]; this.setState(prev => ({statuses: Object.assign({}, prev.statuses, {[p.id]: next})})); this.flash('СТАТУС → ' + next.toUpperCase()); },
+          statusStyle: {display:'inline-flex', alignSelf:'flex-start', alignItems:'center', minHeight:'32px', padding:'7px 11px', borderRadius:'9px', cursor:'pointer', font:`600 10px ${mono}`, letterSpacing:'.06em', color: st==='Опубликовано' ? '#0A0A0B' : SCOL[st], background: st==='Опубликовано' ? accent : 'rgba(255,255,255,.05)', border:'1px solid ' + (st==='Опубликовано' ? accent : SCOL[st] + '55')}
+        };
+      }),
+      cardOpenPlan: () => this.setState({tab:'content'}),
+      cardNextShoot: (SHOOTS.filter(x => x.client === cur.name)[0] || {time:'—', meta:'СЪЁМОК НЕТ · ПОСТАВИТЬ?', day:'—'}),
+      cardNextShootLine: (function(){ const x = SHOOTS.filter(y => y.client === cur.name)[0]; return x ? x.day + ' СЕН · ' + x.time + ' · ' + x.meta : 'СЪЁМОК В ПЛАНЕ НЕТ'; })(),
+      goContent: () => this.setState({tab:'content'}),
+      isList: s.view==='list', isCal: s.view==='cal',
+      setList: () => this.setState({view:'list'}), setCal: () => this.setState({view:'cal'}),
+      listBtnStyle: {padding:'8px 11px', borderRadius:'9px', cursor:'pointer', font:`600 10px ${mono}`, letterSpacing:'.06em', background: s.view==='list' ? '#fff' : 'transparent', color: s.view==='list' ? '#0A0A0B' : 'rgba(255,255,255,.5)'},
+      calBtnStyle: {padding:'8px 11px', borderRadius:'9px', cursor:'pointer', font:`600 10px ${mono}`, letterSpacing:'.06em', background: s.view==='cal' ? '#fff' : 'transparent', color: s.view==='cal' ? '#0A0A0B' : 'rgba(255,255,255,.5)'},
+      currentClientName: cur.name,
+      currentClientMeta: cur.done + ' ИЗ ' + cur.total + ' ПОСТОВ · СЕНТЯБРЬ',
+      currentClientDot: {width:'12px', height:'12px', borderRadius:'4px', background:cur.color, display:'block', flex:'none'},
+      openPicker: () => this.setState({picker:true, pickerMode:'content'}), closePicker: () => this.setState({picker:false}),
+      pickerOpen: s.picker, pickerRows,
+      pickerTitle: isTargetPicker ? 'КЛИЕНТ В ТАРГЕТЕ' : 'ВЫБОР КЛИЕНТА',
+      openTargetPicker: () => this.setState({picker:true, pickerMode:'target'}),
+      targetSelName: targetClientObj ? targetClientObj.name : 'Все клиенты',
+      targetSelMeta: targetClientObj ? 'ОДИН КАБИНЕТ · ' + s.period.toUpperCase() : '15 КАБИНЕТОВ · ' + s.period.toUpperCase(),
+      targetSelDot: {width:'12px', height:'12px', borderRadius:'4px', flex:'none', display:'block', background: targetClientObj ? targetClientObj.color : 'linear-gradient(90deg,#F2622E,#4E7BE8)'},
+      statusTabs, postGroups: groupMap, noPosts: groupMap.length === 0,
+      calDows, calCells,
+      shootWeek, shootList, shootEmpty: dayShoots.length === 0,
+      shootDayCount: dayShoots.length, shootWeekCount: SHOOTS.length,
+      shootDayLabel: s.shootDay + ' СЕНТЯБРЯ · ' + (dowNames[s.shootDay] || ''),
+      periods, periodLabel: s.period.toUpperCase(), targetRows, spark,
+      spendTotal: '$' + shownSpend.toLocaleString('ru-RU'),
+      spendDelta: ({'Вчера':'↑ 9% КО ВТ','Сегодня':'↓ 4% КО ВЧЕРА','7 дней':'↑ 12% К ПРОШЛОЙ','30 дней':'↑ 23% К АВГУСТУ','Этот месяц':'↑ 6% К ПЛАНУ'})[s.period],
+      totals: [
+        {value: (shownSpend*178/1000).toFixed(0) + 'K', label:'ОХВАТ'},
+        {value: (shownSpend*3.4/1000).toFixed(1) + 'K', label:'КЛИКИ'},
+        {value: Math.round(shownSpend*.31), label:'ПЕРЕПИСКИ'}
+      ],
+      targetRowsLabel: s.targetClient === 'all' ? 'ПО КЛИЕНТАМ · ПО РАСХОДУ' : 'РАЗБИВКА · ' + (targetClientObj ? targetClientObj.name.toUpperCase() : ''),
+      team: [
+        {ini:'АИ', name:'Аида', role:'SMM · 6 КЛИЕНТОВ', load:'НОРМА'},
+        {ini:'ДН', name:'Дана', role:'SMM · 5 КЛИЕНТОВ', load:'НОРМА'},
+        {ini:'BK', name:'Beksultan', role:'ОПЕРАТОР · 5 СЪЁМОК', load:'ЗАГРУЖЕН'},
+        {ini:'МР', name:'Мирас', role:'ТАРГЕТ · 4 КАБИНЕТА', load:'НОРМА'}
+      ],
+      settings: [
+        {label:'Тёмная тема', value:'ВКЛ', act: () => this.flash('ТЕМА: СВЕТЛАЯ — СМ. ВАРИАНТ 1C'), valStyle:{font:`600 10.5px ${mono}`, color:accent}},
+        {label:'Push-уведомления', value:'ВКЛ', act: () => this.flash('УВЕДОМЛЕНИЯ ВЫКЛЮЧЕНЫ'), valStyle:{font:`600 10.5px ${mono}`, color:accent}},
+        {label:'Клиенты и цвета', value:'15 →', act: () => this.flash('РЕДАКТОР КЛИЕНТОВ'), valStyle:{font:`500 10.5px ${mono}`, color:'rgba(255,255,255,.45)'}},
+        {label:'Язык', value:'РУССКИЙ →', act: () => this.flash('ЯЗЫК: ҚАЗАҚША'), valStyle:{font:`500 10.5px ${mono}`, color:'rgba(255,255,255,.45)'}}
+      ],
+      fabLabel,
+      fabAction: () => this.flash(s.tab === 'shoots' ? 'НОВАЯ СЪЁМКА — ЧЕРНОВИК' : 'НОВЫЙ ПОСТ — ЧЕРНОВИК'),
+      fabStyle: {position:'absolute', right:'20px', bottom:'96px', display: fabVisible ? 'flex' : 'none', alignItems:'center', justifyContent:'center', minHeight:'52px', padding:'0 20px', borderRadius:'17px', background:accent, color:'#0A0A0B', font:`700 12px ${mono}`, letterSpacing:'.06em', cursor:'pointer', boxShadow:'0 10px 26px rgba(0,0,0,.45)', zIndex:5}
+    };
+  }
+}
+</script>
+</body>
+</html>
