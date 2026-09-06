@@ -186,6 +186,85 @@ input, select, textarea { font-family: 'Space Grotesk', system-ui, sans-serif; }
   .fade-up, .press-swap { animation: none; }
 }
 
+/* ============================================================
+   Редизайн 1a — токены мобильного интерфейса.
+   Отдельный набор с префиксом --m-: десктоп остаётся на старых
+   переменных, пока редизайн не доедет и до него.
+   ============================================================ */
+:root {
+  --m-bg:        #0A0A0B;
+  --m-surface:   #141416;
+  --m-surface2:  #17171A;
+  --m-chip:      #1D1F24;
+  --m-avatar:    #22242A;
+  --m-hair:      rgba(255,255,255,.07);
+  --m-soft:      rgba(255,255,255,.12);
+  --m-text:      #FFFFFF;
+  --m-text2:     rgba(255,255,255,.60);
+  --m-muted:     rgba(255,255,255,.40);
+  --m-faint:     rgba(255,255,255,.28);
+  --m-accent:    #D6F53E;
+  --m-on-accent: #0A0A0B;
+  --m-hot:       #F2622E;
+  --m-warn:      #F5A524;
+
+  --st-idea:      #8B8B8B;
+  --st-work:      #F5A524;
+  --st-review:    #6AA6FF;
+  --st-published: #D6F53E;
+}
+
+/* Экраны вне дизайна (Клиенты, Календарь, Задачи, Настройки) остаются на
+   старых переменных, поэтому на телефоне подменяем сами переменные — так они
+   попадают в новую палитру без правки разметки, а десктоп не затрагивается.
+   Селектор с [data-theme="light"] нужен, чтобы переключатель темы не выбивал
+   мобильную версию из тёмного варианта 1a: светлая тема — это отдельный
+   вариант 1c, который пока не реализуем. */
+@media (max-width: 768px) {
+  :root,
+  :root[data-theme="light"] {
+    --bg:         #0A0A0B;
+    --surface:    #141416;
+    --raised:     #1D1F24;
+    --side:       #17171A;
+    --ink:        #FFFFFF;
+    --ink2:       rgba(255,255,255,.60);
+    --ink3:       rgba(255,255,255,.40);
+    --line:       rgba(255,255,255,.07);
+    --line2:      rgba(255,255,255,.12);
+    --accent:     #D6F53E;
+    --on-accent:  #0A0A0B;
+    --accent-dim: rgba(214,245,62,.12);
+    --red:        #F2622E;
+    --orange:     #F5A524;
+    --green:      #D6F53E;
+  }
+
+  /* Дисплейный шрифт и текст — по типографике дизайна. */
+  .anton, .bebas { font-family: 'Oswald', 'Arial Narrow', sans-serif; font-weight: 700; }
+  body, button, input, select, textarea {
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+}
+
+.m-osw  { font-family: 'Oswald', 'Arial Narrow', sans-serif; }
+.m-sans { font-family: 'IBM Plex Sans', system-ui, sans-serif; }
+.m-mono { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+@keyframes mSheetUp   { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes mFadeIn    { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mToastIn   { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.m-sheet   { animation: mSheetUp 240ms cubic-bezier(.2,.8,.2,1); }
+.m-overlay { animation: mFadeIn 240ms ease-out; }
+.m-toast   { animation: mToastIn 160ms ease-out; }
+@media (prefers-reduced-motion: reduce) {
+  .m-sheet, .m-overlay, .m-toast { animation: none; }
+}
+
+/* Горизонтальные ленты чипов: скроллятся без видимой полосы. */
+.m-hscroll { overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.m-hscroll::-webkit-scrollbar { display: none; }
+
 /* Modal / bottom-sheet: header pinned, body scrolls, never taller than the viewport.
    dvh follows the mobile browser chrome as it collapses; vh is the fallback. */
 .sheet {

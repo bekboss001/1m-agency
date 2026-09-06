@@ -5,8 +5,6 @@ import { TrendingUp, Eye, MousePointer, DollarSign, Users, Zap, RefreshCw, Messa
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useProfile } from '../lib/useProfile'
 
-const TOKEN = import.meta.env.VITE_META_ACCESS_TOKEN
-
 const DATE_PRESETS = [
   { label: 'Вчера', value: 'yesterday' },
   { label: 'Сегодня', value: 'today' },
@@ -69,23 +67,23 @@ function calcCpmMsg(spend, messaging) {
   return parseFloat(spend) / messaging
 }
 
+// Ходит через свою serverless-функцию, а не в Meta напрямую: токен на сервере.
 async function fetchAccountStats(accountId, datePreset) {
-  const base = `https://graph.facebook.com/v19.0/act_${accountId}`
-  const params = new URLSearchParams({ fields: FIELDS, date_preset: datePreset, access_token: TOKEN })
-  const [accountRes, campaignsRes] = await Promise.all([
-    fetch(`${base}/insights?${params}`),
-    fetch(`${base}/campaigns?fields=name,status,insights.date_preset(${datePreset}){${FIELDS}}&access_token=${TOKEN}&limit=20`),
-  ])
-  if (!accountRes.ok) {
-    const err = await accountRes.json()
-    throw new Error(err?.error?.message || 'Ошибка Meta API')
-  }
-  const accountData = await accountRes.json()
-  const campaignsData = await campaignsRes.json()
-  return {
-    stats: accountData.data?.[0] || null,
-    campaigns: campaignsData.data || [],
-  }
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) throw new Error('Сессия истекла — войдите заново')
+
+  const res = await fetch('/api/meta-insights', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ accountId, datePreset }),
+  })
+
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || 'Ошибка Meta API')
+  return { stats: data.stats, campaigns: data.campaigns || [] }
 }
 
 export default function TargetPage() {
@@ -118,7 +116,6 @@ export default function TargetPage() {
   }, [selectedClient, datePreset, clients])
 
   async function loadAll() {
-    if (!TOKEN) { setError('VITE_META_ACCESS_TOKEN не задан'); return }
     setLoading(true)
     setError(null)
     setStats(null)
@@ -151,7 +148,6 @@ export default function TargetPage() {
       setError(null)
       return
     }
-    if (!TOKEN) { setError('VITE_META_ACCESS_TOKEN не задан'); return }
     setLoading(true)
     setError(null)
     try {
@@ -272,12 +268,6 @@ export default function TargetPage() {
         </div>
 
         {error && <div style={styles.errorBox}><strong>Ошибка:</strong> {error}</div>}
-
-        {!TOKEN && (
-          <div style={styles.warnBox}>
-            Добавьте <code>VITE_META_ACCESS_TOKEN</code> в переменные окружения
-          </div>
-        )}
 
         {/* No meta_account_id */}
         {selectedClient !== 'all' && !hasMetaId && !loading && (
@@ -460,7 +450,6 @@ const styles = {
   presets: { display: 'flex', gap: 6 },
   preset: (active) => ({ padding: '7px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: `1px solid ${active ? 'var(--accent)' : 'var(--border2)'}`, background: active ? 'var(--accent-dim)' : 'var(--surface)', color: active ? 'var(--accent)' : 'var(--text2)', cursor: 'pointer', transition: 'all 0.15s' }),
   errorBox: { background: 'rgba(255,68,68,0.08)', border: '1px solid rgba(255,68,68,0.25)', borderRadius: 12, padding: '14px 18px', color: 'var(--red)', fontSize: 13, marginBottom: 24 },
-  warnBox: { background: 'rgba(255,153,0,0.08)', border: '1px solid rgba(255,153,0,0.25)', borderRadius: 12, padding: '14px 18px', color: 'var(--orange)', fontSize: 13, marginBottom: 24 },
   noAccount: { textAlign: 'center', padding: '80px 20px', color: 'var(--text2)' },
   metricsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 14, marginBottom: 32 },
   metricCard: { background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '20px 18px', display: 'flex', flexDirection: 'column', gap: 8 },

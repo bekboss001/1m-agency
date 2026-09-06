@@ -14,6 +14,21 @@ import TargetPage from './pages/TargetPage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
 import ProfilePage from './pages/ProfilePage'
+import { useMediaQuery } from './lib/useMediaQuery'
+import MobileHome from './mobile/MobileHome'
+import MobileContent from './mobile/MobileContent'
+import MobileShoots from './mobile/MobileShoots'
+import MobileTarget from './mobile/MobileTarget'
+import MobileProfile from './mobile/MobileProfile'
+import MobileClientCard from './mobile/MobileClientCard'
+
+// Редизайн 1a пока только для телефонов: на широких экранах остаётся прежний
+// интерфейс, поэтому выбор делается здесь, а не внутри самих страниц —
+// так у десктопных компонентов не меняется порядок хуков.
+function Responsive({ mobile: Mobile, desktop: Desktop }) {
+  const isMobile = useMediaQuery('(max-width: 768px)')
+  return isMobile ? <Mobile /> : <Desktop />
+}
 
 function GuardedRoute({ adminOnly, perm, children }) {
   const { profile, loading, can } = useProfile()
@@ -53,15 +68,16 @@ export default function App() {
       <Routes>
         <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/" />} />
         <Route path="/" element={session ? <DashboardLayout session={session} /> : <Navigate to="/login" />}>
-          <Route index element={<HomePage />} />
+          <Route index element={<Responsive mobile={MobileHome} desktop={HomePage} />} />
+          <Route path="client/:id" element={<MobileClientCard />} />
           <Route path="clients"  element={<GuardedRoute perm="clients"><ClientsPage /></GuardedRoute>} />
-          <Route path="content"  element={<GuardedRoute perm="content"><ContentPage /></GuardedRoute>} />
-          <Route path="shoots"   element={<GuardedRoute perm="shoots"><ShootsPage /></GuardedRoute>} />
-          <Route path="target"   element={<GuardedRoute adminOnly><TargetPage /></GuardedRoute>} />
+          <Route path="content"  element={<GuardedRoute perm="content"><Responsive mobile={MobileContent} desktop={ContentPage} /></GuardedRoute>} />
+          <Route path="shoots"   element={<GuardedRoute perm="shoots"><Responsive mobile={MobileShoots} desktop={ShootsPage} /></GuardedRoute>} />
+          <Route path="target"   element={<GuardedRoute adminOnly><Responsive mobile={MobileTarget} desktop={TargetPage} /></GuardedRoute>} />
           <Route path="calendar" element={<GuardedRoute perm="calendar"><CalendarPage /></GuardedRoute>} />
           <Route path="tasks"    element={<GuardedRoute perm="tasks"><TasksPage /></GuardedRoute>} />
           <Route path="settings" element={<GuardedRoute adminOnly><SettingsPage /></GuardedRoute>} />
-          <Route path="profile"  element={<ProfilePage />} />
+          <Route path="profile"  element={<Responsive mobile={MobileProfile} desktop={ProfilePage} />} />
         </Route>
       </Routes>
     </ThemeProvider>
