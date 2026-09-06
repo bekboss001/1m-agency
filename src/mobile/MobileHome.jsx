@@ -153,7 +153,7 @@ export default function MobileHome() {
       {/* Дела на сегодня */}
       <div style={{ background: T.accent, borderRadius: 22, padding: 20, color: T.onAccent }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <span style={{ font: `700 40px/.9 ${OSW}` }}>СЪЁМКИ<br />НА {todayDayMonth()}</span>
+          <span style={{ font: `700 40px/.9 ${OSW}` }}>ЗАДАЧИ<br />НА {todayDayMonth()}</span>
           <span style={{ font: `700 56px/.8 ${OSW}` }}>{loading ? '·' : left}</span>
         </div>
 
@@ -162,7 +162,7 @@ export default function MobileHome() {
             <div style={{ padding: '14px 0', ...mono(500, 11, '.1em'), color: 'rgba(10,10,11,.6)' }}>ЗАГРУЗКА…</div>
           ) : tasks.length === 0 ? (
             <div style={{ padding: '14px 0', borderTop: '1px solid rgba(10,10,11,.16)' }}>
-              <div style={{ font: `600 14.5px ${SANS}` }}>На сегодня дел нет</div>
+              <div style={{ font: `600 14.5px ${SANS}` }}>На сегодня задач нет</div>
               <div style={{ marginTop: 3, color: 'rgba(10,10,11,.6)', ...mono(500, 10.5, '.1em') }}>
                 СЪЁМОК НЕ НАЗНАЧЕНО
               </div>
