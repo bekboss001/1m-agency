@@ -18,9 +18,9 @@ const MON_THU_SAT = [1, 4, 6]
 // Постоянные дела по расписанию. `days` — в какие дни недели показывать,
 // `time` может отсутствовать, если время не задано.
 const RECURRING = [
-  { key: 'stories_post', title: 'Выложить сторис', time: '10:30', dot: '#D6F53E', days: EXCEPT_WED, label: 'КРОМЕ СРЕДЫ' },
-  { key: 'stories_approve', title: 'Сдать сторис на согласование', time: '14:00', dot: '#6AA6FF', days: EXCEPT_WED, label: 'КРОМЕ СРЕДЫ' },
-  { key: 'posts_approve', title: 'Сдать посты на согласование', dot: '#F5A524', days: MON_THU_SAT, label: 'ПН · ЧТ · СБ' },
+  { key: 'stories_post', title: 'Выложить сторис', time: '10:30', dot: '#D6F53E', days: EXCEPT_WED, label: '10:30 · КРОМЕ СРЕДЫ' },
+  { key: 'stories_approve', title: 'Сдать сторис на согласование', time: '14:00', dot: '#6AA6FF', days: EXCEPT_WED, label: '14:00 · КРОМЕ СРЕДЫ' },
+  { key: 'posts_approve', title: 'Сдать посты на согласование', time: '17:00', dot: '#F5A524', days: MON_THU_SAT, label: 'ДО 17:00 · ПН · ЧТ · СБ' },
 ]
 
 // Отдельно: показывается только если на завтра действительно есть съёмки —
@@ -78,7 +78,7 @@ export async function loadTodayTasks(supabase, profile, userId) {
         kind: 'recurring',
         taskKey: r.key,
         title: r.title,
-        meta: [r.time, r.label].filter(Boolean).join(' · '),
+        meta: r.label || r.time,
         time: r.time || '23:58',
         dot: r.dot,
         done: doneKeys.has(r.key),
@@ -140,19 +140,17 @@ export async function loadTodayTasks(supabase, profile, userId) {
   }
 
   // --- 3. Задачи из доски с дедлайном на сегодня ---
-  // Админ видит все, остальные — свои. Закрытые не показываем: доска для того
-  // и нужна, чтобы завершённое из неё уходило.
-  let tq = supabase
-    .from('tasks')
-    .select('id, title, status, priority, deadline, client:client_id(name, color), assignee_id')
-    .eq('deadline', date)
-    .neq('status', 'done')
-
-  if (isClient) tq = null
-  else if (!isAdmin) {
-    if (!profile?.employee_id) tq = null
-    else tq = tq.eq('assignee_id', profile.employee_id)
-  }
+  // Задача попадает на главную только к своему исполнителю — админ здесь не
+  // исключение: главная это личный список дел, а общий обзор живёт на доске.
+  // Закрытые не показываем: доска для того и нужна, чтобы сделанное уходило.
+  const tq = !isClient && profile?.employee_id
+    ? supabase
+        .from('tasks')
+        .select('id, title, status, priority, deadline, client:client_id(name, color), assignee_id')
+        .eq('deadline', date)
+        .eq('assignee_id', profile.employee_id)
+        .neq('status', 'done')
+    : null
 
   if (tq) {
     const { data } = await tq

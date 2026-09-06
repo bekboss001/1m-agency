@@ -45,6 +45,7 @@ export default function MobileClients() {
   const [employees, setEmployees] = useState([])
   const [query, setQuery] = useState('')
   const [smm, setSmm] = useState('all')
+  const [operator, setOperator] = useState('all')
   const [loading, setLoading] = useState(true)
 
   const [editing, setEditing] = useState(null)   // клиент, открытый на правку
@@ -69,10 +70,12 @@ export default function MobileClients() {
   useEffect(() => { load() }, [load])
 
   const smmList = useMemo(() => employees.filter(e => e.role === 'smm'), [employees])
+  const opList = useMemo(() => employees.filter(e => e.role === 'operator'), [employees])
 
   const visible = clients.filter(c => {
     if (query && !c.name?.toLowerCase().includes(query.toLowerCase())) return false
     if (smm !== 'all' && c.smm_id !== smm) return false
+    if (operator !== 'all' && c.operator_id !== operator) return false
     return true
   })
 
@@ -158,29 +161,10 @@ export default function MobileClients() {
           }}
         />
 
-        {/* Фильтр по СММ переносится строками, а не скроллится: имён больше,
+        {/* Оба фильтра переносятся строками, а не скроллятся: имён больше,
             чем влезает в ширину экрана, и в прокрутке часть просто не видна. */}
-        {smmList.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {[{ id: 'all', name: 'ВСЕ СММ' }, ...smmList].map(e => {
-              const on = smm === e.id
-              return (
-                <button
-                  key={e.id}
-                  onClick={() => setSmm(e.id)}
-                  style={{
-                    padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
-                    background: on ? '#fff' : T.surface2,
-                    color: on ? T.onAccent : 'rgba(255,255,255,.6)',
-                    ...mono(600, 10.5, '.06em'),
-                  }}
-                >
-                  {e.name.toUpperCase()}
-                </button>
-              )
-            })}
-          </div>
-        )}
+        <FilterRow title="СММ" people={smmList} value={smm} onPick={setSmm} />
+        <FilterRow title="ОПЕРАТОР" people={opList} value={operator} onPick={setOperator} />
       </div>
 
       <div style={{ padding: '18px 20px 0' }}>
@@ -373,6 +357,34 @@ export default function MobileClients() {
       </Sheet>
 
       <Toast text={toast} />
+    </div>
+  )
+}
+
+function FilterRow({ title, people, value, onPick }) {
+  if (people.length === 0) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+      <span style={{ flex: 'none', color: T.faint, paddingTop: 10, ...mono(500, 9, '.12em') }}>{title}</span>
+      <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+        {[{ id: 'all', name: 'Все' }, ...people].map(p => {
+          const on = value === p.id
+          return (
+            <button
+              key={p.id}
+              onClick={() => onPick(p.id)}
+              style={{
+                padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
+                background: on ? '#fff' : T.surface2,
+                color: on ? T.onAccent : 'rgba(255,255,255,.6)',
+                ...mono(600, 10.5, '.06em'),
+              }}
+            >
+              {p.name.toUpperCase()}
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
