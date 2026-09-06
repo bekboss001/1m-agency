@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { ymd } from '../lib/tz'
-import { weekDays } from './todayTasks'
+import { weekDays, todayDate } from './todayTasks'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, SectionTitle } from './ui'
 
 const ROLE_LABEL = { admin: 'ВЛАДЕЛЕЦ', smm: 'SMM-МЕНЕДЖЕР', operator: 'ОПЕРАТОР', client: 'КЛИЕНТ' }
@@ -75,7 +75,7 @@ export default function MobileProfile() {
             .gte('shoot_date', weekFrom).lte('shoot_date', weekTo).neq('status', 'cancelled')
         : Promise.resolve({ data: [] }),
       empId
-        ? supabase.from('tasks').select('id, status, deadline, completed_at').eq('assignee_id', empId)
+        ? supabase.from('tasks').select('id, status, deadline').eq('assignee_id', empId)
             .gte('deadline', weekFrom).lte('deadline', weekTo)
         : Promise.resolve({ data: [] }),
       isAdmin ? supabase.from('employees').select('id, name, role').order('role').order('name') : Promise.resolve({ data: [] }),
@@ -99,19 +99,17 @@ export default function MobileProfile() {
       return posts.filter(p => p.publish_date === key).length + shoots.filter(s => s.shoot_date === key).length
     })
 
-    // «Вовремя» считается только по задачам, которые уже закрыты и у которых
-    // есть отметка времени. Пока таких нет — показываем прочерк, а не 100%.
-    const closed = tasks.filter(t => t.status === 'done' && t.completed_at && t.deadline)
-    const onTime = closed.filter(t => t.completed_at.slice(0, 10) <= t.deadline).length
-    const onTimePct = closed.length ? Math.round((onTime / closed.length) * 100) : null
-
     const tasksTotal = tasks.length
     const tasksDone = tasks.filter(t => t.status === 'done').length
 
+    // «Прошло» — день съёмки уже наступил либо она отмечена снятой.
+    // Запланированные на конец недели в это число не попадают.
+    const todayKey = ymd(todayDate())
+    const shootsPassed = shoots.filter(s => s.status === 'done' || s.shoot_date <= todayKey).length
+
     return {
       postsDone: posts.length,
-      shoots: shoots.filter(s => s.status === 'confirmed' || s.status === 'done').length,
-      onTimePct,
+      shootsPassed,
       byDay,
       tasksDone,
       tasksTotal,
@@ -258,9 +256,9 @@ export default function MobileProfile() {
           <>
             <div style={{ display: 'flex', gap: 12 }}>
               {[
-                ['ПОСТОВ СДАНО', week.postsDone, false],
-                ['СЪЁМКИ', week.shoots, false],
-                ['ВОВРЕМЯ', week.onTimePct === null ? '—' : week.onTimePct + '%', true],
+                ['ПОСТОВ ВЫПУЩЕНО', week.postsDone, false],
+                ['СЪЁМОК ПРОШЛО', week.shootsPassed, false],
+                ['МОИХ ПРОЕКТОВ', myClients.length, true],
               ].map(([label, value, accent]) => (
                 <div key={label} style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ font: `700 30px ${OSW}`, color: accent ? T.accent : T.text }}>{value}</div>
