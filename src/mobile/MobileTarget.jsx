@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import {
-  T, SANS, OSW, mono, useToast, Toast, Sheet, SheetRow, ClientSelector, SectionTitle,
+  T, SANS, OSW, MONO, mono, useToast, Toast, Sheet, SheetRow, ClientSelector, SectionTitle,
 } from './ui'
 
 const PERIODS = [
@@ -42,6 +42,8 @@ function extract(stats) {
     spend,
     reach: parseFloat(stats.reach) || 0,
     clicks: parseFloat(stats.clicks) || 0,
+    ctr: parseFloat(stats.ctr) || 0,
+    impressions: parseFloat(stats.impressions) || 0,
     messaging,
     // Цена за переписку: Meta её не отдаёт готовой, считаем из расхода.
     cpm: messaging > 0 ? spend / messaging : null,
@@ -75,6 +77,9 @@ export default function MobileTarget() {
   const [targetClient, setTargetClient] = useState('all')
   const [picker, setPicker] = useState(false)
   const [openRow, setOpenRow] = useState(null)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportBody, setExportBody] = useState('')
+  const [exporting, setExporting] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [updatedAt, setUpdatedAt] = useState(null)
@@ -177,11 +182,80 @@ export default function MobileTarget() {
   const active = clients.find(c => c.id === targetClient)
   const periodLabel = PERIODS.find(p => p[0] === period)?.[1] || ''
 
-  function exportText() {
-    const lines = rows.filter(r => r.m).map(r =>
-      `${r.client.name}\n\nПереписки: ${num(r.m.messaging)}\nСумма затрат: ${r.m.spend.toFixed(2)} $`
+  // Экспорт разворачивает статистику по рекламным кампаниям. Кампании для всех
+  // кабинетов сразу на экране не грузятся (это пятнадцать лишних запросов на
+  // каждое переключение периода), поэтому здесь они догружаются по нажатию.
+  async function exportText() {
+    setExporting(true)
+    setExportOpen(true)
+    setExportBody('')
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) { setExporting(false); setExportBody('Сессия истекла — войдите заново.'); return }
+
+    const targets = rows.filter(r => r.client.meta_account_id)
+
+    const withCamps = await Promise.all(targets.map(async r => {
+      if (r.campaigns?.length) return r
+      try {
+        const res = await fetch('/api/meta-insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ accountId: r.client.meta_account_id, datePreset: period, withSeries: false }),
+        })
+        if (!res.ok) return r
+        const data = await res.json()
+        return { ...r, campaigns: data.campaigns || [] }
+      } catch {
+        return r
+      }
+    }))
+
+    const out = [`ТАРГЕТ · ${periodLabel} · ${new Date().toLocaleDateString('ru-RU')}`, '']
+    let n = 0
+
+    for (const r of withCamps) {
+      // Кампании без единого показа за период только засоряют отчёт.
+      const active = (r.campaigns || [])
+        .map(c => ({ c, m: extract(c.insights?.data?.[0]) }))
+        .filter(x => x.m && (x.m.impressions > 0 || x.m.spend > 0))
+        .sort((a, b) => b.m.spend - a.m.spend)
+
+      if (active.length === 0) {
+        n += 1
+        out.push(`${n}. ${r.client.name} — нет активных кампаний за период`, '')
+        continue
+      }
+
+      for (const { c, m } of active) {
+        n += 1
+        out.push(
+          `${n}. ${r.client.name} — ${c.name}`,
+          `Кол-во переписок: ${num(m.messaging)}`,
+          `Цена за переписку: ${m.cpm ? '$' + m.cpm.toFixed(2) : '—'}`,
+          `Клики (все): ${num(m.clicks)}`,
+          `CTR (все): ${m.ctr ? m.ctr.toFixed(2) + '%' : '—'}`,
+          `Охват: ${num(m.reach)}`,
+          `Сумма затрат: $${m.spend.toFixed(2)}`,
+          '',
+        )
+      }
+    }
+
+    out.push(
+      '—',
+      `ИТОГО ЗА ${periodLabel}`,
+      `Переписок: ${num(total.messaging)}`,
+      `Цена за переписку: ${total.cpm ? '$' + total.cpm.toFixed(2) : '—'}`,
+      `Затрачено: $${total.spend.toFixed(2)}`,
     )
-    navigator.clipboard?.writeText(lines.join('\n\n')).then(
+
+    setExportBody(out.join('\n'))
+    setExporting(false)
+  }
+
+  function copyExport() {
+    navigator.clipboard?.writeText(exportBody).then(
       () => flash('СКОПИРОВАНО'),
       () => flash('НЕ УДАЛОСЬ СКОПИРОВАТЬ'),
     )
@@ -447,6 +521,34 @@ export default function MobileTarget() {
           </div>
         )}
       </div>
+
+      <Sheet open={exportOpen} title="Выгрузка" onClose={() => setExportOpen(false)}>
+        {exporting ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 0' }}>
+            <div className="spinner" style={{ width: 22, height: 22 }} />
+            <span style={{ color: T.muted, ...mono(500, 11, '.08em') }}>СОБИРАЕМ КАМПАНИИ…</span>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <pre style={{
+              margin: 0, padding: 14, borderRadius: 12, maxHeight: '46dvh', overflow: 'auto',
+              background: T.surface2, border: `1px solid ${T.hair}`, color: T.text,
+              font: `500 12px/1.55 ${MONO}`, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            }}>
+              {exportBody}
+            </pre>
+            <button
+              onClick={copyExport}
+              style={{
+                minHeight: 48, borderRadius: 13, border: 'none',
+                background: T.accent, color: T.onAccent, ...mono(700, 12, '.06em'),
+              }}
+            >
+              СКОПИРОВАТЬ
+            </button>
+          </div>
+        )}
+      </Sheet>
 
       <Sheet open={picker} title="Клиент в таргете" onClose={() => setPicker(false)}>
         <SheetRow
