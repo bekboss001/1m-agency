@@ -104,9 +104,11 @@ export default function MobileClientCard() {
     )
   }
 
+  // Тот же источник, что во вкладке «Клиенты» и в блоке «требуют внимания»:
+  // сохранённое число, а не подсчёт записей в контент-плане.
   const total = client.total_posts || 0
-  const done = posts.filter(p => p.status === 'published').length
-  const pct = total ? Math.round((done / total) * 100) : 0
+  const done = client.published_posts || 0
+  const pct = total ? Math.min(Math.round((done / total) * 100), 100) : 0
   const remaining = Math.max(total - done, 0)
   const nextShoot = shoots[0]
   const color = client.color || T.accent

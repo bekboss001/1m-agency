@@ -43,7 +43,7 @@ export default function MobileHome() {
 
     const [tasksRes, clientsRes, postsRes, shootsRes] = await Promise.all([
       loadTodayTasks(supabase, profile, uid),
-      supabase.from('clients').select('id, name, color, total_posts').eq('is_active', true).order('number'),
+      supabase.from('clients').select('id, name, color, total_posts, published_posts').eq('is_active', true).order('number'),
       supabase.from('posts').select('id, client_id, status, publish_date').gte('publish_date', first).lte('publish_date', last),
       supabase.from('shoots').select('id, shoot_date').gte('shoot_date', weekFrom).lte('shoot_date', weekTo).neq('status', 'cancelled'),
     ])
@@ -93,11 +93,16 @@ export default function MobileHome() {
   })
 
   // «Требуют внимания» — три клиента с худшей готовностью плана.
+  //
+  // Выпущенное берём из clients.published_posts, а не из записей в posts:
+  // это число ведут вручную во вкладке «Клиенты» и синхронизируют с рабочей
+  // таблицей, тогда как контент-план заполняется не для всех клиентов. Считать
+  // по posts значило бы показывать 0% там, где на деле план закрыт.
   const risk = clients
     .map(c => {
       const total = c.total_posts || 0
-      const done = monthPosts.filter(p => p.client_id === c.id && p.status === 'published').length
-      return { ...c, total, done, pct: total ? Math.round((done / total) * 100) : 0 }
+      const done = c.published_posts || 0
+      return { ...c, total, done, pct: total ? Math.min(Math.round((done / total) * 100), 100) : 0 }
     })
     .filter(c => c.total > 0)
     .sort((a, b) => a.pct - b.pct)
