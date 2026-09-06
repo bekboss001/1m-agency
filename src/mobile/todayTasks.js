@@ -32,6 +32,12 @@ export function todayWeekdayName() {
   return DOW_FULL[nowAstana().getDay()]
 }
 
+// «7 СЕНТЯБРЯ» — для заголовка карточки на главной.
+export function todayDayMonth() {
+  const n = nowAstana()
+  return `${n.getDate()} ${MONTHS[n.getMonth()]}`
+}
+
 export function hasRecurringToday() {
   return RECURRING_WEEKDAYS.includes(nowAstana().getDay())
 }

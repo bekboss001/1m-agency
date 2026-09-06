@@ -131,7 +131,16 @@ export default function SettingsPage() {
 
   async function rejectUser(userId) {
     if (!window.confirm('Отклонить регистрацию?')) return
-    await supabase.from('profiles').delete().eq('id', userId)
+    // .select() нужен, чтобы отличить «удалено» от «RLS не дала удалить»:
+    // во втором случае Supabase возвращает успех с пустым результатом, и
+    // раньше кнопка выглядела сработавшей, а заявка оставалась на месте.
+    const { data, error } = await supabase.from('profiles').delete().eq('id', userId).select('id')
+    if (error) { window.alert('Не удалось отклонить: ' + error.message); return }
+    if (!data || data.length === 0) {
+      window.alert('База не разрешила удаление профиля. Нужна политика RLS, разрешающая админу удалять профили — см. db/profiles_admin_policies.sql')
+      return
+    }
+    await logAction(supabase, 'deleted', 'user', userId)
     loadData()
   }
 

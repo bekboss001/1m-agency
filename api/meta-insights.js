@@ -100,8 +100,8 @@ export default async function handler(req, res) {
       fetch(`${base}/insights?${insightsParams}`),
       withCampaigns
         ? fetch(
-            `${base}/campaigns?fields=name,status,insights.date_preset(${datePreset}){${FIELDS}}` +
-              `&limit=20&access_token=${encodeURIComponent(metaToken)}`,
+            `${base}/campaigns?fields=name,status,objective,insights.date_preset(${datePreset}){${FIELDS}}` +
+              `&limit=50&access_token=${encodeURIComponent(metaToken)}`,
           )
         : null,
       withSeries ? fetch(`${base}/insights?${seriesParams}`) : null,

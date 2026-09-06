@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { ymd } from '../lib/tz'
 import { T, MONO, SANS, OSW, mono, useToast, Toast, SectionTitle, WeekStrip } from './ui'
-import { loadTodayTasks, toggleTask, todayLabel, weekDays } from './todayTasks'
+import { loadTodayTasks, toggleTask, todayLabel, todayDayMonth, weekDays } from './todayTasks'
 
 export default function MobileHome() {
   const navigate = useNavigate()
@@ -153,7 +153,7 @@ export default function MobileHome() {
       {/* Дела на сегодня */}
       <div style={{ background: T.accent, borderRadius: 22, padding: 20, color: T.onAccent }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <span style={{ font: `700 40px/.9 ${OSW}` }}>ДЕЛА<br />НА СЕГОДНЯ</span>
+          <span style={{ font: `700 40px/.9 ${OSW}` }}>СЪЁМКИ<br />НА {todayDayMonth()}</span>
           <span style={{ font: `700 56px/.8 ${OSW}` }}>{loading ? '·' : left}</span>
         </div>
 

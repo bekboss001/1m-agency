@@ -36,13 +36,34 @@ function pickAction(actions, types) {
 
 function extract(stats) {
   if (!stats) return null
+  const spend = parseFloat(stats.spend) || 0
+  const messaging = pickAction(stats.actions, MESSAGING_TYPES)
   return {
-    spend: parseFloat(stats.spend) || 0,
+    spend,
     reach: parseFloat(stats.reach) || 0,
     clicks: parseFloat(stats.clicks) || 0,
-    messaging: pickAction(stats.actions, MESSAGING_TYPES),
+    messaging,
+    // Цена за переписку: Meta её не отдаёт готовой, считаем из расхода.
+    cpm: messaging > 0 ? spend / messaging : null,
     cpl: pickAction(stats.cost_per_action_type, ['lead', 'offsite_conversion.fb_pixel_lead']) || null,
   }
+}
+
+// Цели кампаний Meta приходят машинными кодами.
+const OBJECTIVE = {
+  OUTCOME_ENGAGEMENT: 'Вовлечённость',
+  OUTCOME_LEADS: 'Лиды',
+  OUTCOME_SALES: 'Продажи',
+  OUTCOME_TRAFFIC: 'Трафик',
+  OUTCOME_AWARENESS: 'Узнаваемость',
+  OUTCOME_APP_PROMOTION: 'Продвижение приложения',
+  MESSAGES: 'Переписки',
+  LINK_CLICKS: 'Клики',
+  LEAD_GENERATION: 'Лиды',
+  CONVERSIONS: 'Конверсии',
+  POST_ENGAGEMENT: 'Вовлечённость',
+  REACH: 'Охват',
+  BRAND_AWARENESS: 'Узнаваемость',
 }
 
 export default function MobileTarget() {
@@ -75,6 +96,9 @@ export default function MobileTarget() {
     if (!session) { setError('Сессия истекла — войдите заново'); setLoading(false); return }
 
     const wanted = targetClient === 'all' ? connected : connected.filter(c => c.id === targetClient)
+    // Кампании запрашиваем только для одного клиента: по всем кабинетам это
+    // пятнадцать лишних запросов, а показать их всё равно негде.
+    const single = targetClient !== 'all'
 
     const results = await Promise.all(wanted.map(async c => {
       try {
@@ -84,18 +108,23 @@ export default function MobileTarget() {
           body: JSON.stringify({
             accountId: c.meta_account_id,
             datePreset: period,
-            withCampaigns: false,
+            withCampaigns: single,
             withSeries: true,
           }),
         })
         if (!res.ok) {
           const body = await res.json().catch(() => ({}))
-          return { client: c, m: null, series: [], error: body.error }
+          return { client: c, m: null, series: [], campaigns: [], error: body.error }
         }
         const data = await res.json()
-        return { client: c, m: extract(data.stats), series: data.series || [] }
+        return {
+          client: c,
+          m: extract(data.stats),
+          series: data.series || [],
+          campaigns: data.campaigns || [],
+        }
       } catch {
-        return { client: c, m: null, series: [] }
+        return { client: c, m: null, series: [], campaigns: [] }
       }
     }))
 
@@ -119,6 +148,9 @@ export default function MobileTarget() {
       acc.clicks += r.m.clicks
       acc.messaging += r.m.messaging
     }
+    // Считаем по сумме, а не как среднее из строк: средняя цена по клиентам
+    // и общая цена за переписку — разные числа, нужна вторая.
+    acc.cpm = acc.messaging > 0 ? acc.spend / acc.messaging : null
     return acc
   }, [rows])
 
@@ -244,9 +276,19 @@ export default function MobileTarget() {
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: 12, borderTop: `1px solid ${T.hair}`, paddingTop: 14 }}>
-            {[['ОХВАТ', compact(total.reach)], ['КЛИКИ', compact(total.clicks)], ['ПЕРЕПИСКИ', num(total.messaging)]].map(([label, value]) => (
-              <div key={label} style={{ flex: 1, minWidth: 0 }}>
+          {/* Сетка 2×2, а не четыре колонки в ряд: на 390px подписи вроде
+              «ЦЕНА ПЕРЕПИСКИ» в одну строку не помещаются и наезжают друг на друга. */}
+          <div style={{
+            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 12px',
+            borderTop: `1px solid ${T.hair}`, paddingTop: 14,
+          }}>
+            {[
+              ['ОХВАТ', compact(total.reach)],
+              ['КЛИКИ', compact(total.clicks)],
+              ['ПЕРЕПИСКИ', num(total.messaging)],
+              ['ЦЕНА ПЕРЕПИСКИ', total.cpm ? '$' + total.cpm.toFixed(2) : '—'],
+            ].map(([label, value]) => (
+              <div key={label} style={{ minWidth: 0 }}>
                 <div style={{ font: `700 18px ${OSW}`, color: T.text }}>{loading ? '·' : value}</div>
                 <div style={{ marginTop: 2, color: T.muted, ...mono(500, 9, '.1em') }}>{label}</div>
               </div>
@@ -300,19 +342,24 @@ export default function MobileTarget() {
 
                     <span style={{ color: T.muted, ...mono(500, 10.5, '.08em') }}>
                       {m
-                        ? `ОХВАТ ${compact(m.reach)} · CPC ${m.clicks ? '$' + (m.spend / m.clicks).toFixed(2) : '—'}`
+                        ? `${num(m.messaging)} ПЕРЕПИСОК · ПО ${m.cpm ? '$' + m.cpm.toFixed(2) : '—'}`
                         : 'ДАННЫЕ НЕДОСТУПНЫ'}
                     </span>
 
                     {open && m && (
-                      <div style={{ display: 'flex', gap: 10, borderTop: `1px solid ${T.hair}`, paddingTop: 11 }}>
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 10px',
+                        borderTop: `1px solid ${T.hair}`, paddingTop: 11,
+                      }}>
                         {[
                           ['ОХВАТ', compact(m.reach)],
                           ['КЛИКИ', compact(m.clicks)],
                           ['ПЕРЕПИСКИ', num(m.messaging)],
+                          ['ЦЕНА ПЕРЕПИСКИ', m.cpm ? '$' + m.cpm.toFixed(2) : '—'],
                           ['ЦЕНА ЛИДА', m.cpl ? '$' + m.cpl.toFixed(2) : '—'],
+                          ['CPC', m.clicks ? '$' + (m.spend / m.clicks).toFixed(2) : '—'],
                         ].map(([label, value]) => (
-                          <div key={label} style={{ flex: 1, minWidth: 0 }}>
+                          <div key={label} style={{ minWidth: 0 }}>
                             <div style={{ font: `700 15px ${OSW}` }}>{value}</div>
                             <div style={{ marginTop: 2, color: T.muted, ...mono(500, 8.5, '.08em') }}>{label}</div>
                           </div>
@@ -325,6 +372,80 @@ export default function MobileTarget() {
             </div>
           )}
         </div>
+
+        {/* Кампании — только при выбранном клиенте: по всем кабинетам список
+            был бы на сотни строк и потребовал бы запроса на каждый кабинет. */}
+        {targetClient !== 'all' && !loading && (
+          <div>
+            {(() => {
+              const camps = rows[0]?.campaigns || []
+              const running = camps.filter(c => c.status === 'ACTIVE')
+              return (
+                <>
+                  <SectionTitle>
+                    {`КАМПАНИИ · ${running.length} АКТИВНЫХ ИЗ ${camps.length}`}
+                  </SectionTitle>
+                  {camps.length === 0 ? (
+                    <div style={{ color: T.muted, font: `400 12px ${SANS}` }}>
+                      В этом кабинете кампаний за выбранный период нет.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {camps
+                        .slice()
+                        .sort((a, b) => (b.status === 'ACTIVE' ? 1 : 0) - (a.status === 'ACTIVE' ? 1 : 0))
+                        .map(c => {
+                          const st = c.insights?.data?.[0]
+                          const cm = st ? extract(st) : null
+                          const on = c.status === 'ACTIVE'
+                          return (
+                            <div key={c.id || c.name} style={{
+                              display: 'flex', flexDirection: 'column', gap: 8,
+                              background: T.surface, borderRadius: 16, padding: '14px 16px',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                                <span style={{ flex: 1, minWidth: 0, font: `600 13.5px/1.3 ${SANS}`, color: T.text }}>
+                                  {c.name}
+                                </span>
+                                <span style={{
+                                  flex: 'none', borderRadius: 7, padding: '4px 8px',
+                                  background: on ? T.accent : 'rgba(255,255,255,.06)',
+                                  color: on ? T.onAccent : T.text2,
+                                  ...mono(600, 9, '.06em'),
+                                }}>
+                                  {on ? 'АКТИВНА' : 'ПАУЗА'}
+                                </span>
+                              </div>
+
+                              <span style={{ color: T.muted, ...mono(500, 10, '.08em') }}>
+                                ЦЕЛЬ: {(OBJECTIVE[c.objective] || c.objective || '—').toUpperCase()}
+                              </span>
+
+                              {cm && (
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 10px', borderTop: `1px solid ${T.hair}`, paddingTop: 10 }}>
+                                  {[
+                                    ['ПОТРАЧЕНО', money(cm.spend)],
+                                    ['ОХВАТ', compact(cm.reach)],
+                                    ['ПЕРЕПИСКИ', num(cm.messaging)],
+                                    ['ЦЕНА ПЕРЕПИСКИ', cm.cpm ? '$' + cm.cpm.toFixed(2) : '—'],
+                                  ].map(([label, value]) => (
+                                    <div key={label} style={{ minWidth: 0 }}>
+                                      <div style={{ font: `700 15px ${OSW}`, color: T.text }}>{value}</div>
+                                      <div style={{ marginTop: 2, color: T.muted, ...mono(500, 8.5, '.08em') }}>{label}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                    </div>
+                  )}
+                </>
+              )
+            })()}
+          </div>
+        )}
       </div>
 
       <Sheet open={picker} title="Клиент в таргете" onClose={() => setPicker(false)}>

@@ -38,6 +38,7 @@ export default function MobileShoots() {
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
+  const [selected, setSelected] = useState(null)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ client_id: '', operator_id: '', time_start: '', location: '' })
 
@@ -84,6 +85,28 @@ export default function MobileShoots() {
   })
 
   const dayShoots = shoots.filter(s => s.shoot_date === pickedKey)
+
+  async function changeStatus(shoot, status) {
+    setShoots(ss => ss.map(s => (s.id === shoot.id ? { ...s, status } : s)))
+    setSelected(s => (s ? { ...s, status } : s))
+    const { error } = await supabase.from('shoots').update({ status }).eq('id', shoot.id)
+    if (error) {
+      setShoots(ss => ss.map(s => (s.id === shoot.id ? { ...s, status: shoot.status } : s)))
+      flash('НЕ УДАЛОСЬ СОХРАНИТЬ')
+      return
+    }
+    await logAction(supabase, 'status_changed', 'shoot', shoot.client?.name || '', { status })
+  }
+
+  async function removeShoot(shoot) {
+    if (!window.confirm(`Удалить съёмку${shoot.client?.name ? ' «' + shoot.client.name + '»' : ''}?`)) return
+    const { error } = await supabase.from('shoots').delete().eq('id', shoot.id)
+    if (error) { flash('НЕ УДАЛОСЬ УДАЛИТЬ'); return }
+    await logAction(supabase, 'deleted', 'shoot', shoot.client?.name || 'Съёмка')
+    setSelected(null)
+    setShoots(ss => ss.filter(s => s.id !== shoot.id))
+    flash('СЪЁМКА УДАЛЕНА')
+  }
 
   async function createShoot(e) {
     e.preventDefault()
@@ -180,7 +203,14 @@ export default function MobileShoots() {
                       width: 9, height: 9, borderRadius: '50%',
                       background: s.client?.color || T.accent,
                     }} />
-                    <div style={{ background: T.surface, borderRadius: 16, padding: 14, display: 'flex', flexDirection: 'column', gap: 9 }}>
+                    <button
+                      onClick={() => setSelected(s)}
+                      style={{
+                        width: '100%', textAlign: 'left', border: 'none', color: T.text,
+                        background: T.surface, borderRadius: 16, padding: 14,
+                        display: 'flex', flexDirection: 'column', gap: 9,
+                      }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ flex: 1, minWidth: 0, font: `600 15px ${SANS}`, color: T.text }}>
                           {s.client?.name || 'Без клиента'}
@@ -211,7 +241,7 @@ export default function MobileShoots() {
                           </span>
                         </div>
                       )}
-                    </div>
+                    </button>
                   </div>
                 </div>
               )
@@ -221,6 +251,60 @@ export default function MobileShoots() {
       </div>
 
       {!isClient && <Fab label="+ СЪЁМКА" onClick={() => setCreating(true)} />}
+
+      {/* Карточка съёмки: подтверждение, отметка «снято» и удаление —
+          съёмку легко поставить по ошибке, откатить это должно быть можно. */}
+      <Sheet open={!!selected} title="Съёмка" onClose={() => setSelected(null)}>
+        {selected && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <div style={{ font: `700 22px ${OSW}`, color: T.text }}>
+                {selected.client?.name || 'Без клиента'}
+              </div>
+              <div style={{ marginTop: 6, color: T.muted, ...mono(500, 10.5, '.1em') }}>
+                {[
+                  `${d.getDate()} ${MONTHS_GEN[d.getMonth()]}`,
+                  (selected.time_start || '').slice(0, 5),
+                  (selected.location || '').toUpperCase(),
+                  selected.operator?.name?.toUpperCase(),
+                ].filter(Boolean).join(' · ')}
+              </div>
+            </div>
+
+            {!isClient && (
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[['planned', 'ПЛАН'], ['confirmed', 'ПОДТВ.'], ['done', 'СНЯТО']].map(([id, label]) => (
+                  <button
+                    key={id}
+                    onClick={() => changeStatus(selected, id)}
+                    style={{
+                      flex: 1, minHeight: 44, borderRadius: 12, border: 'none',
+                      background: selected.status === id ? T.accent : T.surface2,
+                      color: selected.status === id ? T.onAccent : 'rgba(255,255,255,.6)',
+                      ...mono(600, 10.5, '.06em'),
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!isClient && (
+              <button
+                onClick={() => removeShoot(selected)}
+                style={{
+                  minHeight: 48, borderRadius: 13, background: 'none',
+                  border: '1px solid rgba(242,98,46,.35)', color: T.hot,
+                  ...mono(600, 12, '.08em'),
+                }}
+              >
+                УДАЛИТЬ СЪЁМКУ
+              </button>
+            )}
+          </div>
+        )}
+      </Sheet>
 
       <Sheet open={creating} title="Новая съёмка" onClose={() => setCreating(false)}>
         <form onSubmit={createShoot} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -22,6 +22,7 @@ import MobileTarget from './mobile/MobileTarget'
 import MobileProfile from './mobile/MobileProfile'
 import MobileClients from './mobile/MobileClients'
 import MobileTasks from './mobile/MobileTasks'
+import MobileSettings from './mobile/MobileSettings'
 import MobileClientCard from './mobile/MobileClientCard'
 
 // Редизайн 1a пока только для телефонов: на широких экранах остаётся прежний
@@ -78,7 +79,7 @@ export default function App() {
           <Route path="target"   element={<GuardedRoute adminOnly><Responsive mobile={MobileTarget} desktop={TargetPage} /></GuardedRoute>} />
           <Route path="calendar" element={<GuardedRoute perm="calendar"><CalendarPage /></GuardedRoute>} />
           <Route path="tasks"    element={<GuardedRoute perm="tasks"><Responsive mobile={MobileTasks} desktop={TasksPage} /></GuardedRoute>} />
-          <Route path="settings" element={<GuardedRoute adminOnly><SettingsPage /></GuardedRoute>} />
+          <Route path="settings" element={<GuardedRoute adminOnly><Responsive mobile={MobileSettings} desktop={SettingsPage} /></GuardedRoute>} />
           <Route path="profile"  element={<Responsive mobile={MobileProfile} desktop={ProfilePage} />} />
         </Route>
       </Routes>
