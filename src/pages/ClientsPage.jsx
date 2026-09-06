@@ -235,7 +235,8 @@ export default function ClientsPage() {
               <tr>
                 <th style={{ ...styles.th, ...gb('client') }}>№</th>
                 <th style={styles.th}>Клиент</th>
-                {vis.contract && <th style={{ ...styles.th, ...gb('contract') }}>Начало</th>}
+                {/* «Начало» убрано: в работе смотрят только на дату окончания,
+                    а в исходной таблице начало вдобавок заполнено непоследовательно. */}
                 {vis.contract && <th style={styles.th}>Окончание</th>}
                 {vis.contract && <th style={styles.th}>Дней осталось</th>}
                 {vis.team && <th style={{ ...styles.th, ...gb('team') }}>СММ</th>}
@@ -273,14 +274,7 @@ export default function ClientsPage() {
 
                     {/* ДОГОВОР */}
                     {vis.contract && (
-                      <td data-label="Начало" style={{ ...styles.td, ...styles.editableCell, ...gb('contract') }} onClick={() => startEdit(c.id, 'contract_start', c.contract_start || '')}>
-                        {ed('contract_start') ? (
-                          <input autoFocus style={styles.cellInput} type="date" value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={() => saveEdit(c.id, 'contract_start')} onKeyDown={e => handleKeyDown(e, c.id, 'contract_start')} />
-                        ) : <span style={{ fontSize: 12, color: 'var(--text2)' }}>{formatDate(c.contract_start)}</span>}
-                      </td>
-                    )}
-                    {vis.contract && (
-                      <td data-label="Окончание" style={{ ...styles.td, ...styles.editableCell }} onClick={() => startEdit(c.id, 'contract_end', c.contract_end || '')}>
+                      <td data-label="Окончание" style={{ ...styles.td, ...styles.editableCell, ...gb('contract') }} onClick={() => startEdit(c.id, 'contract_end', c.contract_end || '')}>
                         {ed('contract_end') ? (
                           <input autoFocus style={styles.cellInput} type="date" value={editValue} onChange={e => setEditValue(e.target.value)} onBlur={() => saveEdit(c.id, 'contract_end')} onKeyDown={e => handleKeyDown(e, c.id, 'contract_end')} />
                         ) : <span style={{ fontSize: 12, color: urgent ? 'var(--red)' : 'var(--text2)' }}>{formatDate(c.contract_end)}</span>}
@@ -397,7 +391,6 @@ export default function ClientsPage() {
                 <Field label="Название" required><input style={styles.input} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} required /></Field>
                 <Field label="Цвет"><input style={{ ...styles.input, padding: '8px', height: 44, cursor: 'pointer' }} type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })} /></Field>
                 <Field label="Постов"><input style={styles.input} type="number" value={form.total_posts} onChange={e => setForm({ ...form, total_posts: e.target.value })} /></Field>
-                <Field label="Начало договора"><input style={styles.input} type="date" value={form.contract_start} onChange={e => setForm({ ...form, contract_start: e.target.value })} /></Field>
                 <Field label="Конец договора"><input style={styles.input} type="date" value={form.contract_end} onChange={e => setForm({ ...form, contract_end: e.target.value })} /></Field>
                 <Field label="СММ">
                   <select style={styles.input} value={form.smm_id} onChange={e => setForm({ ...form, smm_id: e.target.value })}>
