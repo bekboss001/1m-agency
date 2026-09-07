@@ -110,8 +110,7 @@ export default function MobileShoots() {
     flash('СЪЁМКА УДАЛЕНА')
   }
 
-  // Расписание для отправки в телеграм. Подчёркивания вокруг строк — разметка
-  // курсива: клиенты телеграма превращают её в наклонный текст при отправке.
+  // Расписание для отправки в чат — обычным текстом, без разметки.
   function scheduleText(scope) {
     const dayText = date => {
       const list = shoots
@@ -121,9 +120,9 @@ export default function MobileShoots() {
 
       return list.map(s => [
         `${(s.time_start || '').slice(0, 5) || '—'} ${s.client?.name || 'Без клиента'}`,
-        `_Оператор: ${s.operator?.name || 'не назначен'}_`,
-        s.smm?.name ? `_СММ: ${s.smm.name}_` : null,
-        s.location ? `_Локация: ${s.location}_` : null,
+        `Оператор: ${s.operator?.name || 'не назначен'}`,
+        s.smm?.name ? `СММ: ${s.smm.name}` : null,
+        s.location ? `Локация: ${s.location}` : null,
       ].filter(Boolean).join('\n')).join('\n\n')
     }
 
@@ -330,10 +329,6 @@ export default function MobileShoots() {
           }}>
             {scheduleText(exportScope)}
           </pre>
-
-          <div style={{ font: `400 11px/1.5 ${SANS}`, color: 'rgba(255,255,255,.3)' }}>
-            Подчёркивания вокруг строк телеграм превратит в курсив при отправке.
-          </div>
 
           <button
             onClick={copySchedule}
