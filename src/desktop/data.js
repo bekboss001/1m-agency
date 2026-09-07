@@ -196,6 +196,121 @@ export async function deletePost(id) {
   return { error }
 }
 
+/* ────────────────────────────── Настройки ────────────────────────────── */
+
+export async function fetchSettings() {
+  const { data, error } = await supabase.from('app_settings').select('key, value')
+  if (error) return { data: {}, error }
+  const map = {}
+  for (const r of data || []) map[r.key] = r.value
+  return { data: map, error: null }
+}
+
+export async function saveSetting(key, value) {
+  const { data, error } = await supabase
+    .from('app_settings')
+    .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' })
+    .select('key')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'Менять настройки может только владелец' } }
+  return { error: null }
+}
+
+export async function fetchRoles() {
+  const { data, error } = await supabase.from('roles').select('id, name, label, permissions').order('name')
+  return { data: data || [], error }
+}
+
+export async function fetchUsers() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, is_approved, created_at')
+    .eq('is_approved', true)
+    .order('role')
+  return { data: data || [], error }
+}
+
+export async function fetchRequests() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, email, role, created_at')
+    .eq('is_approved', false)
+    .order('created_at')
+  return { data: data || [], error }
+}
+
+export async function setUserRole(id, role) {
+  const { data, error } = await supabase.from('profiles').update({ role }).eq('id', id).select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'База не разрешила изменение роли' } }
+  return { error: null }
+}
+
+export async function approveUser(user, role) {
+  const { data, error } = await supabase
+    .from('profiles').update({ is_approved: true, role }).eq('id', user.id).select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'База не разрешила одобрение' } }
+
+  // Сотрудника заводим только для ролей, которые появляются в съёмках и планах.
+  if (role === 'smm' || role === 'operator') {
+    const { data: exists } = await supabase.from('employees').select('id').eq('email', user.email).maybeSingle()
+    let empId = exists?.id
+    if (!empId) {
+      const { data: created } = await supabase.from('employees')
+        .insert({ name: user.full_name || user.email.split('@')[0], email: user.email, role })
+        .select('id').single()
+      empId = created?.id
+    }
+    if (empId) await supabase.from('profiles').update({ employee_id: empId }).eq('id', user.id)
+  }
+
+  await logAction(supabase, 'approved', 'user', user.email || user.id, { role })
+  return { error: null }
+}
+
+export async function rejectUser(user) {
+  // .select() отличает удаление от запрета: при отказе RLS Supabase отвечает
+  // успехом с нулём строк, и кнопка выглядела бы сработавшей.
+  const { data, error } = await supabase.from('profiles').delete().eq('id', user.id).select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) {
+    return { error: { message: 'База не разрешила удаление — нужны политики из db/profiles_admin_policies.sql' } }
+  }
+  await logAction(supabase, 'deleted', 'user', user.email || user.id)
+  return { error: null }
+}
+
+export async function fetchAuditLog(limit = 80) {
+  const { data, error } = await supabase
+    .from('audit_logs')
+    .select('id, created_at, user_email, action, entity, entity_name')
+    .order('created_at', { ascending: false })
+    .limit(limit)
+  return { data: data || [], error }
+}
+
+// Нагрузка команды: клиенты, посты и съёмки за текущий месяц по каждому.
+export async function fetchTeamLoad(from, to) {
+  const [emp, cl, po, sh] = await Promise.all([
+    supabase.from('employees').select('id, name, email, role').order('role').order('name'),
+    supabase.from('clients').select('id, smm_id, operator_id').eq('is_active', true),
+    supabase.from('posts').select('id, smm_id').gte('publish_date', from).lte('publish_date', to),
+    supabase.from('shoots').select('id, operator_id').gte('shoot_date', from).lte('shoot_date', to).neq('status', 'cancelled'),
+  ])
+
+  const byEmp = {}
+  for (const e of emp.data || []) byEmp[e.id] = { clients: 0, posts: 0, shoots: 0 }
+  for (const c of cl.data || []) {
+    if (byEmp[c.smm_id]) byEmp[c.smm_id].clients += 1
+    if (byEmp[c.operator_id]) byEmp[c.operator_id].clients += 1
+  }
+  for (const p of po.data || []) if (byEmp[p.smm_id]) byEmp[p.smm_id].posts += 1
+  for (const s of sh.data || []) if (byEmp[s.operator_id]) byEmp[s.operator_id].shoots += 1
+
+  return { data: { team: emp.data || [], load: byEmp }, error: emp.error }
+}
+
 /* ─────────────────────────────── Съёмки ──────────────────────────────── */
 
 export async function fetchShoots(from, to) {

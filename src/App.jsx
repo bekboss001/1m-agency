@@ -28,6 +28,7 @@ import ScreenTable from './desktop/ScreenTable'
 import ScreenPlan from './desktop/ScreenPlan'
 import ScreenShoots from './desktop/ScreenShoots'
 import ScreenTarget from './desktop/ScreenTarget'
+import ScreenSettings from './desktop/ScreenSettings'
 
 // Редизайн 1a пока только для телефонов: на широких экранах остаётся прежний
 // интерфейс, поэтому выбор делается здесь, а не внутри самих страниц —
@@ -83,7 +84,7 @@ export default function App() {
           <Route path="target"   element={<GuardedRoute adminOnly><Responsive mobile={MobileTarget} desktop={ScreenTarget} /></GuardedRoute>} />
           <Route path="calendar" element={<GuardedRoute perm="calendar"><CalendarPage /></GuardedRoute>} />
           <Route path="tasks"    element={<GuardedRoute perm="tasks"><Responsive mobile={MobileTasks} desktop={TasksPage} /></GuardedRoute>} />
-          <Route path="settings" element={<GuardedRoute adminOnly><Responsive mobile={MobileSettings} desktop={SettingsPage} /></GuardedRoute>} />
+          <Route path="settings" element={<GuardedRoute adminOnly><Responsive mobile={MobileSettings} desktop={ScreenSettings} /></GuardedRoute>} />
           <Route path="profile"  element={<Responsive mobile={MobileProfile} desktop={ProfilePage} />} />
         </Route>
       </Routes>
