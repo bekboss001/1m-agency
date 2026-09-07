@@ -160,6 +160,16 @@ export async function fetchPosts(clientId, from, to) {
   return { data: data || [], error }
 }
 
+// Счётчики для списка клиентов слева. Тянем только две колонки: считать
+// приходится по всем клиентам сразу, а полные строки для этого не нужны.
+export async function fetchPostCounts() {
+  const { data, error } = await supabase.from('posts').select('id, client_id')
+  if (error) return { data: {}, error }
+  const map = {}
+  for (const p of data || []) map[p.client_id] = (map[p.client_id] || 0) + 1
+  return { data: map, error: null }
+}
+
 export async function patchPost(id, patch) {
   const row = { ...patch }
   if (row.publish_date === '') row.publish_date = null
