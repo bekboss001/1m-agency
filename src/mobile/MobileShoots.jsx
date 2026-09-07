@@ -42,7 +42,7 @@ export default function MobileShoots() {
   const [saving, setSaving] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [exportScope, setExportScope] = useState('day')
-  const [form, setForm] = useState({ client_id: '', operator_id: '', time_start: '', location: '' })
+  const [form, setForm] = useState({ client_id: '', operator_id: '', smm_id: '', time_start: '', location: '' })
 
   const isClient = profile?.role === 'client'
   const pickedKey = ymd(picked)
@@ -57,7 +57,7 @@ export default function MobileShoots() {
     setLoading(true)
     const [sRes, cRes, eRes] = await Promise.all([
       supabase.from('shoots')
-        .select('id, shoot_date, time_start, time_end, location, status, client:client_id(name, color), operator:operator_id(name)')
+        .select('id, shoot_date, time_start, time_end, location, status, client:client_id(name, color), operator:operator_id(name), smm:smm_id(name)')
         .gte('shoot_date', ymd(days[0].date)).lte('shoot_date', ymd(days[6].date))
         .neq('status', 'cancelled')
         .order('shoot_date').order('time_start'),
@@ -122,6 +122,7 @@ export default function MobileShoots() {
       return list.map(s => [
         `${(s.time_start || '').slice(0, 5) || '—'} ${s.client?.name || 'Без клиента'}`,
         `_Оператор: ${s.operator?.name || 'не назначен'}_`,
+        s.smm?.name ? `_СММ: ${s.smm.name}_` : null,
         s.location ? `_Локация: ${s.location}_` : null,
       ].filter(Boolean).join('\n')).join('\n\n')
     }
@@ -160,12 +161,13 @@ export default function MobileShoots() {
       status: 'planned',
     }
     if (form.operator_id) payload.operator_id = form.operator_id
+    if (form.smm_id) payload.smm_id = form.smm_id
     const { error } = await supabase.from('shoots').insert(payload)
     setSaving(false)
-    if (error) { flash('НЕ УДАЛОСЬ СОЗДАТЬ'); return }
+    if (error) { flash('НЕ УДАЛОСЬ СОЗДАТЬ: ' + error.message.toUpperCase()); return }
     await logAction(supabase, 'created', 'shoot', clients.find(c => c.id === form.client_id)?.name || 'Съёмка', { date: pickedKey })
     setCreating(false)
-    setForm({ client_id: '', operator_id: '', time_start: '', location: '' })
+    setForm({ client_id: '', operator_id: '', smm_id: '', time_start: '', location: '' })
     flash('СЪЁМКА ПОСТАВЛЕНА')
     load()
   }
@@ -275,18 +277,20 @@ export default function MobileShoots() {
                       {s.location && (
                         <span style={{ color: T.muted, ...mono(500, 10.5, '.1em') }}>{s.location.toUpperCase()}</span>
                       )}
-                      {s.operator?.name && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{
-                            width: 26, height: 26, borderRadius: 9, background: T.avatar,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: T.text2, ...mono(600, 10, '.02em'),
-                          }}>
-                            {initials(s.operator.name)}
-                          </span>
-                          <span style={{ color: T.muted, ...mono(500, 10, '.1em') }}>
-                            {s.operator.name.toUpperCase()}
-                          </span>
+                      {(s.operator?.name || s.smm?.name) && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          {[s.operator?.name, s.smm?.name].filter(Boolean).map(n => (
+                            <span key={n} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{
+                                width: 26, height: 26, borderRadius: 9, background: T.avatar,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                color: T.text2, ...mono(600, 10, '.02em'),
+                              }}>
+                                {initials(n)}
+                              </span>
+                              <span style={{ color: T.muted, ...mono(500, 10, '.1em') }}>{n.toUpperCase()}</span>
+                            </span>
+                          ))}
                         </div>
                       )}
                     </button>
@@ -358,6 +362,7 @@ export default function MobileShoots() {
                   (selected.time_start || '').slice(0, 5),
                   (selected.location || '').toUpperCase(),
                   selected.operator?.name?.toUpperCase(),
+                  selected.smm?.name?.toUpperCase(),
                 ].filter(Boolean).join(' · ')}
               </div>
             </div>
@@ -412,6 +417,12 @@ export default function MobileShoots() {
             <select value={form.operator_id} onChange={e => setForm({ ...form, operator_id: e.target.value })} style={inputStyle}>
               <option value="">Не назначен</option>
               {employees.filter(e => e.role === 'operator').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+            </select>
+          </Field>
+          <Field label="СММ">
+            <select value={form.smm_id} onChange={e => setForm({ ...form, smm_id: e.target.value })} style={inputStyle}>
+              <option value="">Не назначен</option>
+              {employees.filter(e => e.role === 'smm').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
             </select>
           </Field>
           <Field label="ВРЕМЯ">

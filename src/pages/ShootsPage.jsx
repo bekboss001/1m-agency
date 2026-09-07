@@ -25,7 +25,7 @@ export default function ShootsPage() {
   const [selectedShoot, setSelectedShoot] = useState(null)
   const [showForm, setShowForm] = useState(false)
   const [formDate, setFormDate] = useState('')
-  const [form, setForm] = useState({ client_id: '', operator_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
+  const [form, setForm] = useState({ client_id: '', operator_id: '', smm_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
   const [saving, setSaving] = useState(false)
   const [draggedShootId, setDraggedShootId] = useState(null)
   const [dragOverDate, setDragOverDate] = useState(null)
@@ -48,7 +48,7 @@ export default function ShootsPage() {
     const endDate = ymd(new Date(year, month + 1, 0))
 
     let shootsQuery = supabase.from('shoots')
-      .select('*, client:client_id(id, name, color), operator:operator_id(name)')
+      .select('*, client:client_id(id, name, color), operator:operator_id(name), smm:smm_id(name)')
       .gte('shoot_date', startDate).lte('shoot_date', endDate)
       .order('shoot_date').order('time_start')
 
@@ -113,7 +113,7 @@ export default function ShootsPage() {
 
   function openAddForm(date) {
     const ds = ymd(date)
-    setForm({ client_id: '', operator_id: '', shoot_date: ds, time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
+    setForm({ client_id: '', operator_id: '', smm_id: '', shoot_date: ds, time_start: '', time_end: '', location: '', status: 'planned', notes: '' })
     setShowForm(true)
   }
 
@@ -122,6 +122,7 @@ export default function ShootsPage() {
     setSaving(true)
     const payload = { ...form }
     if (!payload.operator_id) delete payload.operator_id
+    if (!payload.smm_id) delete payload.smm_id
     if (!payload.time_start) delete payload.time_start
     if (!payload.time_end) delete payload.time_end
     await supabase.from('shoots').insert(payload)
@@ -188,7 +189,7 @@ export default function ShootsPage() {
             <span style={{ color: 'var(--green)', fontWeight: 800 }} className="bebas">{confirmedShoots}</span>
           </div>
           {!isClient && (
-            <button className="btn btn-white" onClick={() => { setForm({ client_id: '', operator_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' }); setShowForm(true) }}>
+            <button className="btn btn-white" onClick={() => { setForm({ client_id: '', operator_id: '', smm_id: '', shoot_date: '', time_start: '', time_end: '', location: '', status: 'planned', notes: '' }); setShowForm(true) }}>
               <Plus size={16} /> Добавить
             </button>
           )}
@@ -389,6 +390,13 @@ export default function ShootsPage() {
                   <select style={styles.input} value={form.operator_id} onChange={e => setForm({ ...form, operator_id: e.target.value })}>
                     <option value="">— выбрать —</option>
                     {employees.filter(e => e.role === 'operator').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={styles.label}>СММ</label>
+                  <select style={styles.input} value={form.smm_id} onChange={e => setForm({ ...form, smm_id: e.target.value })}>
+                    <option value="">— выбрать —</option>
+                    {employees.filter(e => e.role === 'smm').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                   </select>
                 </div>
                 <div>
