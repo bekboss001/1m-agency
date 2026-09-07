@@ -8,12 +8,13 @@ import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import {
   fetchInstagramAnalytics, saveInstagramSnapshot, fetchInstagramSnapshots,
 } from './data'
+import { buildInsights } from '../lib/insights'
 
 const TYPE_LABEL = { IMAGE: 'фото', VIDEO: 'видео', CAROUSEL_ALBUM: 'карусель' }
 const dm = iso => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}` : '—')
 const compact = n => (n == null ? '—' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(Math.round(n)))
 
-export default function OrganicBlock({ accountId, since, until }) {
+export default function OrganicBlock({ accountId, since, until, days, plan }) {
   const [data, setData] = useState(null)
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
@@ -83,6 +84,15 @@ export default function OrganicBlock({ accountId, since, until }) {
             <Stat value={data.posts.avgComments} label="комментариев на пост" />
           </div>
 
+          <Insights
+            items={buildInsights({
+              analytics: data,
+              snapshots: history,
+              client: { total_posts: plan },
+              days,
+            })}
+          />
+
           {history.length > 2 && <FollowerChart history={history} />}
 
           {data.top.length > 0 && (
@@ -123,6 +133,33 @@ export default function OrganicBlock({ accountId, since, until }) {
           )}
         </>
       )}
+    </div>
+  )
+}
+
+// Выводы движка правил. Цвет точки — единственный сигнал важности: списку из
+// пяти фраз хватает его, а рамки и заливки превратили бы панель в светофор.
+const TONE = { good: D.lime, warn: D.alert, bad: D.err, info: D.quiet }
+
+function Insights({ items }) {
+  if (!items.length) return null
+  return (
+    <div style={{
+      borderRadius: 11, background: D.card, boxShadow: `inset 0 0 0 1px ${D.b4}`,
+      padding: '13px 15px', display: 'flex', flexDirection: 'column', gap: 10,
+    }}>
+      <div style={{ fontFamily: GROTESK, fontSize: 9.5, letterSpacing: '0.16em', color: D.mut2 }}>
+        ЧТО ГОВОРЯТ ЦИФРЫ
+      </div>
+      {items.map(i => (
+        <div key={i.id} style={{ display: 'flex', gap: 9 }}>
+          <span style={{
+            width: 5, height: 5, borderRadius: 3, flex: 'none', marginTop: 6,
+            background: TONE[i.tone] || D.quiet,
+          }} />
+          <span style={{ fontFamily: GROTESK, fontSize: 12.5, lineHeight: 1.55, color: D.t4 }}>{i.text}</span>
+        </div>
+      ))}
     </div>
   )
 }

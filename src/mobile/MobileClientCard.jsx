@@ -6,10 +6,12 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { ymd, today } from '../lib/tz'
+import { adMetrics } from '../lib/insights'
 import {
   T, SANS, OSW, mono, useToast, Toast, SectionTitle,
   StatusChip, nextStatus, STATUS_LABEL, TYPE_MARK,
 } from './ui'
+import ClientStats from './ClientStats'
 
 const MONTHS = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
 
@@ -31,7 +33,7 @@ export default function MobileClientCard() {
   const [client, setClient] = useState(null)
   const [posts, setPosts] = useState([])
   const [shoots, setShoots] = useState([])
-  const [spend, setSpend] = useState(null)
+  const [ads, setAds] = useState(null)
   const [loading, setLoading] = useState(true)
 
   const now = new Date()
@@ -76,7 +78,7 @@ export default function MobileClientCard() {
       }).catch(() => null)
       if (!res || !res.ok || cancelled) return
       const data = await res.json().catch(() => null)
-      if (data?.stats?.spend && !cancelled) setSpend(Math.round(parseFloat(data.stats.spend)))
+      if (data?.stats && !cancelled) setAds(adMetrics(data.stats))
     })()
     return () => { cancelled = true }
   }, [client?.meta_account_id, profile?.role])
@@ -154,7 +156,7 @@ export default function MobileClientCard() {
           {[
             [remaining, `ОСТАЛОСЬ ${plural(remaining, 'ПОСТ', 'ПОСТА', 'ПОСТОВ')}`, false],
             [shoots.length, `${plural(shoots.length, 'СЪЁМКА', 'СЪЁМКИ', 'СЪЁМОК')} В ПЛАНЕ`, false],
-            [spend === null ? '—' : `$${spend}`, 'ТАРГЕТ · 30 ДН', true],
+            [ads === null ? '—' : `$${Math.round(ads.spend)}`, 'ТАРГЕТ · 30 ДН', true],
           ].map(([value, label, accent]) => (
             <div key={label} style={{ flex: 1, minWidth: 0, background: T.surface, borderRadius: 14, padding: '12px 14px' }}>
               <div style={{ font: `700 22px ${OSW}`, color: accent ? T.accent : T.text }}>{value}</div>
@@ -178,6 +180,8 @@ export default function MobileClientCard() {
             + СЪЁМКА
           </button>
         </div>
+
+        <ClientStats client={client} ads={ads} />
 
         {/* Ближайшая съёмка */}
         <div>

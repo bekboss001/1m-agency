@@ -425,7 +425,7 @@ function StatsSection({ client }) {
               </button>
             ))}
           </div>
-          <OrganicBlock accountId={client.igId} since={since} until={until} />
+          <OrganicBlock accountId={client.igId} since={since} until={until} days={days} plan={client.total} />
         </>
       )}
     </Section>

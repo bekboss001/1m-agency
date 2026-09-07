@@ -52,14 +52,20 @@ export default async function handler(req, res) {
   if (!userRes.ok) return res.status(401).json({ error: 'Сессия недействительна' })
   const user = await userRes.json()
 
-  const profileRes = await fetch(
-    `${supabaseUrl}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(user.id)}`,
-    { headers: sbHeaders },
-  )
-  const [profile] = profileRes.ok ? await profileRes.json() : []
-  if (profile?.role !== 'admin') return res.status(403).json({ error: 'Недостаточно прав' })
-
   const action = req.body?.action
+
+  // Права проверяем не одинаково для всех действий. Перечисление аккаунтов —
+  // это обход всех бизнес-портфолио агентства, он остаётся за администратором.
+  // Статистику по одному аккаунту смотрит любой вошедший: её открывают из
+  // карточки клиента, в том числе сотрудники со своих телефонов.
+  if (action === 'accounts') {
+    const profileRes = await fetch(
+      `${supabaseUrl}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(user.id)}`,
+      { headers: sbHeaders },
+    )
+    const [profile] = profileRes.ok ? await profileRes.json() : []
+    if (profile?.role !== 'admin') return res.status(403).json({ error: 'Недостаточно прав' })
+  }
 
   /* ─────────────────────────── Список аккаунтов ─────────────────────────── */
 
@@ -228,6 +234,20 @@ export default async function handler(req, res) {
       const likes = posts.reduce((s, p) => s + (p.like_count || 0), 0)
       const comments = posts.reduce((s, p) => s + (p.comments_count || 0), 0)
 
+      // Разбивка по форматам: без неё нельзя ответить на главный вопрос
+      // контент-плана — что снимать больше, а что не окупает съёмку.
+      const byType = {}
+      for (const p of posts) {
+        const t = p.media_type || 'OTHER'
+        const b = byType[t] || (byType[t] = { count: 0, likes: 0, comments: 0 })
+        b.count++
+        b.likes += p.like_count || 0
+        b.comments += p.comments_count || 0
+      }
+      for (const b of Object.values(byType)) {
+        b.avgEngagement = Math.round((b.likes + b.comments) / b.count)
+      }
+
       const top = [...posts]
         .sort((a, b) => ((b.like_count || 0) + (b.comments_count || 0)) - ((a.like_count || 0) + (a.comments_count || 0)))
         .slice(0, 3)
@@ -254,6 +274,7 @@ export default async function handler(req, res) {
           avgLikes: posts.length ? Math.round(likes / posts.length) : 0,
           avgComments: posts.length ? Math.round((comments / posts.length) * 10) / 10 : 0,
           lastPost: media.out?.[0]?.timestamp.slice(0, 10) || null,
+          byType,
         },
         top,
       })
