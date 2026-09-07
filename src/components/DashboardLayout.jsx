@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useProfile } from '../lib/useProfile'
+import DesktopShell from '../desktop/DesktopShell'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
 
@@ -165,15 +166,28 @@ export default function DashboardLayout({ session }) {
     )
   }
 
+  // Десктоп получил свою оболочку с верхней панелью вместо бокового меню.
+  // Страница целиком не скроллится — скролл внутри каждого экрана, как в макете.
+  if (!isMobile) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', height: '100vh',
+        background: '#070707', color: '#ededed', overflow: 'hidden',
+      }}>
+        <DesktopShell session={session} />
+        <main style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          <Outlet />
+        </main>
+      </div>
+    )
+  }
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
-      {!isMobile && <Sidebar />}
-
-      <main style={{ flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: isMobile ? 80 : 0 }}>
+      <main style={{ flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: 80 }}>
         <Outlet />
       </main>
-
-      {isMobile && <TabBar />}
+      <TabBar />
     </div>
   )
 }
