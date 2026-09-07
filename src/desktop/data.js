@@ -281,6 +281,58 @@ export async function rejectUser(user) {
   return { error: null }
 }
 
+// Удаление одобренного пользователя — тот же delete по profiles, что и отказ
+// в заявке, поэтому и та же проверка на «база не разрешила».
+export async function deleteUser(user) {
+  const { data, error } = await supabase.from('profiles').delete().eq('id', user.id).select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) {
+    return { error: { message: 'База не разрешила удаление — нужны политики из db/profiles_admin_policies.sql' } }
+  }
+  await logAction(supabase, 'deleted', 'user', user.email || user.id)
+  return { error: null }
+}
+
+export async function saveRole(role) {
+  const row = { label: role.label, permissions: role.permissions }
+  const q = role.id
+    ? supabase.from('roles').update(row).eq('id', role.id)
+    : supabase.from('roles').insert({ ...row, name: role.name })
+
+  const { data, error } = await q.select('id, name, label, permissions')
+  if (error) return { data: null, error }
+  if (!data || data.length === 0) return { data: null, error: { message: 'База не разрешила изменение роли' } }
+  await logAction(supabase, role.id ? 'updated' : 'created', 'role', role.label || role.name)
+  return { data: data[0], error: null }
+}
+
+export async function deleteRole(role) {
+  const { data, error } = await supabase.from('roles').delete().eq('id', role.id).select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'База не разрешила удаление роли' } }
+  await logAction(supabase, 'deleted', 'role', role.label || role.name)
+  return { error: null }
+}
+
+export async function createEmployee({ name, email, role }) {
+  const { data, error } = await supabase
+    .from('employees')
+    .insert({ name, email: email || null, role })
+    .select('id, name, email, role')
+    .single()
+  if (error) return { data: null, error }
+  await logAction(supabase, 'created', 'employee', name)
+  return { data, error: null }
+}
+
+export async function deleteEmployee(emp) {
+  const { data, error } = await supabase.from('employees').delete().eq('id', emp.id).select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'База не разрешила удаление' } }
+  await logAction(supabase, 'deleted', 'employee', emp.name)
+  return { error: null }
+}
+
 export async function fetchAuditLog(limit = 80) {
   const { data, error } = await supabase
     .from('audit_logs')

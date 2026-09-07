@@ -7,6 +7,7 @@ import { Icon, LimeButton, Toggle, SectionCard } from './ui'
 import {
   fetchSettings, saveSetting, fetchRoles, fetchUsers, fetchRequests,
   setUserRole, approveUser, rejectUser, fetchAuditLog, fetchTeamLoad,
+  deleteUser, saveRole, deleteRole, createEmployee, deleteEmployee,
 } from './data'
 
 const TZ = [
@@ -115,8 +116,8 @@ export default function ScreenSettings() {
         )}
 
         {tab === 'general' && <General settings={settings} put={put} />}
-        {tab === 'team' && <Team team={team} />}
-        {tab === 'users' && <Users users={users} roles={roles} setUsers={setUsers} fail={fail} />}
+        {tab === 'team' && <Team team={team} setTeam={setTeam} fail={fail} />}
+        {tab === 'users' && <Users users={users} roles={roles} setUsers={setUsers} setRoles={setRoles} fail={fail} />}
         {tab === 'requests' && <Requests requests={requests} setRequests={setRequests} setUsers={setUsers} fail={fail} />}
         {tab === 'integrations' && <Integrations settings={settings} put={put} />}
         {tab === 'log' && <Log log={log} />}
@@ -181,10 +182,71 @@ function General({ settings, put }) {
 
 /* ────────────────────────────── Команда ─────────────────────────────── */
 
-function Team({ team }) {
+function Team({ team, setTeam, fail }) {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState({ name: '', email: '', role: 'smm' })
+
+  async function add(e) {
+    e.preventDefault()
+    if (!draft.name.trim()) return
+    const { data, error } = await createEmployee({ ...draft, name: draft.name.trim() })
+    if (error) { fail(error.message); return }
+    setTeam(t => ({ ...t, team: [...t.team, data] }))
+    setDraft({ name: '', email: '', role: 'smm' })
+    setAdding(false)
+  }
+
+  async function remove(emp) {
+    if (!window.confirm(
+      `Удалить сотрудника ${emp.name}?\n\n` +
+      `Съёмки и посты, где он назначен, сохранятся — поле исполнителя у них просто опустеет.`
+    )) return
+    const snapshot = team.team
+    setTeam(t => ({ ...t, team: t.team.filter(x => x.id !== emp.id) }))
+    const { error } = await deleteEmployee(emp)
+    if (error) { setTeam(t => ({ ...t, team: snapshot })); fail(error.message) }
+  }
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(276px, 1fr))', gap: 12 }}>
-      {team.team.map(e => {
+    <>
+      <div style={{ marginBottom: 12 }}>
+        {adding ? (
+          <form onSubmit={add} style={{
+            display: 'flex', gap: 8, alignItems: 'flex-end', padding: '16px 18px',
+            borderRadius: 14, background: D.card, boxShadow: `inset 0 0 0 1px ${D.b4}`,
+          }}>
+            <Field label="ИМЯ">
+              <input autoFocus value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} style={{ ...fieldStyle, width: 200 }} />
+            </Field>
+            <Field label="ПОЧТА">
+              <input
+                type="email" value={draft.email}
+                onChange={e => setDraft({ ...draft, email: e.target.value })}
+                placeholder="для связи с аккаунтом"
+                style={{ ...fieldStyle, width: 220 }}
+              />
+            </Field>
+            <Field label="РОЛЬ">
+              <select value={draft.role} onChange={e => setDraft({ ...draft, role: e.target.value })} style={{ ...fieldStyle, width: 150, cursor: 'pointer' }}>
+                <option value="smm">СММ</option>
+                <option value="operator">Оператор</option>
+              </select>
+            </Field>
+            <LimeButton type="submit" height={38}>Добавить</LimeButton>
+            <button
+              type="button" onClick={() => setAdding(false)}
+              style={{ height: 38, padding: '0 14px', borderRadius: 9, border: 'none', background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13 }}
+            >
+              Отмена
+            </button>
+          </form>
+        ) : (
+          <LimeButton onClick={() => setAdding(true)}>+ Сотрудник</LimeButton>
+        )}
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(276px, 1fr))', gap: 12 }}>
+        {team.team.map(e => {
         const l = team.load[e.id] || { clients: 0, posts: 0, shoots: 0 }
         const isSmm = e.role === 'smm'
         const initial = (e.name || '?').trim().charAt(0).toUpperCase()
@@ -215,6 +277,7 @@ function Team({ team }) {
               }}>
                 {(ROLE_LABEL[e.role] || e.role).toUpperCase()}
               </span>
+              <IconDelete onClick={() => remove(e)} title="Удалить сотрудника" />
             </div>
 
             <div style={{ display: 'flex', gap: 20, marginTop: 16 }}>
@@ -223,12 +286,13 @@ function Team({ team }) {
               <TeamMetric value={l.shoots} label="съёмок/мес" />
             </div>
           </div>
-        )
-      })}
-      {team.team.length === 0 && (
-        <div style={{ fontFamily: GROTESK, fontSize: 13, color: D.mut2 }}>Сотрудников пока нет.</div>
-      )}
-    </div>
+          )
+        })}
+        {team.team.length === 0 && (
+          <div style={{ fontFamily: GROTESK, fontSize: 13, color: D.mut2 }}>Сотрудников пока нет.</div>
+        )}
+      </div>
+    </>
   )
 }
 
@@ -243,15 +307,22 @@ function TeamMetric({ value, label }) {
 
 /* ───────────────────── Пользователи и права ─────────────────────────── */
 
-function Users({ users, roles, setUsers, fail }) {
-  const PAGES = [
-    ['Просмотр таблицы', 'dashboard'],
-    ['Клиенты', 'clients'],
-    ['Контент-план', 'content'],
-    ['Съёмки', 'shoots'],
-    ['Задачи', 'tasks'],
-    ['Настройки и права', 'settings'],
-  ]
+// Полный набор разделов, которые проверяются через can(). Старая страница
+// знала только шесть — «Таргет» и «Задачи» в ней настроить было нельзя.
+const PAGES = [
+  ['Дашборд / Таблица', 'dashboard'],
+  ['Клиенты', 'clients'],
+  ['Контент-план', 'content'],
+  ['Календарь', 'calendar'],
+  ['Съёмки', 'shoots'],
+  ['Таргет', 'target'],
+  ['Задачи', 'tasks'],
+  ['Настройки и права', 'settings'],
+]
+
+function Users({ users, roles, setUsers, setRoles, fail }) {
+  const [adding, setAdding] = useState(false)
+  const [draft, setDraft] = useState({ name: '', label: '' })
 
   const roleList = useMemo(
     () => (roles.length ? roles : Object.keys(ROLE_LABEL).map(n => ({ id: n, name: n, label: ROLE_LABEL[n], permissions: {} }))),
@@ -268,12 +339,58 @@ function Users({ users, roles, setUsers, fail }) {
     }
   }
 
+  async function removeUser(u) {
+    if (!window.confirm(
+      `Удалить пользователя ${u.email || ''}?\n\n` +
+      `Он потеряет доступ к приложению. Учётная запись останется в Supabase → Authentication, ` +
+      `и с той же почтой можно зарегистрироваться заново.`
+    )) return
+
+    const snapshot = users
+    setUsers(us => us.filter(x => x.id !== u.id))
+    const { error } = await deleteUser(u)
+    if (error) { setUsers(snapshot); fail(error.message) }
+  }
+
+  // Права правятся по клетке: снял галочку — сразу ушло в базу.
+  async function toggle(role, key) {
+    if (role.name === 'admin') return
+    const next = { ...(role.permissions || {}), [key]: !role.permissions?.[key] }
+    const prev = role.permissions
+    setRoles(rs => rs.map(r => (r.id === role.id ? { ...r, permissions: next } : r)))
+    const { error } = await saveRole({ ...role, permissions: next })
+    if (error) {
+      setRoles(rs => rs.map(r => (r.id === role.id ? { ...r, permissions: prev } : r)))
+      fail(error.message)
+    }
+  }
+
+  async function addRole(e) {
+    e.preventDefault()
+    const name = draft.name.trim().toLowerCase().replace(/\s+/g, '_')
+    if (!name || !draft.label.trim()) return
+    const { data, error } = await saveRole({ name, label: draft.label.trim(), permissions: {} })
+    if (error) { fail(error.message); return }
+    setRoles(rs => [...rs, data])
+    setDraft({ name: '', label: '' })
+    setAdding(false)
+  }
+
+  async function removeRole(role) {
+    if (role.name === 'admin') { fail('Роль администратора удалить нельзя'); return }
+    if (!window.confirm(`Удалить роль «${role.label || role.name}»?`)) return
+    const snapshot = roles
+    setRoles(rs => rs.filter(r => r.id !== role.id))
+    const { error } = await deleteRole(role)
+    if (error) { setRoles(snapshot); fail(error.message) }
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <SectionCard title="Пользователи" subtitle="Роль определяет, какие разделы человек видит.">
         {users.map((u, i) => (
           <div key={u.id} style={{
-            display: 'grid', gridTemplateColumns: '1fr 172px', gap: 12, alignItems: 'center',
+            display: 'grid', gridTemplateColumns: '1fr 172px 36px', gap: 12, alignItems: 'center',
             padding: '12px 0', boxShadow: i === users.length - 1 ? 'none' : `inset 0 -1px 0 ${D.b2}`,
           }}>
             <div style={{ minWidth: 0 }}>
@@ -289,42 +406,125 @@ function Users({ users, roles, setUsers, fail }) {
             >
               {roleList.map(r => <option key={r.name} value={r.name}>{r.label || ROLE_LABEL[r.name] || r.name}</option>)}
             </select>
+            <IconDelete onClick={() => removeUser(u)} title="Удалить пользователя" />
           </div>
         ))}
         {users.length === 0 && <div style={{ fontFamily: GROTESK, fontSize: 13, color: D.mut2 }}>Пользователей нет.</div>}
       </SectionCard>
 
-      <SectionCard title="Матрица прав" subtitle="Что видит каждая роль. Значения читаются из справочника ролей.">
-        <div style={{ display: 'grid', gridTemplateColumns: `1fr repeat(${roleList.length}, 100px)`, gap: 0 }}>
-          <div style={{ ...matrixHead, background: D.ctrl2, borderRadius: '8px 0 0 0' }}>Раздел</div>
-          {roleList.map((r, i) => (
-            <div key={r.name} style={{
-              ...matrixHead, background: D.ctrl2, textAlign: 'center',
-              borderRadius: i === roleList.length - 1 ? '0 8px 0 0' : 0,
-            }}>
-              {r.label || ROLE_LABEL[r.name] || r.name}
-            </div>
-          ))}
+      <SectionCard
+        title="Матрица прав"
+        subtitle="Клик по клетке включает или выключает раздел для роли. У администратора доступ ко всему и не редактируется."
+      >
+        <div style={{ overflowX: 'auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: `minmax(180px,1fr) repeat(${roleList.length}, 108px)`, minWidth: 'min-content' }}>
+            <div style={{ ...matrixHead, background: D.ctrl2, borderRadius: '8px 0 0 0' }}>Раздел</div>
+            {roleList.map((r, i) => (
+              <div key={r.name} style={{
+                ...matrixHead, background: D.ctrl2, textAlign: 'center',
+                borderRadius: i === roleList.length - 1 ? '0 8px 0 0' : 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {r.label || ROLE_LABEL[r.name] || r.name}
+                </span>
+                {r.name !== 'admin' && r.id && (
+                  <button
+                    onClick={() => removeRole(r)}
+                    title="Удалить роль"
+                    style={{ background: 'none', border: 'none', color: D.quiet, padding: 0, lineHeight: 1, cursor: 'pointer' }}
+                  >
+                    <Icon name="close" size={11} />
+                  </button>
+                )}
+              </div>
+            ))}
 
-          {PAGES.map(([label, key]) => (
-            <Fragment key={key}>
-              <div style={matrixCell}>{label}</div>
-              {roleList.map(r => {
-                // У админа доступ ко всему по определению, остальные роли
-                // читаются из справочника — матрица показывает реальные права,
-                // а не картинку из макета.
-                const ok = r.name === 'admin' || !!r.permissions?.[key]
-                return (
-                  <div key={r.name + key} style={{ ...matrixCell, textAlign: 'center', color: ok ? D.lime : D.off }}>
-                    {ok ? '✓' : '—'}
-                  </div>
-                )
-              })}
-            </Fragment>
-          ))}
+            {PAGES.map(([label, key]) => (
+              <Fragment key={key}>
+                <div style={matrixCell}>{label}</div>
+                {roleList.map(r => {
+                  const isAdmin = r.name === 'admin'
+                  const ok = isAdmin || !!r.permissions?.[key]
+                  return (
+                    <button
+                      key={r.name + key}
+                      onClick={() => toggle(r, key)}
+                      disabled={isAdmin}
+                      style={{
+                        ...matrixCell, textAlign: 'center', border: 'none', background: 'none',
+                        color: ok ? D.lime : D.off,
+                        cursor: isAdmin ? 'default' : 'pointer',
+                        fontSize: 14,
+                      }}
+                    >
+                      {ok ? '✓' : '—'}
+                    </button>
+                  )
+                })}
+              </Fragment>
+            ))}
+          </div>
         </div>
+
+        {adding ? (
+          <form onSubmit={addRole} style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 14 }}>
+            <Field label="НАЗВАНИЕ">
+              <input
+                autoFocus value={draft.label}
+                onChange={e => setDraft({ ...draft, label: e.target.value })}
+                placeholder="Наблюдатель" style={{ ...fieldStyle, width: 200 }}
+              />
+            </Field>
+            <Field label="КОД">
+              <input
+                value={draft.name}
+                onChange={e => setDraft({ ...draft, name: e.target.value })}
+                placeholder="viewer" style={{ ...fieldStyle, width: 160 }}
+              />
+            </Field>
+            <LimeButton type="submit" height={38}>Добавить</LimeButton>
+            <button
+              type="button"
+              onClick={() => setAdding(false)}
+              style={{ height: 38, padding: '0 14px', borderRadius: 9, border: 'none', background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13 }}
+            >
+              Отмена
+            </button>
+          </form>
+        ) : (
+          <button
+            onClick={() => setAdding(true)}
+            style={{
+              marginTop: 14, height: 36, padding: '0 14px', borderRadius: 9, border: 'none',
+              background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13,
+            }}
+          >
+            + Роль
+          </button>
+        )}
       </SectionCard>
     </div>
+  )
+}
+
+function IconDelete({ onClick, title }) {
+  const [h, setH] = useState(false)
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setH(true)}
+      onMouseLeave={() => setH(false)}
+      style={{
+        width: 30, height: 30, borderRadius: 8, border: 'none', flex: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: h ? D.errBg2 : 'transparent', color: h ? D.err : D.quiet,
+        transition: 'background 120ms ease, color 120ms ease',
+      }}
+    >
+      <Icon name="trash" size={14} stroke={1.7} />
+    </button>
   )
 }
 
