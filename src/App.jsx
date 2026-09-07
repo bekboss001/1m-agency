@@ -26,6 +26,7 @@ import MobileSettings from './mobile/MobileSettings'
 import MobileClientCard from './mobile/MobileClientCard'
 import ScreenTable from './desktop/ScreenTable'
 import ScreenPlan from './desktop/ScreenPlan'
+import ScreenShoots from './desktop/ScreenShoots'
 
 // Редизайн 1a пока только для телефонов: на широких экранах остаётся прежний
 // интерфейс, поэтому выбор делается здесь, а не внутри самих страниц —
@@ -77,7 +78,7 @@ export default function App() {
           <Route path="client/:id" element={<MobileClientCard />} />
           <Route path="clients"  element={<GuardedRoute perm="clients"><Responsive mobile={MobileClients} desktop={ClientsPage} /></GuardedRoute>} />
           <Route path="content"  element={<GuardedRoute perm="content"><Responsive mobile={MobileContent} desktop={ScreenPlan} /></GuardedRoute>} />
-          <Route path="shoots"   element={<GuardedRoute perm="shoots"><Responsive mobile={MobileShoots} desktop={ShootsPage} /></GuardedRoute>} />
+          <Route path="shoots"   element={<GuardedRoute perm="shoots"><Responsive mobile={MobileShoots} desktop={ScreenShoots} /></GuardedRoute>} />
           <Route path="target"   element={<GuardedRoute adminOnly><Responsive mobile={MobileTarget} desktop={TargetPage} /></GuardedRoute>} />
           <Route path="calendar" element={<GuardedRoute perm="calendar"><CalendarPage /></GuardedRoute>} />
           <Route path="tasks"    element={<GuardedRoute perm="tasks"><Responsive mobile={MobileTasks} desktop={TasksPage} /></GuardedRoute>} />
