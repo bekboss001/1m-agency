@@ -9,7 +9,7 @@ import { logAction } from '../lib/auditLog'
 import { ymd, parseYmd } from '../lib/tz'
 import { weekDays, todayDate, addDays } from './todayTasks'
 import {
-  T, SANS, OSW, mono, useToast, Toast, Sheet, WeekStrip, Fab, EmptyState,
+  T, SANS, OSW, MONO, mono, useToast, Toast, Sheet, WeekStrip, Fab, EmptyState,
 } from './ui'
 
 const MONTHS = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
@@ -40,6 +40,8 @@ export default function MobileShoots() {
   const [creating, setCreating] = useState(false)
   const [selected, setSelected] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exportScope, setExportScope] = useState('day')
   const [form, setForm] = useState({ client_id: '', operator_id: '', time_start: '', location: '' })
 
   const isClient = profile?.role === 'client'
@@ -108,6 +110,44 @@ export default function MobileShoots() {
     flash('СЪЁМКА УДАЛЕНА')
   }
 
+  // Расписание для отправки в телеграм. Подчёркивания вокруг строк — разметка
+  // курсива: клиенты телеграма превращают её в наклонный текст при отправке.
+  function scheduleText(scope) {
+    const dayText = date => {
+      const list = shoots
+        .filter(s => s.shoot_date === date)
+        .sort((a, b) => (a.time_start || '').localeCompare(b.time_start || ''))
+      if (list.length === 0) return null
+
+      return list.map(s => [
+        `${(s.time_start || '').slice(0, 5) || '—'} ${s.client?.name || 'Без клиента'}`,
+        `_Оператор: ${s.operator?.name || 'не назначен'}_`,
+        s.location ? `_Локация: ${s.location}_` : null,
+      ].filter(Boolean).join('\n')).join('\n\n')
+    }
+
+    const head = d => `${d.getDate()} ${MONTHS_GEN[d.getMonth()]} · ${DOW_FULL[d.getDay()]}`
+
+    if (scope === 'day') {
+      const body = dayText(pickedKey)
+      return `${head(picked)}\n\n${body || 'Съёмок нет'}`
+    }
+
+    const blocks = days
+      .map(day => ({ day, body: dayText(ymd(day.date)) }))
+      .filter(x => x.body)
+
+    if (blocks.length === 0) return 'На этой неделе съёмок нет'
+    return blocks.map(({ day, body }) => `${head(day.date)}\n\n${body}`).join('\n\n———\n\n')
+  }
+
+  function copySchedule() {
+    navigator.clipboard?.writeText(scheduleText(exportScope)).then(
+      () => flash('СКОПИРОВАНО'),
+      () => flash('НЕ УДАЛОСЬ СКОПИРОВАТЬ'),
+    )
+  }
+
   async function createShoot(e) {
     e.preventDefault()
     if (!form.client_id) return
@@ -173,8 +213,16 @@ export default function MobileShoots() {
           </div>
         </div>
 
-        <div style={{ color: T.muted, ...mono(600, 10.5, '.14em') }}>
-          {d.getDate()} {MONTHS_GEN[d.getMonth()]} · {DOW_FULL[d.getDay()]}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <span style={{ color: T.muted, ...mono(600, 10.5, '.14em') }}>
+            {d.getDate()} {MONTHS_GEN[d.getMonth()]} · {DOW_FULL[d.getDay()]}
+          </span>
+          <button
+            onClick={() => { setExportScope('day'); setExportOpen(true) }}
+            style={{ background: 'none', border: 'none', color: T.accent, padding: '4px 0', ...mono(500, 11, '.06em') }}
+          >
+            ЭКСПОРТ
+          </button>
         </div>
 
         {loading ? (
@@ -251,6 +299,49 @@ export default function MobileShoots() {
       </div>
 
       {!isClient && <Fab label="+ СЪЁМКА" onClick={() => setCreating(true)} />}
+
+      <Sheet open={exportOpen} title="Расписание" onClose={() => setExportOpen(false)}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[['day', 'ЭТОТ ДЕНЬ'], ['week', 'ВСЯ НЕДЕЛЯ']].map(([id, label]) => (
+              <button
+                key={id}
+                onClick={() => setExportScope(id)}
+                style={{
+                  flex: 1, minHeight: 40, borderRadius: 11, border: 'none',
+                  background: exportScope === id ? '#fff' : T.surface2,
+                  color: exportScope === id ? T.onAccent : 'rgba(255,255,255,.6)',
+                  ...mono(600, 10.5, '.06em'),
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <pre style={{
+            margin: 0, padding: 14, borderRadius: 12, maxHeight: '42dvh', overflow: 'auto',
+            background: T.surface2, border: `1px solid ${T.hair}`, color: T.text,
+            font: `500 12px/1.6 ${MONO}`, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          }}>
+            {scheduleText(exportScope)}
+          </pre>
+
+          <div style={{ font: `400 11px/1.5 ${SANS}`, color: 'rgba(255,255,255,.3)' }}>
+            Подчёркивания вокруг строк телеграм превратит в курсив при отправке.
+          </div>
+
+          <button
+            onClick={copySchedule}
+            style={{
+              minHeight: 48, borderRadius: 13, border: 'none',
+              background: T.accent, color: T.onAccent, ...mono(700, 12, '.06em'),
+            }}
+          >
+            СКОПИРОВАТЬ
+          </button>
+        </div>
+      </Sheet>
 
       {/* Карточка съёмки: подтверждение, отметка «снято» и удаление —
           съёмку легко поставить по ошибке, откатить это должно быть можно. */}
