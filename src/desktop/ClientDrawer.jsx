@@ -8,7 +8,10 @@ import { useState, useEffect } from 'react'
 import { today, parseYmd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, LimeButton } from './ui'
-import { fetchClientMonths, rollClientMonth, archiveClient } from './data'
+import {
+  fetchClientMonths, rollClientMonth, archiveClient,
+  fetchInstagramAccounts, refreshInstagramAccounts, fetchInstagramStats,
+} from './data'
 
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 
@@ -183,6 +186,8 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
             </Row>
           </Section>
 
+          <InstagramBlock client={client} onPatch={onPatch} onError={setErr} />
+
           {/* История месяцев */}
           <Section title="История месяцев">
             {months.length === 0 ? (
@@ -240,6 +245,124 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
         </div>
       </aside>
     </div>
+  )
+}
+
+// Период плана привязан ко дню окончания договора, как и в контент-плане:
+// договор до 15 числа означает месяц с 15-го по 15-е.
+function planPeriod(endIso) {
+  const anchor = endIso ? parseYmd(endIso).getDate() : 1
+  const t = parseYmd(today())
+  const at = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()))
+  let end = at(t.getFullYear(), t.getMonth(), anchor)
+  if (t >= end) end = at(t.getFullYear(), t.getMonth() + 1, anchor)
+  const start = at(end.getFullYear(), end.getMonth() - 1, anchor)
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return { since: iso(start), until: iso(t) }
+}
+
+function InstagramBlock({ client, onPatch, onError }) {
+  const [accounts, setAccounts] = useState([])
+  const [busy, setBusy] = useState(null)
+  const [result, setResult] = useState(null)
+
+  useEffect(() => {
+    fetchInstagramAccounts().then(({ data }) => setAccounts(data))
+  }, [])
+
+  async function refreshList() {
+    setBusy('list')
+    setResult(null)
+    const { data, error } = await refreshInstagramAccounts()
+    setBusy(null)
+    if (error) { onError(error.message); return }
+    setAccounts(data)
+  }
+
+  // Считаем ленту за текущий период плана и переносим в карточку: и счётчик
+  // выпущенных, и дату последней публикации.
+  async function pull() {
+    if (!client.igId) return
+    setBusy('stats')
+    setResult(null)
+    const { since, until } = planPeriod(client.end)
+    const { data, error } = await fetchInstagramStats(client.igId, since, until)
+    setBusy(null)
+    if (error) { onError(error.message); return }
+
+    onPatch(client.id, { done: data.count, ...(data.lastPost ? { out: data.lastPost } : {}) })
+    setResult({ ...data, since, until })
+  }
+
+  const picked = accounts.find(a => a.id === client.igId)
+
+  return (
+    <Section
+      title="Instagram"
+      subtitle="Подтягивает выпущенные посты и дату последней публикации. Считается лента: посты, карусели и reels. Сторис в неё не входят."
+    >
+      <Row label="АККАУНТ">
+        <select
+          value={client.igId || ''}
+          onChange={e => {
+            const a = accounts.find(x => x.id === e.target.value)
+            onPatch(client.id, { igId: e.target.value, igUsername: a ? a.username : '' })
+            setResult(null)
+          }}
+          style={field}
+        >
+          <option value="">Не привязан</option>
+          {accounts.map(a => (
+            <option key={a.id} value={a.id}>
+              @{a.username}{a.page_name ? ` — ${a.page_name}` : ''}
+            </option>
+          ))}
+        </select>
+      </Row>
+
+      {accounts.length === 0 && (
+        <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.5 }}>
+          Список аккаунтов пуст. Нажмите «Обновить список» — это обход всех бизнес-портфолио,
+          занимает пару минут, но делается один раз и сохраняется.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          onClick={refreshList}
+          disabled={busy !== null}
+          style={{
+            flex: 1, height: 38, borderRadius: 9, border: 'none',
+            background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13,
+            opacity: busy ? 0.5 : 1,
+          }}
+        >
+          {busy === 'list' ? 'Обходим портфолио…' : 'Обновить список'}
+        </button>
+        <LimeButton onClick={pull} disabled={!client.igId || busy !== null} height={38} style={{ flex: 1 }}>
+          {busy === 'stats' ? 'Считаем…' : 'Подтянуть из Instagram'}
+        </LimeButton>
+      </div>
+
+      {picked && (
+        <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2 }}>
+          Привязан @{picked.username}
+          {picked.business_name ? ` · портфолио ${picked.business_name}` : ''}
+        </div>
+      )}
+
+      {result && (
+        <div style={{
+          borderRadius: 9, background: D.limeBg, padding: '10px 12px',
+          fontFamily: GROTESK, fontSize: 12, color: D.lime, lineHeight: 1.6,
+        }}>
+          За {result.since.slice(8, 10)}.{result.since.slice(5, 7)} — {result.until.slice(8, 10)}.{result.until.slice(5, 7)}:{' '}
+          <b>{result.count}</b> публикаций
+          {' '}({result.byType.image} фото, {result.byType.video} видео, {result.byType.carousel} каруселей)
+          {result.lastPost ? `. Последняя — ${result.lastPost.slice(8, 10)}.${result.lastPost.slice(5, 7)}` : ''}
+        </div>
+      )}
+    </Section>
   )
 }
 

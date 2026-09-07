@@ -16,7 +16,7 @@ import { logAction } from '../lib/auditLog'
 export async function fetchClients() {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id')
+    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username')
     .eq('is_active', true)
     .order('number')
 
@@ -34,6 +34,8 @@ export async function fetchClients() {
       smmId: c.smm_id || '',
       operatorId: c.operator_id || '',
       metaId: c.meta_account_id || '',
+      igId: c.instagram_account_id || '',
+      igUsername: c.instagram_username || '',
     })),
     error: null,
   }
@@ -49,6 +51,8 @@ const CLIENT_FIELDS = {
   name: 'name',
   color: 'color',
   metaId: 'meta_account_id',
+  igId: 'instagram_account_id',
+  igUsername: 'instagram_username',
 }
 
 export async function patchClient(id, patch) {
@@ -194,6 +198,48 @@ export async function createPost(payload) {
 export async function deletePost(id) {
   const { error } = await supabase.from('posts').delete().eq('id', id)
   return { error }
+}
+
+/* ───────────────────────────── Instagram ─────────────────────────────── */
+
+async function callInstagram(body) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { data: null, error: { message: 'Сессия истекла — войдите заново' } }
+
+  const res = await fetch('/api/instagram', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(body),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) return { data: null, error: { message: data.error || 'Ошибка Instagram API' } }
+  return { data, error: null }
+}
+
+export async function fetchInstagramAccounts() {
+  const { data, error } = await supabase
+    .from('instagram_accounts')
+    .select('id, username, page_name, business_name, updated_at')
+    .order('username')
+  return { data: data || [], error }
+}
+
+// Обход 97 портфолио занимает около двух минут, поэтому список складывается
+// в таблицу и потом читается оттуда мгновенно.
+export async function refreshInstagramAccounts() {
+  const { data, error } = await callInstagram({ action: 'accounts' })
+  if (error) return { data: null, error }
+
+  const rows = (data.accounts || []).map(a => ({ ...a, updated_at: new Date().toISOString() }))
+  if (rows.length) {
+    const { error: upErr } = await supabase.from('instagram_accounts').upsert(rows, { onConflict: 'id' })
+    if (upErr) return { data: null, error: upErr }
+  }
+  return { data: rows, error: null }
+}
+
+export async function fetchInstagramStats(accountId, since, until) {
+  return callInstagram({ action: 'stats', accountId, since, until })
 }
 
 /* ────────────────────────────── Настройки ────────────────────────────── */
