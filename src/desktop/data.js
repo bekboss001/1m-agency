@@ -9,6 +9,7 @@
 
 import { supabase } from '../lib/supabase'
 import { logAction } from '../lib/auditLog'
+import { today } from '../lib/tz'
 
 /* ─────────────────────────────── Клиенты ─────────────────────────────── */
 
@@ -240,6 +241,35 @@ export async function refreshInstagramAccounts() {
 
 export async function fetchInstagramStats(accountId, since, until) {
   return callInstagram({ action: 'stats', accountId, since, until })
+}
+
+export async function fetchInstagramAnalytics(accountId, since, until) {
+  return callInstagram({ action: 'analytics', accountId, since, until })
+}
+
+// Замер профиля на сегодня. Meta истории не хранит, поэтому рост подписчиков
+// можно получить только собственными ежедневными замерами.
+export async function saveInstagramSnapshot(accountId, followers, mediaCount) {
+  // День берём по Астане, как везде в приложении: иначе вечерние замеры
+  // ложились бы в UTC-дату и путали график.
+  const takenOn = today()
+  const { error } = await supabase
+    .from('instagram_snapshots')
+    .upsert(
+      { account_id: accountId, taken_on: takenOn, followers, media_count: mediaCount },
+      { onConflict: 'account_id,taken_on' },
+    )
+  return { error }
+}
+
+export async function fetchInstagramSnapshots(accountId, limit = 60) {
+  const { data, error } = await supabase
+    .from('instagram_snapshots')
+    .select('taken_on, followers')
+    .eq('account_id', accountId)
+    .order('taken_on', { ascending: false })
+    .limit(limit)
+  return { data: (data || []).reverse(), error }
 }
 
 /* ────────────────────────────── Настройки ────────────────────────────── */

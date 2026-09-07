@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react'
 import { today, parseYmd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, LimeButton } from './ui'
+import OrganicBlock from './OrganicBlock'
 import {
   fetchClientMonths, rollClientMonth, archiveClient,
   fetchInstagramAccounts, refreshInstagramAccounts, fetchInstagramStats,
@@ -188,6 +189,8 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
 
           <InstagramBlock client={client} onPatch={onPatch} onError={setErr} />
 
+          <StatsSection client={client} />
+
           {/* История месяцев */}
           <Section title="История месяцев">
             {months.length === 0 ? (
@@ -361,6 +364,69 @@ function InstagramBlock({ client, onPatch, onError }) {
           {' '}({result.byType.image} фото, {result.byType.video} видео, {result.byType.carousel} каруселей)
           {result.lastPost ? `. Последняя — ${result.lastPost.slice(8, 10)}.${result.lastPost.slice(5, 7)}` : ''}
         </div>
+      )}
+    </Section>
+  )
+}
+
+// Статистика грузится по кнопке, а не при открытии панели: это обход ленты в
+// Graph API, он занимает секунды, и платить ими каждый раз, когда карточку
+// открыли ради даты выкладки, незачем.
+const PERIODS = [
+  { key: 7, label: '7 дней' },
+  { key: 14, label: '14 дней' },
+  { key: 30, label: '30 дней' },
+]
+
+function StatsSection({ client }) {
+  const [open, setOpen] = useState(false)
+  const [days, setDays] = useState(30)
+
+  // Смена клиента не должна оставлять раскрытым блок с чужими цифрами.
+  useEffect(() => { setOpen(false) }, [client.id])
+
+  if (!client.igId) return null
+
+  const until = today()
+  const u = parseYmd(until)
+  const s = new Date(u.getFullYear(), u.getMonth(), u.getDate() - days + 1)
+  const since = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`
+
+  return (
+    <Section
+      title="Статистика"
+      subtitle={`Данные Instagram за выбранный период. Подписчики снимаются раз в день — график роста появится, когда накопится несколько замеров.`}
+    >
+      {!open ? (
+        <button
+          onClick={() => setOpen(true)}
+          style={{
+            width: '100%', height: 38, borderRadius: 9, border: 'none',
+            background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13,
+          }}
+        >
+          Показать статистику @{client.igUsername || '…'}
+        </button>
+      ) : (
+        <>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {PERIODS.map(p => (
+              <button
+                key={p.key}
+                onClick={() => setDays(p.key)}
+                style={{
+                  flex: 1, height: 32, borderRadius: 8, border: 'none',
+                  background: days === p.key ? D.lime : D.input3,
+                  color: days === p.key ? '#0b0b0b' : D.t4,
+                  fontFamily: GROTESK, fontWeight: days === p.key ? 700 : 400, fontSize: 12.5,
+                }}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          <OrganicBlock accountId={client.igId} since={since} until={until} />
+        </>
       )}
     </Section>
   )

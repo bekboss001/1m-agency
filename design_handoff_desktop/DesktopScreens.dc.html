@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Archivo:wght@600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; }
+  * { box-sizing: border-box; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: #232323; border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  a { color: #cdfa50; text-decoration: none; }
+  a:hover { color: #e2ff8f; }
+  input, select, button { font-family: inherit; }
+  input[type="date"]::-webkit-calendar-picker-indicator, input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1) opacity(0.35); cursor: pointer; }
+  select { -webkit-appearance: none; appearance: none; }
+</style>
+</helmet>
+<div style="height: 100%; display: flex; flex-direction: column; overflow: hidden; background: #070707; color: #ededed; font-family: 'Space Grotesk', system-ui, sans-serif; font-size: 13px;">
+
+  <sc-if value="{{ isTable }}" hint-placeholder-val="{{ true }}">
+    <section data-screen-label="Таблица" style="display: flex; flex-direction: column; height: 100%; overflow: hidden;">
+      <sc-if value="{{ showTitle }}" hint-placeholder-val="{{ true }}">
+        <div style="padding: 22px 26px 0; display: flex; align-items: flex-end; gap: 16px;">
+          <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 800; font-size: 26px; letter-spacing: -0.02em;">Клиенты</h1>
+          <div style="font-size: 12px; color: #8f8f8f; padding-bottom: 4px;">{{ tableSub }}</div>
+        </div>
+      </sc-if>
+      <div style="padding: 18px 26px 14px; display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 9px; background: #111111;">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#6b6b6b" stroke-width="1.9"><circle cx="9" cy="9" r="5.5" /><path d="M13.2 13.2L17 17" /></svg>
+          <input value="{{ query }}" onChange="{{ onQuery }}" placeholder="Поиск" style="border: 0; background: transparent; color: #ededed; outline: none; width: 128px; font-size: 13px;" />
+        </div>
+        <div style="width: 1px; height: 22px; background: #1e1e1e; margin: 0 4px;"></div>
+        <button onClick="{{ setAllRows }}" style="{{ rowsAllStyle }}">Все<span style="opacity: 0.5; margin-left: 6px;">{{ cAll }}</span></button>
+        <button onClick="{{ setOpenRows }}" style="{{ rowsOpenStyle }}">Есть остаток<span style="opacity: 0.5; margin-left: 6px;">{{ cOpen }}</span></button>
+        <button onClick="{{ setSoonRows }}" style="{{ rowsSoonStyle }}">Договор истекает<span style="opacity: 0.5; margin-left: 6px;">{{ cSoon }}</span></button>
+        <select value="{{ smmFilter }}" onChange="{{ onSmm }}" style="height: 36px; padding: 0 28px 0 12px; border-radius: 9px; border: 0; background: #111111 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 fill=%22%23777%22><path d=%22M0 3l5 5 5-5z%22/></svg>') no-repeat right 10px center; color: #d8d8d8; font-size: 13px; cursor: pointer;">
+          <option value="all">СММ: все</option>
+          <option value="Аида">Аида</option>
+          <option value="Anastassiya">Anastassiya</option>
+          <option value="—">Не назначен</option>
+        </select>
+        <select value="{{ opFilter }}" onChange="{{ onOp }}" style="height: 36px; padding: 0 28px 0 12px; border-radius: 9px; border: 0; background: #111111 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 fill=%22%23777%22><path d=%22M0 3l5 5 5-5z%22/></svg>') no-repeat right 10px center; color: #d8d8d8; font-size: 13px; cursor: pointer;">
+          <option value="all">Оператор: все</option>
+          <option value="Tester">Tester</option>
+          <option value="Jake">Jake</option>
+          <option value="Aruzhan">Aruzhan</option>
+          <option value="Beksultan">Beksultan</option>
+          <option value="—">Не назначен</option>
+        </select>
+        <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+          <div style="display: flex; align-items: baseline; gap: 6px; padding: 0 12px;">
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 17px;">{{ totalDone }}</span>
+            <span style="font-size: 11px; color: #8f8f8f;">выпущено</span>
+            <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 17px; color: #f5c542; margin-left: 8px;">{{ totalLeft }}</span>
+            <span style="font-size: 11px; color: #8f8f8f;">осталось</span>
+          </div>
+          <button onClick="{{ addClient }}" style="height: 36px; padding: 0 16px; border: 0; border-radius: 9px; background: #cdfa50; color: #0a0a0a; font-weight: 700; font-size: 13px; cursor: pointer;">+ Клиент</button>
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding: 0 26px 26px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(292px, 1fr)); gap: 12px;">
+          <sc-for list="{{ cards }}" as="c" hint-placeholder-count="12">
+            <div style="border-radius: 14px; background: #0e0e0e; padding: 14px 15px 13px; display: flex; flex-direction: column; gap: 12px; box-shadow: inset 0 0 0 1px #1a1a1a, inset 3px 0 0 0 {{ c.color }};" style-hover="background: #121212;">
+              <div style="display: flex; align-items: center; gap: 9px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 15.5px; letter-spacing: -0.01em; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ c.name }}</span>
+                <span style="{{ c.flagStyle }}">{{ c.flag }}</span>
+              </div>
+
+              <div style="display: flex; align-items: flex-end; gap: 12px;">
+                <div style="display: flex; align-items: baseline; gap: 3px;">
+                  <span style="font-family: Archivo, sans-serif; font-weight: 900; font-size: 34px; line-height: 0.9; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: {{ c.doneColor }};">{{ c.done }}</span>
+                  <span style="font-family: Archivo, sans-serif; font-weight: 700; font-size: 15px; color: #5c5c5c;">/{{ c.total }}</span>
+                </div>
+                <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 3px; padding-bottom: 3px;">
+                  <sc-for list="{{ c.pips }}" as="p" hint-placeholder-count="12">
+                    <button onClick="{{ p.onClick }}" title="{{ p.title }}" style="{{ p.style }}"></button>
+                  </sc-for>
+                </div>
+                <button onClick="{{ c.inc }}" style="width: 30px; height: 30px; flex: 0 0 30px; border-radius: 9px; border: 0; background: #cdfa50; color: #0a0a0a; font-size: 17px; font-weight: 700; line-height: 1; cursor: pointer; display: grid; place-items: center;" style-hover="background: #dcff74;">+</button>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="flex: 1; display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 4px 0 10px; border-radius: 9px; background: #151515;">
+                  <svg width="12" height="12" viewBox="0 0 20 20" fill="none" stroke="#6b6b6b" stroke-width="1.8"><rect x="3" y="4.5" width="14" height="12" rx="2" /><path d="M3 8.5h14M7 3v3M13 3v3" /></svg>
+                  <input type="date" value="{{ c.outISO }}" onChange="{{ c.onDate }}" style="flex: 1; min-width: 0; border: 0; background: transparent; color: #ededed; font-size: 12.5px; outline: none; cursor: pointer;" />
+                  <span style="font-size: 10.5px; color: {{ c.outColor }}; white-space: nowrap; padding-right: 6px;">{{ c.outAgo }}</span>
+                </div>
+                <button onClick="{{ c.today }}" style="height: 32px; padding: 0 11px; border-radius: 9px; border: 0; background: #1a2010; color: #cdfa50; font-size: 11.5px; font-weight: 700; cursor: pointer; white-space: nowrap;" style-hover="background: #223016;">Сегодня</button>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 8px; padding-top: 11px; box-shadow: inset 0 1px 0 #191919;">
+                <select value="{{ c.smm }}" onChange="{{ c.onSmm }}" style="height: 26px; padding: 0 20px 0 8px; border-radius: 7px; border: 0; background: #151515 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 7px center; color: {{ c.smmColor }}; font-size: 11.5px; cursor: pointer; flex: 1 1 0; min-width: 0; text-overflow: ellipsis;">
+                  <option value="Аида">Аида</option>
+                  <option value="Anastassiya">Anastassiya</option>
+                  <option value="—">Нет СММ</option>
+                </select>
+                <select value="{{ c.operator }}" onChange="{{ c.onOperator }}" style="height: 26px; padding: 0 20px 0 8px; border-radius: 7px; border: 0; background: #151515 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 7px center; color: {{ c.opColor }}; font-size: 11.5px; cursor: pointer; flex: 1 1 0; min-width: 0; text-overflow: ellipsis;">
+                  <option value="Tester">Tester</option>
+                  <option value="Jake">Jake</option>
+                  <option value="Aruzhan">Aruzhan</option>
+                  <option value="Beksultan">Beksultan</option>
+                  <option value="—">Нет опер.</option>
+                </select>
+                <span style="flex: 0 0 auto; font-size: 11px; color: {{ c.daysColor }}; white-space: nowrap;">{{ c.endLabel }}</span>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isPlan }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Контент-план" style="display: flex; height: 100%; overflow: hidden;">
+      <div style="width: 210px; flex: 0 0 210px; background: #0a0a0a; display: flex; flex-direction: column; overflow: hidden; box-shadow: inset -1px 0 0 #171717;">
+        <div style="padding: 18px 16px 10px; font-size: 9.5px; letter-spacing: 0.2em; color: #8f8f8f;">КЛИЕНТЫ</div>
+        <div style="flex: 1; overflow-y: auto; padding: 0 8px 14px; display: flex; flex-direction: column; gap: 1px;">
+          <sc-for list="{{ clientChips }}" as="chip" hint-placeholder-count="12">
+            <button onClick="{{ chip.onClick }}" style="{{ chip.style }}">
+              <span style="width: 3px; height: 16px; border-radius: 2px; flex: 0 0 3px; background: {{ chip.bar }};"></span>
+              <span style="flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ chip.name }}</span>
+              <span style="font-size: 11px; color: #8f8f8f; font-variant-numeric: tabular-nums;">{{ chip.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="padding: 20px 26px 16px; display: flex; align-items: center; gap: 16px;">
+          <div style="flex: 1; min-width: 0;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.02em;">{{ planClientName }}</h1>
+            <div style="margin-top: 4px; font-size: 12px; color: #8f8f8f;">{{ planSub }}</div>
+          </div>
+          <div style="display: flex; gap: 14px; padding-right: 6px;">
+            <sc-for list="{{ planStats }}" as="stat" hint-placeholder-count="4">
+              <div style="display: flex; flex-direction: column; gap: 1px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 18px; color: {{ stat.color }};">{{ stat.value }}</span>
+                <span style="font-size: 10.5px; color: #8f8f8f;">{{ stat.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+          <button onClick="{{ addPost }}" style="height: 36px; padding: 0 16px; border: 0; border-radius: 9px; background: #cdfa50; color: #0a0a0a; font-weight: 700; font-size: 13px; cursor: pointer;">+ Пост</button>
+        </div>
+
+        <div style="flex: 1; overflow-y: auto; padding: 0 26px 26px;">
+          <div style="display: grid; grid-template-columns: 34px minmax(0, 1fr) 148px 150px 152px 36px; align-items: center; padding: 0 6px 8px;">
+            <div style="font-size: 9.5px; letter-spacing: 0.16em; color: #8f8f8f;">№</div>
+            <div style="padding-left: 10px; font-size: 9.5px; letter-spacing: 0.16em; color: #8f8f8f;">ТЕМА</div>
+            <div style="padding-left: 10px; font-size: 9.5px; letter-spacing: 0.16em; color: #8f8f8f;">ТИП</div>
+            <div style="padding-left: 10px; font-size: 9.5px; letter-spacing: 0.16em; color: #8f8f8f;">ДАТА ПУБЛИКАЦИИ</div>
+            <div style="padding-left: 10px; font-size: 9.5px; letter-spacing: 0.16em; color: #8f8f8f;">СТАТУС</div>
+            <div></div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <sc-for list="{{ planRows }}" as="post" hint-placeholder-count="6">
+              <div style="display: grid; grid-template-columns: 34px minmax(0, 1fr) 148px 150px 152px 36px; align-items: center; height: 48px; border-radius: 11px; background: #0e0e0e; padding: 0 6px;" style-hover="background: #131313;">
+                <div style="text-align: center; font-size: 11.5px; color: #7c7c7c; font-variant-numeric: tabular-nums;">{{ post.num }}</div>
+                <div style="padding: 0 4px;">
+                  <input value="{{ post.theme }}" onChange="{{ post.onTheme }}" placeholder="Тема публикации" style="width: 100%; height: 34px; padding: 0 8px; border-radius: 8px; border: 0; background: transparent; color: #ededed; font-size: 13.5px; font-weight: 500; outline: none;" style-hover="background: #191919;" style-focus="background: #191919; box-shadow: inset 0 0 0 1px #cdfa50;" />
+                </div>
+                <div style="padding: 0 4px;">
+                  <select value="{{ post.type }}" onChange="{{ post.onType }}" style="width: 100%; height: 30px; padding: 0 22px 0 9px; border-radius: 8px; border: 0; background: #171717 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 8px center; color: #d8d8d8; font-size: 12.5px; cursor: pointer;">
+                    <option value="Reels">Reels</option>
+                    <option value="Пост">Пост</option>
+                    <option value="Карусель">Карусель</option>
+                    <option value="Stories">Stories</option>
+                    <option value="Motion">Motion</option>
+                  </select>
+                </div>
+                <div style="padding: 0 4px; display: flex; align-items: center; gap: 7px;">
+                  <input type="date" value="{{ post.dateISO }}" onChange="{{ post.onDate }}" style="width: 108px; height: 30px; padding: 0 8px; border-radius: 8px; border: 0; background: #171717; color: #ededed; font-size: 12.5px; outline: none; cursor: pointer;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+                  <span style="font-size: 10.5px; color: {{ post.dueColor }}; white-space: nowrap;">{{ post.dueLabel }}</span>
+                </div>
+                <div style="padding: 0 4px;">
+                  <select value="{{ post.status }}" onChange="{{ post.onStatus }}" style="width: 100%; height: 30px; padding: 0 22px 0 9px; border-radius: 8px; border: 0; font-size: 12.5px; cursor: pointer; font-weight: 700; background: {{ post.statusBg }} url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 8px center; color: {{ post.statusColor }};">
+                    <option value="Идея">Идея</option>
+                    <option value="В работе">В работе</option>
+                    <option value="На проверке">На проверке</option>
+                    <option value="Готово">Готово</option>
+                    <option value="Опубликовано">Опубликовано</option>
+                  </select>
+                </div>
+                <div style="display: grid; place-items: center;">
+                  <button onClick="{{ post.remove }}" style="width: 26px; height: 26px; border-radius: 7px; border: 0; background: transparent; color: #7c7c7c; cursor: pointer; font-size: 14px; line-height: 1;" style-hover="background: #2a1614; color: #ff5a45;">×</button>
+                </div>
+              </div>
+            </sc-for>
+            <button onClick="{{ addPost }}" style="height: 44px; border: 0; border-radius: 11px; background: #0c0c0c; color: #8f8f8f; font-size: 13px; text-align: left; padding-left: 44px; cursor: pointer; box-shadow: inset 0 0 0 1px #171717;" style-hover="color: #cdfa50; background: #111111;">+ Новая строка</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isShoots }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Съёмки" style="display: flex; height: 100%; overflow: hidden;">
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden;">
+        <div style="padding: 20px 24px 14px; display: flex; align-items: center; gap: 16px;">
+          <div style="flex: 1; min-width: 0;">
+            <h1 style="margin: 0; font-family: Archivo, sans-serif; font-weight: 800; font-size: 24px; letter-spacing: -0.02em;">Сентябрь 2026</h1>
+            <div style="margin-top: 4px; font-size: 12px; color: #8f8f8f;">{{ shootSub }}</div>
+          </div>
+          <div style="display: flex; gap: 16px;">
+            <sc-for list="{{ shootStats }}" as="s" hint-placeholder-count="3">
+              <div style="display: flex; flex-direction: column; gap: 1px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 18px; color: {{ s.color }};">{{ s.value }}</span>
+                <span style="font-size: 10.5px; color: #8f8f8f;">{{ s.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex: 1; padding: 0 24px 24px; display: flex; flex-direction: column; min-height: 0;">
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); padding-bottom: 8px;">
+            <sc-for list="{{ weekDays }}" as="w" hint-placeholder-count="7">
+              <div style="padding-left: 4px; font-size: 9.5px; letter-spacing: 0.18em; color: {{ w.color }};">{{ w.label }}</div>
+            </sc-for>
+          </div>
+          <div style="flex: 1; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: repeat(5, minmax(0, 1fr)); gap: 4px; min-height: 0;">
+            <sc-for list="{{ days }}" as="d" hint-placeholder-count="35">
+              <div onClick="{{ d.onClick }}" style="border-radius: 10px; padding: 7px 8px; cursor: pointer; overflow: hidden; display: flex; flex-direction: column; gap: 4px; background: {{ d.bg }}; box-shadow: {{ d.ring }};" style-hover="background: #141414;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                  <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 13px; color: {{ d.numColor }};">{{ d.num }}</span>
+                  <sc-if value="{{ d.isToday }}" hint-placeholder-val="{{ false }}">
+                    <span style="font-size: 9px; letter-spacing: 0.1em; color: #cdfa50;">СЕГОДНЯ</span>
+                  </sc-if>
+                </div>
+                <sc-for list="{{ d.items }}" as="it" hint-placeholder-count="2">
+                  <div style="padding: 3px 6px; border-radius: 6px; background: #1a1a1a; font-size: 10.5px; display: flex; align-items: center; gap: 5px; overflow: hidden; box-shadow: inset 2px 0 0 {{ it.color }};">
+                    <span style="font-weight: 700; font-variant-numeric: tabular-nums; color: {{ it.timeColor }};">{{ it.time }}</span>
+                    <span style="color: #a0a0a0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ it.client }}</span>
+                  </div>
+                </sc-for>
+                <sc-if value="{{ d.hasMore }}" hint-placeholder-val="{{ false }}">
+                  <div style="font-size: 10px; color: #8f8f8f; padding-left: 4px;">{{ d.more }}</div>
+                </sc-if>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 16px; padding-top: 10px;">
+            <sc-for list="{{ legend }}" as="l" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #8f8f8f;">
+                <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ l.color }};"></span>
+                <span>{{ l.label }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <aside style="width: 296px; flex: 0 0 296px; background: #0a0a0a; display: flex; flex-direction: column; overflow: hidden; box-shadow: inset 1px 0 0 #171717;">
+        <div style="padding: 18px 18px 12px;">
+          <div style="font-size: 9.5px; letter-spacing: 0.2em; color: #8f8f8f;">{{ selectedWeekday }}</div>
+          <div style="margin-top: 4px; font-family: Archivo, sans-serif; font-weight: 800; font-size: 22px;">{{ selectedLabel }}</div>
+        </div>
+        <div style="flex: 1; overflow-y: auto; padding: 0 18px 14px; display: flex; flex-direction: column; gap: 8px;">
+          <sc-for list="{{ selectedShoots }}" as="sh" hint-placeholder-count="3">
+            <div style="border-radius: 12px; background: #101010; padding: 12px; box-shadow: inset 0 0 0 1px #191919, inset 3px 0 0 {{ sh.color }};">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 14px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ sh.client }}</span>
+                <button onClick="{{ sh.remove }}" style="width: 22px; height: 22px; flex: 0 0 22px; border-radius: 6px; border: 0; background: transparent; color: #7c7c7c; cursor: pointer; font-size: 12px; line-height: 1;" style-hover="background: #2a1614; color: #ff5a45;">×</button>
+              </div>
+              <div style="margin-top: 9px; display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 6px;">
+                <input type="time" value="{{ sh.time }}" onChange="{{ sh.onTime }}" style="height: 30px; padding: 0 8px; border-radius: 8px; border: 0; background: #171717; color: #ededed; font-size: 12.5px; outline: none;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+                <input value="{{ sh.place }}" onChange="{{ sh.onPlace }}" placeholder="Локация" style="height: 30px; padding: 0 9px; border-radius: 8px; border: 0; background: #171717; color: #ededed; font-size: 12.5px; outline: none; min-width: 0;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+              </div>
+              <div style="margin-top: 6px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 6px;">
+                <select value="{{ sh.operator }}" onChange="{{ sh.onOperator }}" style="height: 30px; padding: 0 20px 0 9px; border-radius: 8px; border: 0; background: #171717 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 8px center; color: #d8d8d8; font-size: 12px; cursor: pointer;">
+                  <option value="Tester">Tester</option>
+                  <option value="Jake">Jake</option>
+                  <option value="Aruzhan">Aruzhan</option>
+                  <option value="Beksultan">Beksultan</option>
+                </select>
+                <select value="{{ sh.status }}" onChange="{{ sh.onStatus }}" style="height: 30px; padding: 0 20px 0 9px; border-radius: 8px; border: 0; font-size: 12px; font-weight: 700; cursor: pointer; background: {{ sh.statusBg }} url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 8px center; color: {{ sh.statusColor }};">
+                  <option value="План">План</option>
+                  <option value="Подтверждено">Подтверждено</option>
+                  <option value="Завершено">Завершено</option>
+                  <option value="Отменено">Отменено</option>
+                </select>
+              </div>
+            </div>
+          </sc-for>
+          <sc-if value="{{ dayEmpty }}" hint-placeholder-val="{{ false }}">
+            <div style="border-radius: 12px; padding: 22px 12px; text-align: center; color: #8f8f8f; font-size: 12.5px; box-shadow: inset 0 0 0 1px #1c1c1c;">Съёмок нет</div>
+          </sc-if>
+        </div>
+        <div style="padding: 14px 18px 18px; box-shadow: inset 0 1px 0 #171717;">
+          <div style="font-size: 9.5px; letter-spacing: 0.18em; color: #8f8f8f; margin-bottom: 8px;">НОВАЯ СЪЁМКА</div>
+          <div style="display: grid; gap: 6px;">
+            <select value="{{ newShootClient }}" onChange="{{ onNewShootClient }}" style="height: 34px; padding: 0 22px 0 10px; border-radius: 9px; border: 0; background: #171717 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 9px center; color: #d8d8d8; font-size: 12.5px; cursor: pointer;">
+              <sc-for list="{{ clientOptions }}" as="c" hint-placeholder-count="6">
+                <option value="{{ c.name }}">{{ c.name }}</option>
+              </sc-for>
+            </select>
+            <div style="display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 6px;">
+              <input type="time" value="{{ newShootTime }}" onChange="{{ onNewShootTime }}" style="height: 34px; padding: 0 9px; border-radius: 9px; border: 0; background: #171717; color: #ededed; font-size: 12.5px; outline: none;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+              <input value="{{ newShootPlace }}" onChange="{{ onNewShootPlace }}" placeholder="Локация" style="height: 34px; padding: 0 10px; border-radius: 9px; border: 0; background: #171717; color: #ededed; font-size: 12.5px; outline: none; min-width: 0;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+            </div>
+            <button onClick="{{ addShoot }}" style="height: 36px; border: 0; border-radius: 9px; background: #cdfa50; color: #0a0a0a; font-weight: 700; font-size: 12.5px; cursor: pointer;">Добавить на {{ selectedShort }}</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="Настройки" style="display: flex; height: 100%; overflow: hidden;">
+      <div style="width: 208px; flex: 0 0 208px; background: #0a0a0a; padding: 18px 10px; box-shadow: inset -1px 0 0 #171717;">
+        <div style="padding: 0 8px 10px; font-size: 9.5px; letter-spacing: 0.2em; color: #8f8f8f;">НАСТРОЙКИ</div>
+        <div style="display: flex; flex-direction: column; gap: 1px;">
+          <sc-for list="{{ settingsNav }}" as="s" hint-placeholder-count="6">
+            <button onClick="{{ s.onClick }}" style="{{ s.style }}">
+              <span>{{ s.label }}</span>
+              <span style="font-size: 11px; color: #8f8f8f; font-variant-numeric: tabular-nums;">{{ s.badge }}</span>
+            </button>
+          </sc-for>
+        </div>
+      </div>
+      <div style="flex: 1; min-width: 0; overflow-y: auto; padding: 22px 26px 30px;">
+
+        <sc-if value="{{ setGeneral }}" hint-placeholder-val="{{ true }}">
+          <div style="display: grid; gap: 12px; max-width: 880px;">
+            <div style="border-radius: 14px; background: #0e0e0e; padding: 20px 22px; box-shadow: inset 0 0 0 1px #1a1a1a;">
+              <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px;">Агентство</div>
+              <div style="margin-top: 3px; font-size: 12px; color: #8f8f8f;">Данные организации и рабочий режим</div>
+              <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
+                <label style="display: grid; gap: 6px;">
+                  <span style="font-size: 10.5px; letter-spacing: 0.12em; color: #8f8f8f;">НАЗВАНИЕ</span>
+                  <input value="1M.AGENCY" style="height: 38px; padding: 0 11px; border-radius: 9px; border: 0; background: #161616; color: #ededed; font-size: 13.5px; outline: none;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+                </label>
+                <label style="display: grid; gap: 6px;">
+                  <span style="font-size: 10.5px; letter-spacing: 0.12em; color: #8f8f8f;">ГОРОД</span>
+                  <input value="Алматы" style="height: 38px; padding: 0 11px; border-radius: 9px; border: 0; background: #161616; color: #ededed; font-size: 13.5px; outline: none;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+                </label>
+                <label style="display: grid; gap: 6px;">
+                  <span style="font-size: 10.5px; letter-spacing: 0.12em; color: #8f8f8f;">ЧАСОВОЙ ПОЯС</span>
+                  <select style="height: 38px; padding: 0 24px 0 11px; border-radius: 9px; border: 0; background: #161616 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 fill=%22%23777%22><path d=%22M0 3l5 5 5-5z%22/></svg>') no-repeat right 10px center; color: #ededed; font-size: 13.5px; cursor: pointer;">
+                    <option>UTC+5 · Алматы</option>
+                    <option>UTC+6 · Астана</option>
+                    <option>UTC+3 · Москва</option>
+                  </select>
+                </label>
+                <label style="display: grid; gap: 6px;">
+                  <span style="font-size: 10.5px; letter-spacing: 0.12em; color: #8f8f8f;">ПЛАН ПОСТОВ ПО УМОЛЧАНИЮ</span>
+                  <input value="12" style="height: 38px; padding: 0 11px; border-radius: 9px; border: 0; background: #161616; color: #ededed; font-size: 13.5px; outline: none;" style-focus="box-shadow: inset 0 0 0 1px #cdfa50;" />
+                </label>
+              </div>
+            </div>
+            <div style="border-radius: 14px; background: #0e0e0e; padding: 20px 22px; box-shadow: inset 0 0 0 1px #1a1a1a;">
+              <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px;">Уведомления</div>
+              <div style="margin-top: 6px; display: grid;">
+                <sc-for list="{{ toggles }}" as="t" hint-placeholder-count="4">
+                  <div style="display: flex; align-items: center; gap: 16px; padding: 12px 0; box-shadow: inset 0 -1px 0 #171717;">
+                    <div style="flex: 1;">
+                      <div style="font-size: 13.5px; font-weight: 500;">{{ t.label }}</div>
+                      <div style="margin-top: 2px; font-size: 12px; color: #8f8f8f;">{{ t.hint }}</div>
+                    </div>
+                    <button onClick="{{ t.onClick }}" style="{{ t.trackStyle }}">
+                      <span style="{{ t.knobStyle }}"></span>
+                    </button>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ setTeam }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 14px;">
+              <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px;">Команда</div>
+              <div style="font-size: 12px; color: #8f8f8f;">{{ teamCount }}</div>
+              <button style="margin-left: auto; height: 34px; padding: 0 15px; border: 0; border-radius: 9px; background: #cdfa50; color: #0a0a0a; font-weight: 700; font-size: 12.5px; cursor: pointer;">+ Сотрудник</button>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(276px, 1fr)); gap: 12px;">
+              <sc-for list="{{ team }}" as="p" hint-placeholder-count="6">
+                <div style="border-radius: 14px; background: #0e0e0e; padding: 16px; box-shadow: inset 0 0 0 1px #1a1a1a;">
+                  <div style="display: flex; align-items: center; gap: 11px;">
+                    <div style="width: 36px; height: 36px; flex: 0 0 36px; border-radius: 11px; display: grid; place-items: center; font-family: Archivo, sans-serif; font-weight: 900; font-size: 14px; background: #1b1b1b; color: {{ p.avatarFg }};">{{ p.initial }}</div>
+                    <div style="min-width: 0; flex: 1;">
+                      <div style="font-weight: 700; font-size: 14px;">{{ p.name }}</div>
+                      <div style="font-size: 11.5px; color: #8f8f8f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ p.email }}</div>
+                    </div>
+                    <span style="font-size: 9.5px; letter-spacing: 0.1em; font-weight: 700; color: {{ p.roleFg }};">{{ p.role }}</span>
+                  </div>
+                  <div style="margin-top: 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+                    <div>
+                      <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 17px;">{{ p.clients }}</div>
+                      <div style="font-size: 10.5px; color: #8f8f8f;">клиентов</div>
+                    </div>
+                    <div>
+                      <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 17px;">{{ p.posts }}</div>
+                      <div style="font-size: 10.5px; color: #8f8f8f;">постов / мес</div>
+                    </div>
+                    <div>
+                      <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 17px; color: {{ p.loadColor }};">{{ p.load }}</div>
+                      <div style="font-size: 10.5px; color: #8f8f8f;">загрузка</div>
+                    </div>
+                  </div>
+                  <div style="margin-top: 12px; padding-top: 11px; display: flex; align-items: center; gap: 10px; font-size: 11.5px; color: #8f8f8f; box-shadow: inset 0 1px 0 #191919;">
+                    <span>{{ p.telegram }}</span>
+                    <span style="margin-left: auto; color: #8f8f8f;">{{ p.hours }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ setAccess }}" hint-placeholder-val="{{ false }}">
+          <div style="display: grid; gap: 12px;">
+            <div style="border-radius: 14px; background: #0e0e0e; overflow: hidden; box-shadow: inset 0 0 0 1px #1a1a1a;">
+              <div style="padding: 16px 20px;">
+                <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px;">Пользователи и роли</div>
+                <div style="margin-top: 2px; font-size: 12px; color: #8f8f8f;">Роль определяет доступ к разделам платформы</div>
+              </div>
+              <sc-for list="{{ users }}" as="u" hint-placeholder-count="6">
+                <div style="display: grid; grid-template-columns: minmax(0, 1fr) 172px 168px 36px; align-items: center; gap: 12px; padding: 9px 20px; box-shadow: inset 0 1px 0 #171717;" style-hover="background: #121212;">
+                  <div style="display: flex; align-items: center; gap: 11px; min-width: 0;">
+                    <div style="width: 30px; height: 30px; flex: 0 0 30px; border-radius: 9px; background: #1b1b1b; display: grid; place-items: center; font-family: Archivo, sans-serif; font-weight: 800; font-size: 12.5px; color: #b8b8b8;">{{ u.initial }}</div>
+                    <div style="min-width: 0;">
+                      <div style="font-weight: 700; font-size: 13px;">{{ u.name }}</div>
+                      <div style="font-size: 11.5px; color: #8f8f8f; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ u.email }}</div>
+                    </div>
+                  </div>
+                  <select value="{{ u.role }}" onChange="{{ u.onRole }}" style="height: 32px; padding: 0 22px 0 10px; border-radius: 9px; border: 0; background: #171717 url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%228%22 height=%228%22 fill=%22%23666%22><path d=%22M0 2l4 4 4-4z%22/></svg>') no-repeat right 9px center; color: #d8d8d8; font-size: 12.5px; cursor: pointer;">
+                    <option value="Администратор">Администратор</option>
+                    <option value="СММ">СММ</option>
+                    <option value="Оператор">Оператор</option>
+                    <option value="Наблюдатель">Наблюдатель</option>
+                  </select>
+                  <div style="font-size: 12px; color: #8f8f8f;">{{ u.scope }}</div>
+                  <button style="width: 26px; height: 26px; border-radius: 7px; border: 0; background: transparent; color: #7c7c7c; cursor: pointer;" style-hover="background: #2a1614; color: #ff5a45;">×</button>
+                </div>
+              </sc-for>
+            </div>
+            <div style="border-radius: 14px; background: #0e0e0e; overflow: hidden; box-shadow: inset 0 0 0 1px #1a1a1a;">
+              <div style="padding: 16px 20px; font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px;">Матрица прав</div>
+              <div style="display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 100px); background: #121212;">
+                <div style="padding: 10px 20px; font-size: 9.5px; letter-spacing: 0.16em; color: #8f8f8f;">ДОСТУП</div>
+                <div style="padding: 10px; font-size: 9.5px; letter-spacing: 0.12em; color: #8f8f8f; text-align: center;">АДМИН</div>
+                <div style="padding: 10px; font-size: 9.5px; letter-spacing: 0.12em; color: #8f8f8f; text-align: center;">СММ</div>
+                <div style="padding: 10px; font-size: 9.5px; letter-spacing: 0.12em; color: #8f8f8f; text-align: center;">ОПЕРАТОР</div>
+                <div style="padding: 10px; font-size: 9.5px; letter-spacing: 0.12em; color: #8f8f8f; text-align: center;">НАБЛЮД.</div>
+              </div>
+              <sc-for list="{{ matrix }}" as="m" hint-placeholder-count="6">
+                <div style="display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 100px); align-items: center; box-shadow: inset 0 1px 0 #171717;">
+                  <div style="padding: 11px 20px; font-size: 12.5px;">{{ m.label }}</div>
+                  <div style="padding: 11px; text-align: center; font-size: 13px; color: {{ m.c1c }};">{{ m.c1 }}</div>
+                  <div style="padding: 11px; text-align: center; font-size: 13px; color: {{ m.c2c }};">{{ m.c2 }}</div>
+                  <div style="padding: 11px; text-align: center; font-size: 13px; color: {{ m.c3c }};">{{ m.c3 }}</div>
+                  <div style="padding: 11px; text-align: center; font-size: 13px; color: {{ m.c4c }};">{{ m.c4 }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ setRequests }}" hint-placeholder-val="{{ false }}">
+          <div style="display: grid; gap: 10px; max-width: 880px;">
+            <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px;">Заявки на доступ</div>
+            <sc-for list="{{ requests }}" as="r" hint-placeholder-count="2">
+              <div style="border-radius: 14px; background: #0e0e0e; padding: 14px 18px; display: flex; align-items: center; gap: 16px; box-shadow: inset 0 0 0 1px #1a1a1a;">
+                <div style="width: 34px; height: 34px; flex: 0 0 34px; border-radius: 10px; background: #1b1b1b; display: grid; place-items: center; font-family: Archivo, sans-serif; font-weight: 800; color: #b8b8b8;">{{ r.initial }}</div>
+                <div style="min-width: 150px;">
+                  <div style="font-weight: 700; font-size: 13.5px;">{{ r.name }}</div>
+                  <div style="font-size: 11.5px; color: #8f8f8f;">{{ r.email }}</div>
+                </div>
+                <div style="font-size: 12px; color: #8f8f8f;">{{ r.wants }}</div>
+                <div style="font-size: 12px; color: #8f8f8f;">{{ r.when }}</div>
+                <div style="margin-left: auto; display: flex; gap: 8px;">
+                  <button onClick="{{ r.approve }}" style="height: 32px; padding: 0 14px; border: 0; border-radius: 9px; background: #cdfa50; color: #0a0a0a; font-weight: 700; font-size: 12px; cursor: pointer;">Принять</button>
+                  <button onClick="{{ r.reject }}" style="height: 32px; padding: 0 14px; border: 0; border-radius: 9px; background: #171717; color: #b0b0b0; font-weight: 700; font-size: 12px; cursor: pointer;" style-hover="background: #2a1614; color: #ff5a45;">Отклонить</button>
+                </div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ noRequests }}" hint-placeholder-val="{{ false }}">
+              <div style="border-radius: 14px; padding: 30px; text-align: center; color: #8f8f8f; font-size: 13px; box-shadow: inset 0 0 0 1px #1c1c1c;">Новых заявок нет</div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ setIntegrations }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px; margin-bottom: 14px;">Интеграции</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; max-width: 880px;">
+              <sc-for list="{{ integrations }}" as="i" hint-placeholder-count="4">
+                <div style="border-radius: 14px; background: #0e0e0e; padding: 18px; box-shadow: inset 0 0 0 1px #1a1a1a;">
+                  <div style="display: flex; align-items: center; gap: 9px;">
+                    <span style="width: 8px; height: 8px; border-radius: 50%; background: {{ i.dot }};"></span>
+                    <div style="font-weight: 700; font-size: 14px; flex: 1;">{{ i.name }}</div>
+                  </div>
+                  <div style="margin-top: 7px; font-size: 12px; color: #8f8f8f; min-height: 32px;">{{ i.hint }}</div>
+                  <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 10.5px; letter-spacing: 0.1em; font-weight: 700; color: {{ i.stateColor }};">{{ i.state }}</span>
+                    <button onClick="{{ i.toggle }}" style="margin-left: auto; height: 30px; padding: 0 13px; border: 0; border-radius: 8px; background: #171717; color: #d0d0d0; font-weight: 700; font-size: 12px; cursor: pointer;" style-hover="background: #1a2010; color: #cdfa50;">{{ i.action }}</button>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ setLogs }}" hint-placeholder-val="{{ false }}">
+          <div>
+            <div style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px; margin-bottom: 14px;">Журнал действий</div>
+            <div style="border-radius: 14px; background: #0e0e0e; overflow: hidden; max-width: 880px; box-shadow: inset 0 0 0 1px #1a1a1a;">
+              <sc-for list="{{ logs }}" as="l" hint-placeholder-count="8">
+                <div style="display: grid; grid-template-columns: 116px 132px minmax(0, 1fr); gap: 14px; padding: 11px 18px; align-items: center; box-shadow: inset 0 1px 0 #171717;">
+                  <div style="font-size: 11.5px; color: #8f8f8f; font-variant-numeric: tabular-nums;">{{ l.when }}</div>
+                  <div style="font-size: 12.5px; font-weight: 700;">{{ l.who }}</div>
+                  <div style="font-size: 12.5px; color: #9a9a9a;">{{ l.what }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+      </div>
+    </section>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1376,&quot;height&quot;:860},&quot;tab&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;table&quot;,&quot;plan&quot;,&quot;shoots&quot;,&quot;settings&quot;],&quot;default&quot;:&quot;table&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showTitle&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const PILL = "display:inline-flex;align-items:center;height:36px;padding:0 13px;border-radius:9px;border:0;font-family:inherit;font-size:12.5px;cursor:pointer;";
+const PILL_ON = PILL + "background:#cdfa50;color:#0a0a0a;font-weight:700;";
+const PILL_OFF = PILL + "background:#111111;color:#b8b8b8;font-weight:500;";
+
+const STATUS = {
+  "Идея": ["#9a9a9a", "#171717"],
+  "В работе": ["#f4855a", "#241511"],
+  "На проверке": ["#f5c542", "#231e0f"],
+  "Готово": ["#7fe0d0", "#0f221f"],
+  "Опубликовано": ["#cdfa50", "#1a2010"]
+};
+const SHOOT_ST = {
+  "План": ["#9a9a9a", "#171717"],
+  "Подтверждено": ["#5bd977", "#0f2015"],
+  "Завершено": ["#d8d8d8", "#1b1b1b"],
+  "Отменено": ["#ff5a45", "#241211"]
+};
+const WD = ["ВС", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
+const WD_FULL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
+
+const CLIENTS = [
+  ["Арнур Кредит", "#f4855a", 12, 12, "2026-09-06", "2026-11-01", "Аида", "Tester"],
+  ["Бэйби Рум", "#6b8cff", 12, 10, "2026-09-06", "2026-11-03", "Anastassiya", "Tester"],
+  ["KTB", "#ff4d2e", 12, 2, "2026-09-06", "2026-09-24", "Аида", "Jake"],
+  ["GEC", "#f5a623", 12, 12, "2026-09-06", "2026-08-28", "Аида", "Jake"],
+  ["KTB TT", "#ff7a1a", 26, 21, "2026-09-06", "2026-09-24", "—", "Tester"],
+  ["Craft", "#f2e07a", 12, 2, "2026-09-06", "2026-09-13", "Anastassiya", "Beksultan"],
+  ["NEW COLOR", "#e8e8e8", 12, 5, "2026-09-04", "2026-09-17", "—", "Aruzhan"],
+  ["Asyl Fasad", "#cdfa50", 15, 4, "2026-09-06", "2026-09-15", "Anastassiya", "Aruzhan"],
+  ["FinRise", "#7fe0d0", 15, 2, "2026-09-06", "2026-09-20", "Anastassiya", "Aruzhan"],
+  ["ВИВА", "#f7d7b0", 12, 5, "2026-09-06", "2026-09-21", "Аида", "—"],
+  ["REVITA", "#c88cf0", 12, 6, "2026-09-05", "2026-09-25", "Аида", "Jake"],
+  ["Аквафор", "#7cc4f0", 12, 3, "2026-09-06", "2026-09-30", "Anastassiya", "Beksultan"],
+  ["Перспектива", "#b98cf5", 12, 7, "2026-09-06", "2026-09-28", "Аида", "Tester"],
+  ["KazLog", "#7fe08a", 12, 9, "2026-09-06", "2026-10-05", "Anastassiya", "Aruzhan"],
+  ["Диханкол", "#ff8a3d", 12, 4, "2026-09-06", "2026-10-12", "Аида", "Jake"]
+];
+
+const PLAN_SEED = {
+  "Арнур Кредит": [
+    ["Кейс — разговорное (Карабулак)", "Reels", "2026-09-08", "В работе"],
+    ["Карусель по продуктам", "Карусель", "2026-09-09", "В работе"],
+    ["Motion — Арнур Кредит за 30 секунд", "Motion", "2026-09-11", "Идея"],
+    ["Почему бизнесу не хватает оборотных средств", "Reels", "2026-09-14", "Идея"],
+    ["Карабулак — динамичное", "Reels", "2026-09-16", "На проверке"],
+    ["Отзыв клиента после одобрения", "Пост", "2026-09-18", "Готово"]
+  ],
+  "KTB": [
+    ["Экскурсия по заводу", "Reels", "2026-09-11", "В работе"],
+    ["Как выбрать поставщика", "Карусель", "2026-09-15", "Идея"],
+    ["Сотрудник месяца", "Пост", "2026-09-19", "Идея"]
+  ],
+  "Asyl Fasad": [
+    ["Объект в Алатау — до/после", "Карусель", "2026-09-10", "Готово"],
+    ["Монтаж фасада — таймлапс", "Reels", "2026-09-13", "В работе"]
+  ]
+};
+
+const SHOOTS_SEED = [
+  ["2026-09-03", "09:30", "Диханкол", "Офис", "Jake", "Завершено"],
+  ["2026-09-03", "15:00", "Craft", "Шоурум", "Beksultan", "Завершено"],
+  ["2026-09-07", "08:00", "KazLog", "Склад", "Aruzhan", "Подтверждено"],
+  ["2026-09-07", "10:00", "KTB", "Завод", "Jake", "Подтверждено"],
+  ["2026-09-07", "14:00", "Арнур Кредит", "Офис", "Tester", "План"],
+  ["2026-09-08", "14:00", "KTB", "Завод", "Jake", "План"],
+  ["2026-09-10", "11:00", "Asyl Fasad", "Объект", "Aruzhan", "План"],
+  ["2026-09-16", "11:00", "Перспектива", "ЖК", "Tester", "План"],
+  ["2026-09-22", "13:00", "REVITA", "Клиника", "Jake", "План"]
+];
+
+class Component extends DCLogic {
+  state = {
+    settingsTab: "general",
+    query: "",
+    smmFilter: "all",
+    opFilter: "all",
+    rowsMode: "all",
+    clients: CLIENTS.map((c, i) => ({ id: i + 1, name: c[0], color: c[1], total: c[2], done: c[3], out: c[4], end: c[5], smm: c[6], operator: c[7] })),
+    activeClient: "Арнур Кредит",
+    posts: Object.keys(PLAN_SEED).reduce((a, k) => { a[k] = PLAN_SEED[k].map((p, i) => ({ id: k + i, theme: p[0], type: p[1], date: p[2], status: p[3] })); return a; }, {}),
+    shoots: SHOOTS_SEED.map((s, i) => ({ id: i + 1, date: s[0], time: s[1], client: s[2], place: s[3], operator: s[4], status: s[5] })),
+    selected: "2026-09-07",
+    newShootClient: "Арнур Кредит",
+    newShootTime: "10:00",
+    newShootPlace: "",
+    notif: { shoot: true, deadline: true, digest: false, target: true },
+    integrations: { ig: true, fb: true, tg: false, drive: true },
+    users: [
+      ["Admin", "saparbayevv.01@gmail.com", "Администратор", "Все клиенты"],
+      ["Гияс Т", "giyassimuss@gmail.com", "Администратор", "Все клиенты"],
+      ["Аида", "amirova.a@mail.ru", "СММ", "8 клиентов"],
+      ["Anastassiya", "nastena_sindeeva@gmail.ru", "СММ", "7 клиентов"],
+      ["Идриска", "made.by.di@gmail.com", "СММ", "4 клиента"],
+      ["Jake", "asylkhanjarqyn@gmail.com", "Оператор", "5 клиентов"],
+      ["Aruzhan", "aruusmakhanbet@gmail.com", "Оператор", "4 клиента"],
+      ["Tester", "tester@gmail.com", "Оператор", "3 клиента"],
+      ["Diana", "diana_idris@mail.ru", "Наблюдатель", "Только отчёты"]
+    ].map((u, i) => ({ id: i + 1, name: u[0], email: u[1], role: u[2], scope: u[3] })),
+    requests: [
+      { id: 1, name: "Айсулу", email: "aisulu.kz@gmail.com", wants: "Просит роль: СММ", when: "2 часа назад" },
+      { id: 2, name: "Ерасыл", email: "erassyl.shoot@gmail.com", wants: "Просит роль: Оператор", when: "вчера" }
+    ]
+  };
+
+  set(p) { this.setState(p); }
+  patchClient(id, p) { this.setState(s => ({ clients: s.clients.map(c => c.id === id ? Object.assign({}, c, p) : c) })); }
+  patchPost(id, p) { this.setState(s => ({ posts: Object.assign({}, s.posts, { [s.activeClient]: (s.posts[s.activeClient] || []).map(x => x.id === id ? Object.assign({}, x, p) : x) }) })); }
+  patchShoot(id, p) { this.setState(s => ({ shoots: s.shoots.map(x => x.id === id ? Object.assign({}, x, p) : x) })); }
+  fmt(iso) { if (!iso) return "—"; const p = iso.split("-"); return p[2] + "." + p[1]; }
+  dt(iso) { const p = iso.split("-"); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  days(iso) { return Math.round((this.dt(iso) - new Date(2026, 8, 7)) / 86400000); }
+
+  renderVals() {
+    const s = this.state;
+    const tab = this.props.tab || "table";
+    const q = s.query.trim().toLowerCase();
+
+    const base = s.clients.filter(c => {
+      if (q && c.name.toLowerCase().indexOf(q) === -1) return false;
+      if (s.smmFilter !== "all" && c.smm !== s.smmFilter) return false;
+      if (s.opFilter !== "all" && c.operator !== s.opFilter) return false;
+      return true;
+    });
+    const filtered = base.filter(c => {
+      if (s.rowsMode === "open") return c.total - c.done > 0;
+      if (s.rowsMode === "soon") return this.days(c.end) <= 14;
+      return true;
+    });
+
+    const cards = filtered.map(c => {
+      const left = Math.max(0, c.total - c.done);
+      const d = this.days(c.end);
+      const ago = -this.days(c.out);
+      const pips = [];
+      for (let i = 1; i <= c.total; i++) {
+        const filledOn = i <= c.done;
+        pips.push({
+          title: "Поставить " + i + " из " + c.total,
+          onClick: () => this.patchClient(c.id, { done: i === c.done ? i - 1 : i, out: "2026-09-07" }),
+          style: "width:9px;height:9px;padding:0;border:0;border-radius:3px;cursor:pointer;background:" + (filledOn ? "#e8e8e8" : "#242424") + ";"
+        });
+      }
+      let flag = "", flagStyle = "display:none;";
+      if (d < 0) { flag = "ДОГОВОР ИСТЁК"; flagStyle = "font-size:9px;letter-spacing:0.1em;font-weight:700;padding:3px 7px;border-radius:5px;background:#2a1210;color:#ff5a45;"; }
+      else if (left === 0) { flag = "ПЛАН ЗАКРЫТ"; flagStyle = "font-size:9px;letter-spacing:0.1em;font-weight:700;padding:3px 7px;border-radius:5px;background:#16210f;color:#a8d94a;"; }
+      else if (d <= 14) { flag = "ДО " + this.fmt(c.end); flagStyle = "font-size:9px;letter-spacing:0.1em;font-weight:700;padding:3px 7px;border-radius:5px;background:#231d0d;color:#f5c542;"; }
+      else if (ago >= 4) { flag = "НЕ ВЫКЛАДЫВАЛИ " + ago + " ДН."; flagStyle = "font-size:9px;letter-spacing:0.1em;font-weight:700;padding:3px 7px;border-radius:5px;background:#231610;color:#f4855a;"; }
+      return {
+        name: c.name, color: c.color, done: c.done, total: c.total, pips: pips,
+        doneColor: left === 0 ? "#cdfa50" : "#ffffff",
+        flag: flag, flagStyle: flagStyle,
+        outISO: c.out,
+        outAgo: ago === 0 ? "сегодня" : ago === 1 ? "вчера" : ago + " дн.",
+        outColor: ago === 0 ? "#cdfa50" : ago >= 4 ? "#f4855a" : "#8f8f8f",
+        endLabel: d < 0 ? "истёк" : "до " + this.fmt(c.end),
+        daysColor: d < 0 ? "#ff5a45" : d <= 14 ? "#f5c542" : "#8f8f8f",
+        smm: c.smm, operator: c.operator,
+        smmColor: c.smm === "—" ? "#9a9a9a" : "#d8d8d8",
+        opColor: c.operator === "—" ? "#9a9a9a" : "#d8d8d8",
+        inc: () => this.patchClient(c.id, { done: Math.min(c.total, c.done + 1), out: "2026-09-07" }),
+        today: () => this.patchClient(c.id, { out: "2026-09-07" }),
+        onDate: e => this.patchClient(c.id, { out: e.target.value }),
+        onSmm: e => this.patchClient(c.id, { smm: e.target.value }),
+        onOperator: e => this.patchClient(c.id, { operator: e.target.value })
+      };
+    });
+
+    const planList = s.posts[s.activeClient] || [];
+    const cnt = st => planList.filter(p => p.status === st).length;
+    const cl = s.clients.find(c => c.name === s.activeClient);
+
+    const cells = [];
+    for (let i = 0; i < 35; i++) {
+      const n = i - 1;
+      let iso = null, num = "", inM = false;
+      if (n >= 1 && n <= 30) { iso = "2026-09-" + String(n).padStart(2, "0"); num = String(n); inM = true; }
+      else if (n < 1) { num = String(31 + n); }
+      else { num = String(n - 30); }
+      const items = iso ? s.shoots.filter(x => x.date === iso).sort((a, b) => a.time < b.time ? -1 : 1) : [];
+      const sel = iso === s.selected, today = iso === "2026-09-07", we = i % 7 >= 5;
+      cells.push({
+        num: num, isToday: today,
+        bg: sel ? "#161c0e" : inM ? "#0d0d0d" : "#080808",
+        ring: sel ? "inset 0 0 0 1.5px #cdfa50" : "inset 0 0 0 1px #161616",
+        numColor: !inM ? "#2e2e2e" : today ? "#cdfa50" : we ? "#c98a80" : "#e0e0e0",
+        items: items.slice(0, 2).map(x => {
+          const c = s.clients.find(y => y.name === x.client);
+          return { time: x.time, client: x.client, color: c ? c.color : "#8a8a8a", timeColor: SHOOT_ST[x.status][0] };
+        }),
+        hasMore: items.length > 2,
+        more: "+" + (items.length - 2) + " ещё",
+        onClick: iso ? () => this.set({ selected: iso }) : () => {}
+      });
+    }
+    const selShoots = s.shoots.filter(x => x.date === s.selected).sort((a, b) => a.time < b.time ? -1 : 1).map(x => {
+      const c = s.clients.find(y => y.name === x.client);
+      return {
+        client: x.client, color: c ? c.color : "#8a8a8a", time: x.time, place: x.place, operator: x.operator, status: x.status,
+        statusColor: SHOOT_ST[x.status][0], statusBg: SHOOT_ST[x.status][1],
+        onTime: e => this.patchShoot(x.id, { time: e.target.value }),
+        onPlace: e => this.patchShoot(x.id, { place: e.target.value }),
+        onOperator: e => this.patchShoot(x.id, { operator: e.target.value }),
+        onStatus: e => this.patchShoot(x.id, { status: e.target.value }),
+        remove: () => this.setState(st => ({ shoots: st.shoots.filter(y => y.id !== x.id) }))
+      };
+    });
+    const monthShoots = s.shoots.filter(x => x.date.indexOf("2026-09") === 0);
+
+    const navItem = (k, label, badge) => ({
+      label: label, badge: badge,
+      onClick: () => this.set({ settingsTab: k }),
+      style: "display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:10px 12px;border:0;border-radius:9px;font-family:inherit;font-size:13px;text-align:left;cursor:pointer;" + (s.settingsTab === k ? "background:#181818;color:#ffffff;font-weight:700;box-shadow:inset 2px 0 0 #cdfa50;" : "background:transparent;color:#8f8f8f;font-weight:500;")
+    });
+    const tog = (k, label, hint) => {
+      const on = s.notif[k];
+      return {
+        label: label, hint: hint,
+        onClick: () => this.setState(st => ({ notif: Object.assign({}, st.notif, { [k]: !st.notif[k] }) })),
+        trackStyle: "width:42px;height:24px;flex:0 0 42px;border-radius:12px;border:0;cursor:pointer;padding:3px;display:flex;align-items:center;justify-content:" + (on ? "flex-end" : "flex-start") + ";background:" + (on ? "#cdfa50" : "#282828") + ";",
+        knobStyle: "display:block;width:18px;height:18px;border-radius:50%;background:" + (on ? "#0a0a0a" : "#8a8a8a") + ";"
+      };
+    };
+    const team = [
+      ["Anastassiya", "nastena_sindeeva@gmail.ru", "СММ", 7, 46, "78%", "@nastena", "10:00–19:00"],
+      ["Аида", "amirova.a@mail.ru", "СММ", 8, 52, "91%", "@aida_smm", "11:00–20:00"],
+      ["Идриска", "made.by.di@gmail.com", "СММ", 4, 28, "58%", "@idriska", "10:00–19:00"],
+      ["Jake", "asylkhanjarqyn@gmail.com", "ОПЕРАТОР", 5, 24, "86%", "@jake_shoot", "10:00–19:00"],
+      ["Aruzhan", "aruusmakhanbet@gmail.com", "ОПЕРАТОР", 4, 18, "62%", "@aruzhan", "09:00–18:00"],
+      ["Tester", "tester@gmail.com", "ОПЕРАТОР", 3, 14, "55%", "@tester", "гибкий график"]
+    ].map(p => {
+      const smm = p[2] === "СММ", load = parseInt(p[5], 10);
+      return {
+        name: p[0], email: p[1], role: p[2], clients: p[3], posts: p[4], load: p[5], telegram: p[6], hours: p[7],
+        initial: p[0][0],
+        avatarFg: smm ? "#c8a6f0" : "#8fd9a0",
+        roleFg: smm ? "#a98cd0" : "#6fb583",
+        loadColor: load > 85 ? "#ff5a45" : load > 65 ? "#f5c542" : "#8fd9a0"
+      };
+    });
+    const mrow = (label, a, b, c, d) => ({
+      label: label,
+      c1: a ? "✓" : "—", c1c: a ? "#cdfa50" : "#3a3a3a",
+      c2: b ? "✓" : "—", c2c: b ? "#cdfa50" : "#3a3a3a",
+      c3: c ? "✓" : "—", c3c: c ? "#cdfa50" : "#3a3a3a",
+      c4: d ? "✓" : "—", c4c: d ? "#cdfa50" : "#3a3a3a"
+    });
+    const iMeta = {
+      ig: ["Instagram Business", "Публикации и статистика аккаунтов клиентов"],
+      fb: ["Facebook Ads", "Расход, охват и клики для отчётов по таргету"],
+      tg: ["Telegram Bot", "Напоминания о съёмках и дедлайнах в чат"],
+      drive: ["Google Drive", "Папки с исходниками съёмок по клиентам"]
+    };
+    const selDate = this.dt(s.selected);
+
+    return {
+      isTable: tab === "table", isPlan: tab === "plan", isShoots: tab === "shoots", isSettings: tab === "settings",
+      showTitle: this.props.showTitle !== false,
+
+      tableSub: "7 сентября · " + base.length + " активных · " + base.filter(c => this.days(c.end) <= 14).length + " договоров истекает",
+      query: s.query,
+      onQuery: e => this.set({ query: e.target.value }),
+      smmFilter: s.smmFilter, onSmm: e => this.set({ smmFilter: e.target.value }),
+      opFilter: s.opFilter, onOp: e => this.set({ opFilter: e.target.value }),
+      setAllRows: () => this.set({ rowsMode: "all" }),
+      setOpenRows: () => this.set({ rowsMode: "open" }),
+      setSoonRows: () => this.set({ rowsMode: "soon" }),
+      rowsAllStyle: s.rowsMode === "all" ? PILL_ON : PILL_OFF,
+      rowsOpenStyle: s.rowsMode === "open" ? PILL_ON : PILL_OFF,
+      rowsSoonStyle: s.rowsMode === "soon" ? PILL_ON : PILL_OFF,
+      cAll: base.length,
+      cOpen: base.filter(c => c.total - c.done > 0).length,
+      cSoon: base.filter(c => this.days(c.end) <= 14).length,
+      cards: cards,
+      totalDone: filtered.reduce((a, c) => a + c.done, 0),
+      totalLeft: filtered.reduce((a, c) => a + Math.max(0, c.total - c.done), 0),
+      addClient: () => this.setState(st => ({ clients: st.clients.concat([{ id: Date.now(), name: "Новый клиент", color: "#8a8a8a", total: 12, done: 0, out: "2026-09-07", end: "2026-12-31", smm: "—", operator: "—" }]) })),
+
+      planClientName: s.activeClient,
+      planSub: cl ? "Выпущено " + cl.done + " из " + cl.total + " · СММ " + cl.smm + " · оператор " + cl.operator : "",
+      clientChips: s.clients.map(c => {
+        const on = c.name === s.activeClient;
+        return {
+          name: c.name, count: (s.posts[c.name] || []).length, bar: on ? c.color : "#2a2a2a",
+          onClick: () => this.set({ activeClient: c.name }),
+          style: "display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:0;border-radius:9px;font-family:inherit;font-size:13px;cursor:pointer;" + (on ? "background:#181818;color:#ffffff;font-weight:700;" : "background:transparent;color:#b0b0b0;font-weight:500;")
+        };
+      }),
+      planStats: [
+        { value: planList.length, label: "всего", color: "#ffffff" },
+        { value: cnt("Опубликовано"), label: "опубл.", color: "#cdfa50" },
+        { value: cnt("На проверке"), label: "на проверке", color: "#f5c542" },
+        { value: cnt("В работе"), label: "в работе", color: "#f4855a" }
+      ],
+      planRows: planList.slice().sort((a, b) => a.date < b.date ? -1 : 1).map((p, i) => {
+        const dd = this.days(p.date);
+        return {
+          num: String(i + 1).padStart(2, "0"),
+          theme: p.theme, type: p.type, dateISO: p.date, status: p.status,
+          statusColor: STATUS[p.status][0], statusBg: STATUS[p.status][1],
+          dueLabel: p.status === "Опубликовано" ? "" : dd < 0 ? "просрочен" : dd === 0 ? "сегодня" : dd === 1 ? "завтра" : "через " + dd + " дн.",
+          dueColor: p.status === "Опубликовано" ? "#8f8f8f" : dd < 0 ? "#ff5a45" : dd <= 1 ? "#f5c542" : "#9a9a9a",
+          onTheme: e => this.patchPost(p.id, { theme: e.target.value }),
+          onType: e => this.patchPost(p.id, { type: e.target.value }),
+          onDate: e => this.patchPost(p.id, { date: e.target.value }),
+          onStatus: e => this.patchPost(p.id, { status: e.target.value }),
+          remove: () => this.setState(st => ({ posts: Object.assign({}, st.posts, { [st.activeClient]: (st.posts[st.activeClient] || []).filter(x => x.id !== p.id) }) }))
+        };
+      }),
+      addPost: () => this.setState(st => ({ posts: Object.assign({}, st.posts, { [st.activeClient]: (st.posts[st.activeClient] || []).concat([{ id: Date.now(), theme: "", type: "Reels", date: "2026-09-07", status: "Идея" }]) }) })),
+
+      shootSub: monthShoots.length + " съёмок · " + s.shoots.filter(x => x.date === "2026-09-07").length + " сегодня",
+      shootStats: [
+        { value: monthShoots.length, label: "в месяце", color: "#ffffff" },
+        { value: monthShoots.filter(x => x.status === "Подтверждено").length, label: "подтверждено", color: "#5bd977" },
+        { value: monthShoots.filter(x => x.status === "План").length, label: "ждут подтверждения", color: "#f5c542" }
+      ],
+      legend: [
+        { label: "План", color: "#9a9a9a" },
+        { label: "Подтверждено", color: "#5bd977" },
+        { label: "Завершено", color: "#d8d8d8" },
+        { label: "Отменено", color: "#ff5a45" }
+      ],
+      weekDays: [
+        { label: "ПН", color: "#8f8f8f" }, { label: "ВТ", color: "#8f8f8f" }, { label: "СР", color: "#8f8f8f" },
+        { label: "ЧТ", color: "#8f8f8f" }, { label: "ПТ", color: "#8f8f8f" },
+        { label: "СБ", color: "#c08c84" }, { label: "ВС", color: "#c08c84" }
+      ],
+      days: cells,
+      selectedWeekday: WD_FULL[selDate.getDay()].toUpperCase(),
+      selectedLabel: this.fmt(s.selected) + " · " + selShoots.length + " съёмок",
+      selectedShort: this.fmt(s.selected),
+      selectedShoots: selShoots,
+      dayEmpty: selShoots.length === 0,
+      clientOptions: s.clients.map(c => ({ name: c.name })),
+      newShootClient: s.newShootClient, newShootTime: s.newShootTime, newShootPlace: s.newShootPlace,
+      onNewShootClient: e => this.set({ newShootClient: e.target.value }),
+      onNewShootTime: e => this.set({ newShootTime: e.target.value }),
+      onNewShootPlace: e => this.set({ newShootPlace: e.target.value }),
+      addShoot: () => this.setState(st => ({
+        shoots: st.shoots.concat([{ id: Date.now(), date: st.selected, time: st.newShootTime, client: st.newShootClient, place: st.newShootPlace || "—", operator: "Tester", status: "План" }]),
+        newShootPlace: ""
+      })),
+
+      settingsNav: [
+        navItem("general", "Общие", ""),
+        navItem("team", "Команда", String(team.length)),
+        navItem("access", "Пользователи и права", String(s.users.length)),
+        navItem("requests", "Заявки", s.requests.length ? String(s.requests.length) : ""),
+        navItem("integrations", "Интеграции", ""),
+        navItem("logs", "Журнал", "")
+      ],
+      setGeneral: s.settingsTab === "general",
+      setTeam: s.settingsTab === "team",
+      setAccess: s.settingsTab === "access",
+      setRequests: s.settingsTab === "requests",
+      setIntegrations: s.settingsTab === "integrations",
+      setLogs: s.settingsTab === "logs",
+      toggles: [
+        tog("shoot", "Напоминание о съёмке", "За 12 часов до начала — оператору и СММ"),
+        tog("deadline", "Дедлайн публикации", "Если пост не опубликован в день выкладки"),
+        tog("digest", "Утренний дайджест", "Сводка задач в 09:00 в Telegram"),
+        tog("target", "Перерасход по таргету", "Если дневной бюджет превышен на 20%")
+      ],
+      teamCount: team.length + " человек · 3 СММ, 3 оператора",
+      team: team,
+      users: s.users.map(u => ({
+        initial: u.name[0], name: u.name, email: u.email, role: u.role, scope: u.scope,
+        onRole: e => this.setState(st => ({ users: st.users.map(x => x.id === u.id ? Object.assign({}, x, { role: e.target.value }) : x) }))
+      })),
+      matrix: [
+        mrow("Таблица клиентов — просмотр", true, true, true, true),
+        mrow("Таблица клиентов — редактирование", true, true, false, false),
+        mrow("Контент-план — редактирование", true, true, false, false),
+        mrow("Съёмки — создание и статусы", true, true, true, false),
+        mrow("Отчёты и расходы", true, false, false, true),
+        mrow("Настройки и права", true, false, false, false)
+      ],
+      requests: s.requests.map(r => ({
+        initial: r.name[0], name: r.name, email: r.email, wants: r.wants, when: r.when,
+        approve: () => this.setState(st => ({ requests: st.requests.filter(x => x.id !== r.id) })),
+        reject: () => this.setState(st => ({ requests: st.requests.filter(x => x.id !== r.id) }))
+      })),
+      noRequests: s.requests.length === 0,
+      integrations: Object.keys(iMeta).map(k => {
+        const on = s.integrations[k];
+        return {
+          name: iMeta[k][0], hint: iMeta[k][1],
+          dot: on ? "#8fd9a0" : "#3a3a3a",
+          stateColor: on ? "#8fd9a0" : "#9a9a9a",
+          state: on ? "ПОДКЛЮЧЕНО" : "НЕ ПОДКЛЮЧЕНО",
+          action: on ? "Отключить" : "Подключить",
+          toggle: () => this.setState(st => ({ integrations: Object.assign({}, st.integrations, { [k]: !st.integrations[k] }) }))
+        };
+      }),
+      logs: [
+        ["07.09 · 09:41", "Аида", "KTB — выпущено 2 → 3, дата выкладки 07.09"],
+        ["07.09 · 09:12", "Jake", "Съёмка KTB 10:00 подтверждена"],
+        ["07.09 · 08:30", "Anastassiya", "Asyl Fasad — добавлен пост «Объект в Алатау»"],
+        ["06.09 · 18:05", "Admin", "Tester назначен на KTB TT"],
+        ["06.09 · 16:20", "Аида", "Арнур Кредит — «Карусель» → На проверке"],
+        ["06.09 · 12:00", "Admin", "Подключена интеграция Facebook Ads"],
+        ["05.09 · 19:33", "Aruzhan", "KazLog — съёмка перенесена на 07.09 08:00"],
+        ["05.09 · 10:15", "Anastassiya", "FinRise — план постов 12 → 15"]
+      ].map(l => ({ when: l[0], who: l[1], what: l[2] }))
+    };
+  }
+}
+</script>
+</body>
+</html>

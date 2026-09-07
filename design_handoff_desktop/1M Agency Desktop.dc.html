@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Archivo:wght@600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; background: #070707; }
+  * { box-sizing: border-box; }
+  a { color: #cdfa50; text-decoration: none; }
+  a:hover { color: #e2ff8f; }
+</style>
+</helmet>
+
+<div style="width: 1440px; height: 900px; display: flex; flex-direction: column; overflow: hidden; background: #070707; font-family: 'Space Grotesk', system-ui, sans-serif;">
+  <header style="flex: 0 0 66px; display: flex; align-items: center; gap: 22px; padding: 0 22px; background: #0b0b0b; box-shadow: inset 0 -1px 0 #191919;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <div style="width: 30px; height: 30px; border-radius: 9px; background: #cdfa50; color: #0a0a0a; display: grid; place-items: center; font-family: Archivo, sans-serif; font-weight: 900; font-size: 12px; letter-spacing: -0.03em;">1M</div>
+      <span style="font-family: Archivo, sans-serif; font-weight: 900; font-size: 14px; letter-spacing: -0.01em; color: #f2f2f2;">AGENCY</span>
+    </div>
+    <nav style="display: flex; align-items: center; gap: 4px;">
+      <button onClick="{{ goTable }}" style="{{ topTable }}">Таблица</button>
+      <button onClick="{{ goPlan }}" style="{{ topPlan }}">Контент-план</button>
+      <button onClick="{{ goShoots }}" style="{{ topShoots }}">Съёмки</button>
+      <button onClick="{{ goSettings }}" style="{{ topSettings }}">Настройки</button>
+    </nav>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 9px; height: 38px; padding: 0 12px; border-radius: 10px; background: #131313; font-size: 12.5px;">
+        <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="#9a9a9a" stroke-width="1.9"><circle cx="9" cy="9" r="5.5" /><path d="M13.2 13.2L17 17" /></svg>
+        <span style="color: #9a9a9a;">Клиент, пост, съёмка…</span>
+        <span style="padding: 2px 6px; border-radius: 5px; background: #1e1e1e; font-size: 10.5px; font-weight: 700; color: #9a9a9a;">⌘K</span>
+      </div>
+      <div style="display: flex; align-items: baseline; gap: 6px;">
+        <span style="font-family: Archivo, sans-serif; font-weight: 800; font-size: 16px; color: #f2f2f2;">3</span>
+        <span style="font-size: 11px; color: #9a9a9a;">съёмки сегодня</span>
+      </div>
+      <div style="width: 1px; height: 22px; background: #1e1e1e;"></div>
+      <div style="display: flex; align-items: center; gap: 9px;">
+        <div style="width: 30px; height: 30px; border-radius: 9px; background: #1b1b1b; color: #ededed; display: grid; place-items: center; font-family: Archivo, sans-serif; font-weight: 900; font-size: 12px;">S</div>
+        <div style="line-height: 1.25;">
+          <div style="font-size: 12px; font-weight: 700; color: #ededed;">saparbayevv.01</div>
+          <div style="font-size: 11px; color: #9a9a9a;">Администратор</div>
+        </div>
+      </div>
+    </div>
+  </header>
+  <div style="flex: 1; min-height: 0;">
+    <dc-import name="DesktopScreens" tab="{{ tab }}" show-title="{{ true }}" hint-size="100%,834px" style="width: 100%; height: 100%;"></dc-import>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900}}">
+const TOP = "height:38px;padding:0 15px;border:0;border-radius:10px;cursor:pointer;font-family:'Archivo',sans-serif;font-size:14.5px;letter-spacing:-0.01em;";
+const TOP_ON = TOP + "background:#181818;color:#ffffff;font-weight:800;";
+const TOP_OFF = TOP + "background:transparent;color:#9a9a9a;font-weight:600;";
+
+class Component extends DCLogic {
+  state = { tab: "table" };
+  renderVals() {
+    const t = this.state.tab;
+    return {
+      tab: t,
+      goTable: () => this.setState({ tab: "table" }),
+      goPlan: () => this.setState({ tab: "plan" }),
+      goShoots: () => this.setState({ tab: "shoots" }),
+      goSettings: () => this.setState({ tab: "settings" }),
+      topTable: t === "table" ? TOP_ON : TOP_OFF,
+      topPlan: t === "plan" ? TOP_ON : TOP_OFF,
+      topShoots: t === "shoots" ? TOP_ON : TOP_OFF,
+      topSettings: t === "settings" ? TOP_ON : TOP_OFF
+    };
+  }
+}
+</script>
+</body>
+</html>

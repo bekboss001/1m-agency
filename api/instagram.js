@@ -167,5 +167,101 @@ export default async function handler(req, res) {
     }
   }
 
+  /* ─────────────────────── Аналитика по аккаунту ───────────────────────── */
+
+  if (action === 'analytics') {
+    const { accountId, since, until } = req.body || {}
+    const DATE = /^\d{4}-\d{2}-\d{2}$/
+
+    if (!/^\d{5,32}$/.test(String(accountId ?? ''))) {
+      return res.status(400).json({ error: 'Некорректный accountId' })
+    }
+    if (!DATE.test(String(since ?? '')) || !DATE.test(String(until ?? ''))) {
+      return res.status(400).json({ error: 'Некорректные даты периода' })
+    }
+
+    try {
+      const profile = await getJson(
+        `${GRAPH}/${accountId}?fields=username,followers_count,media_count&access_token=${metaToken}`,
+      )
+      if (profile.error) {
+        return res.status(502).json({
+          error: profile.error.code === 190
+            ? 'Токен Meta не принят. Проверьте META_ACCESS_TOKEN в настройках Vercel.'
+            : profile.error.message,
+        })
+      }
+
+      // Каждую метрику запрашиваем отдельно: в одном запросе достаточно одного
+      // неизвестного имени, чтобы Meta отклонила весь вызов, а состав метрик у
+      // неё периодически меняется между версиями API.
+      const from = Math.floor(Date.parse(since + 'T00:00:00Z') / 1000)
+      const to = Math.floor(Date.parse(until + 'T23:59:59Z') / 1000)
+      const insights = {}
+
+      for (const metric of ['reach', 'profile_views', 'accounts_engaged']) {
+        const r = await getJson(
+          `${GRAPH}/${accountId}/insights?metric=${metric}&period=day&since=${from}&until=${to}&access_token=${metaToken}`,
+        )
+        if (r.error || !r.data?.length) continue
+        const values = r.data[0].values || []
+        insights[metric] = {
+          total: values.reduce((s, v) => s + (v.value || 0), 0),
+          series: values.map(v => ({ date: v.end_time.slice(0, 10), value: v.value || 0 })),
+        }
+      }
+
+      // Лента за период — обход прерывается, как только записи стали старше начала.
+      const media = await collect(
+        `${GRAPH}/${accountId}/media?fields=id,timestamp,media_type,like_count,comments_count,permalink,caption&limit=100&access_token=${metaToken}`,
+        items => {
+          const last = items[items.length - 1]
+          return last && last.timestamp.slice(0, 10) < since
+        },
+      )
+
+      const posts = (media.out || []).filter(m => {
+        const d = m.timestamp.slice(0, 10)
+        return d >= since && d <= until
+      })
+
+      const likes = posts.reduce((s, p) => s + (p.like_count || 0), 0)
+      const comments = posts.reduce((s, p) => s + (p.comments_count || 0), 0)
+
+      const top = [...posts]
+        .sort((a, b) => ((b.like_count || 0) + (b.comments_count || 0)) - ((a.like_count || 0) + (a.comments_count || 0)))
+        .slice(0, 3)
+        .map(p => ({
+          date: p.timestamp.slice(0, 10),
+          type: p.media_type,
+          likes: p.like_count || 0,
+          comments: p.comments_count || 0,
+          permalink: p.permalink,
+          caption: (p.caption || '').slice(0, 90),
+        }))
+
+      return res.status(200).json({
+        profile: {
+          username: profile.username,
+          followers: profile.followers_count ?? null,
+          mediaCount: profile.media_count ?? null,
+        },
+        insights,
+        posts: {
+          count: posts.length,
+          likes,
+          comments,
+          avgLikes: posts.length ? Math.round(likes / posts.length) : 0,
+          avgComments: posts.length ? Math.round((comments / posts.length) * 10) / 10 : 0,
+          lastPost: media.out?.[0]?.timestamp.slice(0, 10) || null,
+        },
+        top,
+      })
+    } catch (e) {
+      console.error('instagram analytics:', e)
+      return res.status(502).json({ error: 'Не удалось получить аналитику' })
+    }
+  }
+
   return res.status(400).json({ error: 'Неизвестное действие' })
 }
