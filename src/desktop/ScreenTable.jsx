@@ -9,6 +9,7 @@ import { today, parseYmd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, Pill, LimeButton, Badge, Divider } from './ui'
 import { fetchClients, fetchEmployees, patchClient, createClient } from './data'
+import ClientDrawer from './ClientDrawer'
 
 const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
@@ -32,6 +33,7 @@ export default function ScreenTable() {
   const [smmFilter, setSmmFilter] = useState('all')
   const [opFilter, setOpFilter] = useState('all')
   const [rowsMode, setRowsMode] = useState('all')
+  const [openId, setOpenId] = useState(null)
 
   useEffect(() => {
     Promise.all([fetchClients(), fetchEmployees()]).then(([c, e]) => {
@@ -154,10 +156,20 @@ export default function ScreenTable() {
           <div style={{ fontFamily: GROTESK, fontSize: 13, color: D.mut2 }}>Никого не нашлось</div>
         ) : (
           visible.map(c => (
-            <ClientCard key={c.id} c={c} smms={smms} ops={ops} onPatch={apply} />
+            <ClientCard key={c.id} c={c} smms={smms} ops={ops} onPatch={apply} onOpen={() => setOpenId(c.id)} />
           ))
         )}
       </div>
+
+      <ClientDrawer
+        client={clients.find(c => c.id === openId) || null}
+        smms={smms}
+        ops={ops}
+        onPatch={apply}
+        onClose={() => setOpenId(null)}
+        onArchived={id => { setClients(cs => cs.filter(x => x.id !== id)); setOpenId(null) }}
+        onRolled={id => setClients(cs => cs.map(x => (x.id === id ? { ...x, done: 0 } : x)))}
+      />
     </div>
   )
 }
@@ -194,7 +206,7 @@ function PersonSelect({ value, onChange, people, label }) {
   )
 }
 
-function ClientCard({ c, smms, ops, onPatch }) {
+function ClientCard({ c, smms, ops, onPatch, onOpen }) {
   const [hover, setHover] = useState(false)
   const left = Math.max(c.total - c.done, 0)
   const endDays = dayDiff(c.end)
@@ -228,15 +240,22 @@ function ClientCard({ c, smms, ops, onPatch }) {
         transition: 'background 120ms ease',
       }}
     >
-      {/* Шапка */}
+      {/* Шапка. Кликабельно только имя: пипсы, «+» и селекты рядом — свои
+          действия, и общий клик по карточке перехватывал бы их. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{
-          flex: 1, minWidth: 0, fontFamily: ARCHIVO, fontWeight: 800, fontSize: 15.5,
-          letterSpacing: '-0.01em', color: D.t2,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
+        <button
+          onClick={onOpen}
+          title="Открыть карточку клиента"
+          style={{
+            flex: 1, minWidth: 0, textAlign: 'left', padding: 0, border: 'none', background: 'none',
+            fontFamily: ARCHIVO, fontWeight: 800, fontSize: 15.5,
+            letterSpacing: '-0.01em', color: hover ? D.white : D.t2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            transition: 'color 120ms ease',
+          }}
+        >
           {c.name}
-        </span>
+        </button>
         {badge && <Badge color={badge.color} bg={badge.bg}>{badge.text}</Badge>}
       </div>
 

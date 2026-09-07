@@ -16,7 +16,7 @@ import { logAction } from '../lib/auditLog'
 export async function fetchClients() {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id')
+    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id')
     .eq('is_active', true)
     .order('number')
 
@@ -33,6 +33,7 @@ export async function fetchClients() {
       end: c.contract_end || '',
       smmId: c.smm_id || '',
       operatorId: c.operator_id || '',
+      metaId: c.meta_account_id || '',
     })),
     error: null,
   }
@@ -47,6 +48,7 @@ const CLIENT_FIELDS = {
   operatorId: 'operator_id',
   name: 'name',
   color: 'color',
+  metaId: 'meta_account_id',
 }
 
 export async function patchClient(id, patch) {
@@ -85,6 +87,55 @@ export async function createClient({ name, total, out }) {
     },
     error: null,
   }
+}
+
+// Проект не удаляется физически: на клиента ссылаются посты, съёмки и задачи,
+// и настоящий delete унёс бы вместе с ним всю историю работы.
+export async function archiveClient(id, name) {
+  const { data, error } = await supabase.from('clients').update({ is_active: false }).eq('id', id).select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'База не разрешила удаление' } }
+  await logAction(supabase, 'deleted', 'client', name)
+  return { error: null }
+}
+
+// Переход на новый месяц: результат закрываемого месяца уходит в историю,
+// счётчик выпущенных обнуляется, план остаётся. Дату последней выкладки не
+// трогаем — она факт, а не счётчик.
+export async function rollClientMonth(client) {
+  const now = new Date()
+  const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+
+  // upsert, а не insert: если месяц уже закрывали, перезаписываем итог,
+  // иначе повторное нажатие упёрлось бы в уникальный индекс.
+  const { error: histError } = await supabase
+    .from('client_months')
+    .upsert(
+      { client_id: client.id, period, planned: client.total, done: client.done },
+      { onConflict: 'client_id,period' },
+    )
+  if (histError) return { error: histError }
+
+  const { data, error } = await supabase
+    .from('clients')
+    .update({ published_posts: 0 })
+    .eq('id', client.id)
+    .select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'База не разрешила изменение' } }
+
+  await logAction(supabase, 'updated', 'client', client.name, { month_closed: period, done: client.done })
+  return { error: null }
+}
+
+export async function fetchClientMonths(clientId) {
+  const { data, error } = await supabase
+    .from('client_months')
+    .select('period, planned, done')
+    .eq('client_id', clientId)
+    .order('period', { ascending: false })
+    .limit(12)
+  return { data: data || [], error }
 }
 
 /* ────────────────────────────── Сотрудники ───────────────────────────── */
