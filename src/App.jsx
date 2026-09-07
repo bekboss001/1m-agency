@@ -24,6 +24,7 @@ import MobileClients from './mobile/MobileClients'
 import MobileTasks from './mobile/MobileTasks'
 import MobileSettings from './mobile/MobileSettings'
 import MobileClientCard from './mobile/MobileClientCard'
+import ScreenTable from './desktop/ScreenTable'
 
 // Редизайн 1a пока только для телефонов: на широких экранах остаётся прежний
 // интерфейс, поэтому выбор делается здесь, а не внутри самих страниц —
@@ -71,7 +72,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/" />} />
         <Route path="/" element={session ? <DashboardLayout session={session} /> : <Navigate to="/login" />}>
-          <Route index element={<Responsive mobile={MobileHome} desktop={HomePage} />} />
+          <Route index element={<Responsive mobile={MobileHome} desktop={ScreenTable} />} />
           <Route path="client/:id" element={<MobileClientCard />} />
           <Route path="clients"  element={<GuardedRoute perm="clients"><Responsive mobile={MobileClients} desktop={ClientsPage} /></GuardedRoute>} />
           <Route path="content"  element={<GuardedRoute perm="content"><Responsive mobile={MobileContent} desktop={ContentPage} /></GuardedRoute>} />
