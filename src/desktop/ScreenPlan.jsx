@@ -16,6 +16,34 @@ import {
 const COLS = '34px minmax(0,1fr) 148px 150px 152px 36px'
 const dayDiff = iso => (iso ? Math.round((parseYmd(iso) - parseYmd(today())) / 86400000) : null)
 
+const MON_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
+
+// Дата в месяце с обрезкой по его длине: 31-е число в феврале превратилось бы
+// в 3 марта, и границы периодов поехали бы.
+function atDay(year, month, day) {
+  const last = new Date(year, month + 1, 0).getDate()
+  return new Date(year, month, Math.min(day, last))
+}
+
+const ymdOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+// Период контент-плана: месяц, привязанный ко дню окончания договора, а не к
+// календарному. Договор до 15 числа — значит план идёт с 15-го по 15-е, и
+// делить список по календарным месяцам было бы неверно.
+function periodOf(iso, anchorDay) {
+  const d = parseYmd(iso)
+  let end = atDay(d.getFullYear(), d.getMonth(), anchorDay)
+  if (d >= end) end = atDay(d.getFullYear(), d.getMonth() + 1, anchorDay)
+  const start = atDay(end.getFullYear(), end.getMonth() - 1, anchorDay)
+  return { start, end, key: ymdOf(start) }
+}
+
+function periodLabel(start, end) {
+  const sameYear = start.getFullYear() === end.getFullYear()
+  const y = sameYear ? '' : ` ${String(start.getFullYear()).slice(2)}`
+  return `${start.getDate()} ${MON_SHORT[start.getMonth()]}${y} — ${end.getDate()} ${MON_SHORT[end.getMonth()]} ${end.getFullYear()}`
+}
+
 export default function ScreenPlan() {
   const [clients, setClients] = useState([])
   const [employees, setEmployees] = useState([])
@@ -90,6 +118,32 @@ export default function ScreenPlan() {
     review: posts.filter(p => p.status === 'review').length,
     work: posts.filter(p => p.status === 'in_progress').length,
   }), [posts])
+
+  // День привязки периодов: берём из даты окончания договора. Если она не
+  // задана, откатываемся на календарные месяцы — это лучше, чем ничего.
+  const anchorDay = active?.end ? parseYmd(active.end).getDate() : 1
+  const currentKey = periodOf(today(), anchorDay).key
+
+  const groups = useMemo(() => {
+    const map = new Map()
+    const undated = []
+
+    for (const p of posts) {
+      if (!p.publish_date) { undated.push(p); continue }
+      const per = periodOf(p.publish_date, anchorDay)
+      if (!map.has(per.key)) map.set(per.key, { ...per, items: [] })
+      map.get(per.key).items.push(p)
+    }
+
+    const list = [...map.values()].sort((a, b) => b.key.localeCompare(a.key))
+    if (undated.length) list.push({ key: 'none', start: null, end: null, items: undated })
+    return list
+  }, [posts, anchorDay])
+
+  // Свёрнуты все периоды, кроме текущего: прошлые нужны редко, а разворачивать
+  // их всем сразу — та же каша, только с заголовками.
+  const [collapsed, setCollapsed] = useState({})
+  const isOpen = key => (key in collapsed ? !collapsed[key] : key === currentKey || key === 'none')
 
   return (
     <div style={{ height: '100%', display: 'flex', minHeight: 0 }}>
@@ -180,24 +234,99 @@ export default function ScreenPlan() {
           <span />
         </div>
 
-        {/* Строки */}
+        {/* Строки, разбитые по периодам плана */}
         <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '0 26px 26px' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {posts.map((p, i) => (
-              <PostRow
-                key={p.id}
-                n={i + 1}
-                post={p}
-                onPatch={apply}
-                onDelete={() => removeRow(p.id)}
-              />
-            ))}
+          {groups.map(g => {
+            const open = isOpen(g.key)
+            const current = g.key === currentKey
+            const published = g.items.filter(p => p.status === 'published').length
+            return (
+              <div key={g.key} style={{ marginBottom: 14 }}>
+                <PeriodHeader
+                  label={g.start ? periodLabel(g.start, g.end) : 'Без даты публикации'}
+                  count={g.items.length}
+                  published={published}
+                  plan={current ? active?.total : null}
+                  current={current}
+                  open={open}
+                  onToggle={() => setCollapsed(c => ({ ...c, [g.key]: open }))}
+                />
 
-            <NewRowButton onClick={addRow} disabled={!activeId} />
-          </div>
+                {open && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {g.items.map((p, i) => (
+                      <PostRow
+                        key={p.id}
+                        n={i + 1}
+                        post={p}
+                        onPatch={apply}
+                        onDelete={() => removeRow(p.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          <NewRowButton onClick={addRow} disabled={!activeId} />
         </div>
       </div>
     </div>
+  )
+}
+
+// Заголовок периода: он же граница между планами и он же переключатель
+// сворачивания. Текущий период выделен лаймовой полосой слева.
+function PeriodHeader({ label, count, published, plan, current, open, onToggle }) {
+  const [h, setH] = useState(false)
+  return (
+    <button
+      onClick={onToggle}
+      onMouseEnter={() => setH(true)}
+      onMouseLeave={() => setH(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+        height: 38, padding: '0 12px', marginBottom: 8, borderRadius: 9, border: 'none',
+        background: h ? D.ctrl : 'transparent',
+        boxShadow: current ? `inset 2px 0 0 ${D.lime}` : `inset 2px 0 0 ${D.b6}`,
+        textAlign: 'left', transition: 'background 120ms ease',
+      }}
+    >
+      <span style={{
+        display: 'inline-flex', color: D.mut, flex: 'none',
+        transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 120ms ease',
+      }}>
+        <Icon name="chevron" size={12} />
+      </span>
+
+      <span style={{
+        fontFamily: ARCHIVO, fontWeight: 800, fontSize: 13.5,
+        color: current ? D.t1 : D.t4, letterSpacing: '-0.01em',
+      }}>
+        {label}
+      </span>
+
+      {current && (
+        <span style={{
+          fontFamily: GROTESK, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+          padding: '3px 7px', borderRadius: 5, background: D.limeBg, color: D.lime, flex: 'none',
+        }}>
+          ТЕКУЩИЙ
+        </span>
+      )}
+
+      <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 6, flex: 'none' }}>
+        <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, ...NUM }}>
+          {published} опубл. из {count}
+        </span>
+        {plan ? (
+          <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: count < plan ? D.warn : D.mut2, ...NUM }}>
+            · план {plan}
+          </span>
+        ) : null}
+      </span>
+    </button>
   )
 }
 
