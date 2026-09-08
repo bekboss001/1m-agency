@@ -9,6 +9,7 @@
 // в таймаут функции.
 
 import Anthropic from '@anthropic-ai/sdk'
+import { ASK_TOOL, renderAsk, validAsk } from './askTool.js'
 
 const MODEL = 'claude-opus-5'
 const GRAPH = 'https://graph.facebook.com/v19.0'
@@ -29,22 +30,9 @@ const SYSTEM = `Ты сценарист SMM-агентства 1M.AGENCY (Каз
 3. Ничего кроме того, что попросили. Без вступлений, без пересказа запроса своими словами, без выводов и пожеланий в конце.
 
 ПЕРВАЯ РЕПЛИКА В НОВОЙ ЗАДАЧЕ
-Начинай с уточняющих вопросов. Не больше трёх, каждый с готовыми вариантами, чтобы человек ответил цифрами и буквами, а не сочинением. Ровно в таком виде:
-
-1. Формат
-   а) reels 15 секунд
-   б) reels 30 секунд
-   в) карусель
-
-2. Цель
-   а) заявки в Direct
-   б) охват и узнаваемость
-
-3. Кто в кадре
-   а) сотрудник
-   б) только продукт, без людей
-
-В этой реплике не пиши ничего, кроме вопросов. Никакого сценария авансом.
+Начинай с уточняющих вопросов, и задавай их только вызовом инструмента ask. Текстом вопросы не пиши никогда: приложение рисует по вызову кнопки, а текст человеку пришлось бы перепечатывать.
+Спрашивай о том, что нельзя вывести из брифа: длительность, цель, кто в кадре, язык, какой продукт из ассортимента.
+Вместе с вызовом инструмента ничего не пиши. Никакого сценария авансом.
 Исключение: если в запросе уже названы формат, длительность и цель, вопросы пропусти и сразу пиши сценарий.
 Дальше в этой же переписке вопросы больше не задавай, если тебя не просят что-то поменять.
 
@@ -139,7 +127,7 @@ function renderContext(client, posts, ig) {
   const lines = [`Клиент: ${client.name}.`]
 
   if (client.brief) lines.push(`\nБриф:\n${client.brief}`)
-  else lines.push('\nБрифа нет — если для сценария нужны детали о продукте или аудитории, спроси.')
+  else lines.push('\nБрифа нет. Если для сценария нужны детали о продукте или аудитории, спроси.')
 
   if (client.total_posts) {
     lines.push(`\nПлан: ${client.total_posts} постов в месяц, выпущено ${client.published_posts || 0}.`)
@@ -150,19 +138,19 @@ function renderContext(client, posts, ig) {
     const types = Object.entries(ig.byType || {})
     if (types.length) {
       lines.push('Средние реакции по форматам за последние публикации: ' +
-        types.map(([t, b]) => `${TYPE_RU[t] || t} — ${b.avg} (${b.count} шт.)`).join(', ') + '.')
+        types.map(([t, b]) => `${TYPE_RU[t] || t}: ${b.avg} (${b.count} шт.)`).join(', ') + '.')
     }
     if (ig.top?.length) {
       lines.push('\nЧто зашло лучше всего:')
       for (const p of ig.top) {
-        lines.push(`— ${TYPE_RU[p.type] || p.type}, ${p.eng} реакций: ${p.caption.replace(/\s+/g, ' ') || 'без подписи'}`)
+        lines.push(`${TYPE_RU[p.type] || p.type}, ${p.eng} реакций: ${p.caption.replace(/\s+/g, ' ') || 'без подписи'}`)
       }
     }
   }
 
   if (posts?.length) {
     lines.push('\nЧто уже стоит в контент-плане (чтобы не повторяться):')
-    for (const p of posts.slice(0, 15)) lines.push(`— ${p.publish_date}: ${p.title}`)
+    for (const p of posts.slice(0, 15)) lines.push(`${p.publish_date}: ${p.title}`)
   }
 
   return lines.join('\n')
@@ -206,7 +194,7 @@ export default async function handler(req, res) {
   // бы дубликаты.
   if (typeof text !== 'string' && Array.isArray(req.body?.messages)) {
     return res.status(409).json({
-      error: 'Открыта устаревшая версия приложения. Обновите страницу и повторите — вопрос сохранён в поле ввода.',
+      error: 'Открыта устаревшая версия приложения. Обновите страницу и повторите. Вопрос сохранён в поле ввода.',
     })
   }
 
@@ -304,6 +292,7 @@ export default async function handler(req, res) {
       model: MODEL,
       max_tokens: 8000,
       output_config: { effort: 'medium' },
+      tools: [ASK_TOOL],
       system,
       messages: trimmed,
     })
@@ -314,13 +303,25 @@ export default async function handler(req, res) {
 
     // Ответ пишем здесь, а не в браузере: это единственное место, которое
     // доживает до конца генерации при любом поведении человека.
-    const answer = (final.content || [])
+    const spoken = (final.content || [])
       .filter(b => b.type === 'text')
       .map(b => b.text)
       .join('')
+
+    const askBlock = (final.content || []).find(b => b.type === 'tool_use' && b.name === 'ask')
+    const ask = askBlock ? validAsk(askBlock.input) : null
+
+    // Когда модель спрашивает, вопросы и есть содержание реплики. В content
+    // они кладутся текстом: кнопки живут в интерфейсе, а история для модели и
+    // старые сборки приложения должны читаться и без них.
+    const answer = ask
+      ? [spoken.trim(), renderAsk(ask)].filter(Boolean).join('\n\n')
+      : spoken
+
     if (answer.trim()) {
       await sbInsert(supabaseUrl, 'ai_messages', sb, {
         chat_id: chatId, role: 'assistant', content: answer, author_id: null,
+        meta: ask ? { ask } : null,
       }).catch(() => {})
       fetch(`${supabaseUrl}/rest/v1/ai_chats?id=eq.${encodeURIComponent(chatId)}`, {
         method: 'PATCH',
@@ -352,7 +353,7 @@ export default async function handler(req, res) {
       }),
     }).catch(() => {})
 
-    send({ done: true, cost: Number(cost.toFixed(4)) })
+    send({ done: true, cost: Number(cost.toFixed(4)), ask })
     res.end()
   } catch (e) {
     console.error('ai chat:', e)

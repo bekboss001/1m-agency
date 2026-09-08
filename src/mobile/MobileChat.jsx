@@ -156,8 +156,10 @@ export default function MobileChat() {
 
   /* ── Отправка ───────────────────────────────────────────────────────── */
 
-  async function send() {
-    const text = draft.trim()
+  // Текст берётся из поля ввода, но может прийти и извне: карточка вопросов
+  // собирает ответ из нажатых вариантов и отправляет его тем же путём.
+  async function send(explicit) {
+    const text = (typeof explicit === 'string' ? explicit : draft).trim()
     if (!text || busy || !clientId) return
 
     let id = chatId
@@ -173,7 +175,7 @@ export default function MobileChat() {
     const mine = { id: `local-${Date.now()}`, role: 'user', content: text, created_at: new Date().toISOString() }
 
     setMessages(ms => [...ms, mine])
-    setDraft('')
+    if (typeof explicit !== 'string') setDraft('')
     setBusy(true)
     setStreaming('')
 
@@ -284,15 +286,28 @@ export default function MobileChat() {
           />
         ) : (
           <>
-            {messages.map(m => (
-              <Bubble
-                key={m.id}
-                role={m.role}
-                content={m.content}
-                at={m.created_at}
-                author={m.author_id ? (m.author_id === me ? 'Вы' : names[m.author_id] || '') : ''}
-                onCopy={() => copy(m.content)}
-              />
+            {messages.map((m, i) => (
+              m.meta?.ask ? (
+                // Вопросы отвечаются нажатием. Активна только последняя
+                // карточка: возвращаться к позапрошлому вопросу и менять
+                // ответ уже нельзя, разговор ушёл дальше.
+                <AskCard
+                  key={m.id}
+                  ask={m.meta.ask}
+                  at={m.created_at}
+                  disabled={busy || i !== messages.length - 1}
+                  onSend={send}
+                />
+              ) : (
+                <Bubble
+                  key={m.id}
+                  role={m.role}
+                  content={m.content}
+                  at={m.created_at}
+                  author={m.author_id ? (m.author_id === me ? 'Вы' : names[m.author_id] || '') : ''}
+                  onCopy={() => copy(m.content)}
+                />
+              )
             ))}
             {streaming !== null && (
               <Bubble role="assistant" content={streaming} pending />
@@ -421,6 +436,82 @@ export default function MobileChat() {
 }
 
 /* ──────────────────────────────── Части ────────────────────────────────── */
+
+// Уточняющие вопросы: отвечают нажатием, а не перепечатыванием «1а 2б 3в».
+// Ответ собирается в обычную реплику и уходит тем же путём, что и текст из
+// поля ввода, поэтому в истории он читается как нормальный человеческий ответ.
+function AskCard({ ask, at, disabled, onSend }) {
+  const [picked, setPicked] = useState({})
+  const answered = ask.filter((_, i) => picked[i] !== undefined).length
+
+  function submit() {
+    const lines = ask
+      .map((q, i) => (picked[i] === undefined ? null : `${q.title}: ${q.options[picked[i]]}`))
+      .filter(Boolean)
+    if (lines.length) onSend(lines.join('\n'))
+  }
+
+  return (
+    <div style={{
+      background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 18,
+      padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 16,
+    }}>
+      <div style={{ color: T.accentText, ...mono(600, 10, '.14em') }}>УТОЧНИТЕ</div>
+
+      {ask.map((q, i) => (
+        <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ font: `600 13.5px ${SANS}`, color: T.text }}>{q.title}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {q.options.map((o, j) => {
+              const on = picked[i] === j
+              return (
+                <button
+                  key={j}
+                  disabled={disabled}
+                  onClick={() => setPicked(p => ({ ...p, [i]: on ? undefined : j }))}
+                  style={{
+                    minHeight: 40, padding: '0 13px', borderRadius: 12,
+                    border: `1px solid ${on ? T.accentText : T.soft}`,
+                    background: on ? T.accentDim : 'transparent',
+                    color: on ? T.accentText : T.text2,
+                    opacity: disabled && !on ? .45 : 1,
+                    font: `${on ? 600 : 500} 13px ${SANS}`,
+                    textAlign: 'left',
+                  }}
+                >
+                  {o}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+
+      {!disabled && (
+        <button
+          onClick={submit}
+          disabled={answered === 0}
+          style={{
+            minHeight: 46, borderRadius: 13, border: 'none',
+            background: answered ? T.accent : T.surface2,
+            color: answered ? T.onAccent : T.muted,
+            ...mono(700, 12, '.06em'),
+          }}
+        >
+          {answered === ask.length
+            ? 'ОТВЕТИТЬ'
+            : answered
+              ? `ОТВЕТИТЬ (${answered} ИЗ ${ask.length})`
+              : 'ВЫБЕРИТЕ ВАРИАНТ'}
+        </button>
+      )}
+
+      {at && (
+        <div style={{ color: T.muted, ...mono(500, 9.5, '.08em') }}>{hhmm(at)}</div>
+      )}
+    </div>
+  )
+}
 
 // Время у каждой реплики: в общей переписке важно видеть, что за чем шло и
 // кто спрашивал. Порядок при этом задаёт не время, а сквозной счётчик вставок.

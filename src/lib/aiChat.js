@@ -44,7 +44,7 @@ export async function deleteChat(id) {
 export async function fetchMessages(chatId) {
   const { data, error } = await supabase
     .from('ai_messages')
-    .select('id, role, content, author_id, created_at')
+    .select('id, role, content, author_id, created_at, meta')
     .eq('chat_id', chatId)
     .order('seq')
   return { data: data || [], error }
