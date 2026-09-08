@@ -192,7 +192,7 @@ export default function MobileChat() {
       }])
       // Черновик возвращаем: если запрос не дошёл до сервера, вопрос нигде не
       // сохранился, и перепечатывать его человек не должен.
-      if (/Нет связи|Сессия истекла/.test(error.message)) setDraft(text)
+      if (/Нет связи|Сессия истекла|устаревшая версия/.test(error.message)) setDraft(text)
       return
     }
 

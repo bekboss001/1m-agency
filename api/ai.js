@@ -155,8 +155,21 @@ export default async function handler(req, res) {
   const user = await userRes.json()
 
   const { chatId, clientId, history, text } = req.body || {}
-  if (!chatId || typeof text !== 'string' || !text.trim()) {
-    return res.status(400).json({ error: 'Пустой запрос' })
+
+  // Браузер может держать сборку, выпущенную до этой функции: страницу не
+  // перезагружали с прошлого деплоя. Прежний формат запроса узнаём по полю
+  // messages и говорим об этом прямо. Принимать старый формат нельзя — та
+  // сборка сохраняла реплики сама, и вместе с серверной записью получились
+  // бы дубликаты.
+  if (typeof text !== 'string' && Array.isArray(req.body?.messages)) {
+    return res.status(409).json({
+      error: 'Открыта устаревшая версия приложения. Обновите страницу и повторите — вопрос сохранён в поле ввода.',
+    })
+  }
+
+  if (!chatId) return res.status(400).json({ error: 'Чат не выбран' })
+  if (typeof text !== 'string' || !text.trim()) {
+    return res.status(400).json({ error: 'Вопрос пустой' })
   }
   const messages = [...(Array.isArray(history) ? history : []), { role: 'user', content: text }]
 
