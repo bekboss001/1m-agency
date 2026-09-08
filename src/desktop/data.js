@@ -16,7 +16,7 @@ import { logAction } from '../lib/auditLog'
 export async function fetchClients() {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username')
+    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at')
     .eq('is_active', true)
     .order('number')
 
@@ -36,6 +36,7 @@ export async function fetchClients() {
       metaId: c.meta_account_id || '',
       igId: c.instagram_account_id || '',
       igUsername: c.instagram_username || '',
+      syncedAt: c.instagram_synced_at || null,
     })),
     error: null,
   }
@@ -53,6 +54,7 @@ const CLIENT_FIELDS = {
   metaId: 'meta_account_id',
   igId: 'instagram_account_id',
   igUsername: 'instagram_username',
+  syncedAt: 'instagram_synced_at',
 }
 
 export async function patchClient(id, patch) {
@@ -205,7 +207,7 @@ export async function deletePost(id) {
 // Переехало в lib/instagram.js — теми же вызовами пользуется мобильная
 // карточка клиента. Реэкспорт оставлен, чтобы экраны десктопа не правились.
 export {
-  fetchInstagramAccounts, refreshInstagramAccounts, fetchInstagramStats,
+  fetchInstagramAccounts, refreshInstagramAccounts, fetchInstagramStats, pullInstagram,
   fetchInstagramAnalytics, saveInstagramSnapshot, fetchInstagramSnapshots,
 } from '../lib/instagram'
 

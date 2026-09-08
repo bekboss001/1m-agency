@@ -47,6 +47,77 @@ export async function fetchInstagramStats(accountId, since, until) {
   return callInstagram({ action: 'stats', accountId, since, until })
 }
 
+// Период плана привязан ко дню окончания договора: договор до 9 числа означает
+// месяц с 9-го по 9-е, а не календарный.
+export function planPeriod(endIso, todayIso) {
+  const anchor = endIso ? Number(endIso.slice(8, 10)) : 1
+  const [ty, tm, td] = todayIso.split('-').map(Number)
+  const t = new Date(ty, tm - 1, td)
+  const at = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()))
+
+  let end = at(t.getFullYear(), t.getMonth(), anchor)
+  if (t >= end) end = at(t.getFullYear(), t.getMonth() + 1, anchor)
+  const start = at(end.getFullYear(), end.getMonth() - 1, anchor)
+
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return { since: iso(start), until: todayIso, endsOn: iso(end) }
+}
+
+/**
+ * Доборный пересчёт выпущенных постов.
+ *
+ * Считает не «сколько постов в этом месяце», а «сколько вышло с прошлой
+ * сверки», и прибавляет к сохранённому числу. Это принципиально: договор на
+ * 12 постов с 08.08 по 09.09, из которых вышло 10, оставляет долг в 2 поста, и
+ * пересчёт по окну месяца стирал бы этот долг на границе периода — 10 сентября
+ * счётчик просто начинался бы заново. При доборе он продолжает расти, и недобор
+ * виден до тех пор, пока его не закроют.
+ *
+ * Точка отсчёта — instagram_synced_at, точный момент последней учтённой
+ * публикации. Пока её нет, откатываемся на дату последней выкладки из таблицы,
+ * а если нет и её — считаем текущий период плана и берём число как есть.
+ *
+ * Повторное нажатие безопасно: точка отсчёта сдвигается, второй раз находится
+ * ноль новых.
+ *
+ * @returns { data: { added, done, mode, since, lastPost, byType }, error }
+ */
+export async function pullInstagram(client) {
+  const from = client.syncedAt
+    ? { after: client.syncedAt, mode: 'sync', since: client.syncedAt.slice(0, 10) }
+    : client.out
+      // Дату понимаем по Астане: полночь UTC отрезала бы вечерние публикации
+      // предыдущего дня и посчитала бы их заново.
+      ? { after: `${client.out}T23:59:59+05:00`, mode: 'date', since: client.out }
+      : null
+
+  const period = from ? null : planPeriod(client.end, today())
+
+  const { data, error } = await callInstagram({
+    action: 'stats',
+    accountId: client.igId,
+    ...(from ? { after: from.after } : { since: period.since, until: period.until }),
+  })
+  if (error) return { data: null, error }
+
+  // Без точки отсчёта прибавлять не к чему: сохранённое число могло быть
+  // посчитано как угодно, поэтому первая сверка его заменяет.
+  const done = from ? (client.done || 0) + data.count : data.count
+
+  return {
+    data: {
+      added: data.count,
+      done,
+      byType: data.byType,
+      lastPost: data.lastPost,
+      lastAt: data.lastAt,
+      mode: from ? from.mode : 'period',
+      since: from ? from.since : period.since,
+    },
+    error: null,
+  }
+}
+
 export async function fetchInstagramAnalytics(accountId, since, until) {
   return callInstagram({ action: 'analytics', accountId, since, until })
 }

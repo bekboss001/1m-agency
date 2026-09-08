@@ -11,12 +11,21 @@ import { Icon, LimeButton } from './ui'
 import OrganicBlock from './OrganicBlock'
 import {
   fetchClientMonths, rollClientMonth, archiveClient,
-  fetchInstagramAccounts, refreshInstagramAccounts, fetchInstagramStats,
+  fetchInstagramAccounts, refreshInstagramAccounts,
 } from './data'
+import { pullInstagram, planPeriod } from '../lib/instagram'
 
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 
 const dm = iso => (iso ? `${String(parseYmd(iso).getDate()).padStart(2, '0')}.${String(parseYmd(iso).getMonth() + 1).padStart(2, '0')}` : '—')
+
+function plural(n, one, few, many) {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return one
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
+  return many
+}
 
 export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onArchived, onRolled }) {
   const [months, setMonths] = useState([])
@@ -40,6 +49,7 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
   const left = Math.max(client.total - client.done, 0)
   const now = new Date()
   const monthName = MONTHS[now.getMonth()]
+  const period = planPeriod(client.end, today())
 
   async function roll() {
     const ok = window.confirm(
@@ -98,7 +108,14 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
               }}
             />
             <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.mut2, marginTop: 4 }}>
-              №{client.number} · {monthName}: {client.done} из {client.total}, осталось {left}
+              №{client.number} · {client.done} из {client.total}
+              {left > 0 ? `, не хватает ${left}` : ', план закрыт'}
+            </div>
+            {/* Границы периода видны прямо в шапке: план считается от дня
+                договора, а не от первого числа, и без этой строки непонятно,
+                за какое окно показаны цифры. */}
+            <div style={{ fontFamily: GROTESK, fontSize: 11, color: D.quiet, marginTop: 2 }}>
+              период {dm(period.since)} — {dm(period.endsOn)}
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: D.mut, padding: 4, flex: 'none' }}>
@@ -251,19 +268,6 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
   )
 }
 
-// Период плана привязан ко дню окончания договора, как и в контент-плане:
-// договор до 15 числа означает месяц с 15-го по 15-е.
-function planPeriod(endIso) {
-  const anchor = endIso ? parseYmd(endIso).getDate() : 1
-  const t = parseYmd(today())
-  const at = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()))
-  let end = at(t.getFullYear(), t.getMonth(), anchor)
-  if (t >= end) end = at(t.getFullYear(), t.getMonth() + 1, anchor)
-  const start = at(end.getFullYear(), end.getMonth() - 1, anchor)
-  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return { since: iso(start), until: iso(t) }
-}
-
 function InstagramBlock({ client, onPatch, onError }) {
   const [accounts, setAccounts] = useState([])
   const [busy, setBusy] = useState(null)
@@ -282,19 +286,22 @@ function InstagramBlock({ client, onPatch, onError }) {
     setAccounts(data)
   }
 
-  // Считаем ленту за текущий период плана и переносим в карточку: и счётчик
-  // выпущенных, и дату последней публикации.
+  // Добор, а не пересчёт: прибавляем то, что вышло с прошлой сверки. Из-за
+  // этого недобор прошлого периода не стирается на границе месяца.
   async function pull() {
     if (!client.igId) return
     setBusy('stats')
     setResult(null)
-    const { since, until } = planPeriod(client.end)
-    const { data, error } = await fetchInstagramStats(client.igId, since, until)
+    const { data, error } = await pullInstagram(client)
     setBusy(null)
     if (error) { onError(error.message); return }
 
-    onPatch(client.id, { done: data.count, ...(data.lastPost ? { out: data.lastPost } : {}) })
-    setResult({ ...data, since, until })
+    onPatch(client.id, {
+      done: data.done,
+      ...(data.lastPost ? { out: data.lastPost } : {}),
+      ...(data.lastAt ? { syncedAt: data.lastAt } : {}),
+    })
+    setResult(data)
   }
 
   const picked = accounts.find(a => a.id === client.igId)
@@ -302,7 +309,7 @@ function InstagramBlock({ client, onPatch, onError }) {
   return (
     <Section
       title="Instagram"
-      subtitle="Подтягивает выпущенные посты и дату последней публикации. Считается лента: посты, карусели и reels. Сторис в неё не входят."
+      subtitle="Прибавляет к счётчику публикации, вышедшие с прошлой сверки, и обновляет дату последней выкладки. Считается лента: посты, карусели и reels — сторис в неё не входят. Нажимать можно сколько угодно: второй раз найдётся ноль новых."
     >
       <Row label="АККАУНТ">
         <select
@@ -359,10 +366,22 @@ function InstagramBlock({ client, onPatch, onError }) {
           borderRadius: 9, background: D.limeBg, padding: '10px 12px',
           fontFamily: GROTESK, fontSize: 12, color: D.lime, lineHeight: 1.6,
         }}>
-          За {result.since.slice(8, 10)}.{result.since.slice(5, 7)} — {result.until.slice(8, 10)}.{result.until.slice(5, 7)}:{' '}
-          <b>{result.count}</b> публикаций
-          {' '}({result.byType.image} фото, {result.byType.video} видео, {result.byType.carousel} каруселей)
-          {result.lastPost ? `. Последняя — ${result.lastPost.slice(8, 10)}.${result.lastPost.slice(5, 7)}` : ''}
+          {result.mode === 'period' ? (
+            <>
+              Сверки раньше не было, поэтому посчитали текущий период с {dm(result.since)}:{' '}
+              <b>{result.added}</b> {plural(result.added, 'публикация', 'публикации', 'публикаций')}.
+            </>
+          ) : result.added === 0 ? (
+            <>Новых публикаций с {dm(result.since)} нет — счётчик не изменился.</>
+          ) : (
+            <>
+              С {dm(result.since)} вышло <b>{result.added}</b>{' '}
+              {plural(result.added, 'публикация', 'публикации', 'публикаций')}
+              {' '}({result.byType.image} фото, {result.byType.video} видео, {result.byType.carousel} каруселей).
+              {' '}Стало {result.done} из {client.total}.
+            </>
+          )}
+          {result.lastPost ? ` Последняя — ${dm(result.lastPost)}.` : ''}
         </div>
       )}
     </Section>

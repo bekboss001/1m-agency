@@ -121,24 +121,37 @@ export default async function handler(req, res) {
 
   /* ──────────────────────── Статистика по аккаунту ──────────────────────── */
 
+  // Два режима счёта:
+  //   after         — публикации строго позже указанного момента (доборный
+  //                   пересчёт, которым пользуется кнопка «Подтянуть»);
+  //   since + until — публикации внутри окна (первая сверка, когда точки
+  //                   отсчёта ещё нет).
   if (action === 'stats') {
-    const { accountId, since, until } = req.body || {}
+    const { accountId, since, until, after } = req.body || {}
     const DATE = /^\d{4}-\d{2}-\d{2}$/
 
     if (!/^\d{5,32}$/.test(String(accountId ?? ''))) {
       return res.status(400).json({ error: 'Некорректный accountId' })
     }
-    if (!DATE.test(String(since ?? '')) || !DATE.test(String(until ?? ''))) {
+
+    const afterMs = after ? Date.parse(after) : null
+    if (after && Number.isNaN(afterMs)) {
+      return res.status(400).json({ error: 'Некорректный момент отсчёта' })
+    }
+    if (!after && (!DATE.test(String(since ?? '')) || !DATE.test(String(until ?? '')))) {
       return res.status(400).json({ error: 'Некорректные даты периода' })
     }
 
     try {
       // Лента отсортирована от свежих к старым, поэтому обход можно прервать,
-      // как только записи стали старше начала периода.
+      // как только записи ушли за нижнюю границу.
       const url = `${GRAPH}/${accountId}/media?fields=id,timestamp,media_type&limit=100&access_token=${metaToken}`
       const { out, error } = await collect(url, items => {
         const last = items[items.length - 1]
-        return last && last.timestamp.slice(0, 10) < since
+        if (!last) return false
+        return afterMs !== null
+          ? Date.parse(last.timestamp) <= afterMs
+          : last.timestamp.slice(0, 10) < since
       })
 
       if (error) {
@@ -149,22 +162,28 @@ export default async function handler(req, res) {
         })
       }
 
-      const inPeriod = out.filter(m => {
-        const d = m.timestamp.slice(0, 10)
-        return d >= since && d <= until
-      })
+      const picked = afterMs !== null
+        ? out.filter(m => Date.parse(m.timestamp) > afterMs)
+        : out.filter(m => {
+            const d = m.timestamp.slice(0, 10)
+            return d >= since && d <= until
+          })
 
-      // Дата последней публикации — по всей ленте, а не только по периоду:
-      // если в этом месяце ещё не публиковали, важно знать, когда было в прошлый раз.
+      // Последняя публикация — по всей ленте, а не только по выборке: если за
+      // период не публиковали, важно знать, когда публиковали в прошлый раз.
       const lastPost = out.length ? out[0].timestamp.slice(0, 10) : null
 
       return res.status(200).json({
-        count: inPeriod.length,
+        count: picked.length,
         lastPost,
+        // Точный момент самой свежей публикации в ленте — он становится новой
+        // точкой отсчёта. Именно момент, а не дата: если за день вышло два
+        // поста, по дате их не различить и один потерялся бы.
+        lastAt: out.length ? out[0].timestamp : null,
         byType: {
-          image: inPeriod.filter(m => m.media_type === 'IMAGE').length,
-          video: inPeriod.filter(m => m.media_type === 'VIDEO').length,
-          carousel: inPeriod.filter(m => m.media_type === 'CAROUSEL_ALBUM').length,
+          image: picked.filter(m => m.media_type === 'IMAGE').length,
+          video: picked.filter(m => m.media_type === 'VIDEO').length,
+          carousel: picked.filter(m => m.media_type === 'CAROUSEL_ALBUM').length,
         },
       })
     } catch (e) {

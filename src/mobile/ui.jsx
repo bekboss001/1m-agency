@@ -18,9 +18,9 @@ export const T = {
   avatar: "var(--g-chip)",
 
   glass: "var(--g-glass)",       // фон стеклянной панели
-  line: "var(--g-line)",         // блик-граница панели
+  line: "var(--g-line)",         // блик по краю стеклянной панели
   hair: "var(--g-line-2)",
-  soft: "var(--g-line)",
+  soft: "var(--g-edge)",         // рамка кнопки и поля: блик здесь не виден
 
   text: "var(--g-ink)",
   text2: "var(--g-ink-2)",
@@ -316,12 +316,12 @@ export function WeekStrip({ days, onPick }) {
             style={{
               flex: 1, minWidth: 0, borderRadius: 14, padding: '10px 4px',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-              background: active ? (d.activeWhite ? T.text : T.accent) : T.surface,
+              background: active ? T.accent : T.surface,
               border: `1px solid ${active ? 'transparent' : T.hair}`,
               cursor: onPick ? 'pointer' : 'default',
             }}
           >
-            <span style={{ color: active ? T.onAccent : T.muted, opacity: active ? .7 : 1, ...mono(500, 9, '.06em') }}>{d.dow}</span>
+            <span style={{ color: active ? T.onAccent : T.muted, opacity: active ? .65 : 1, ...mono(500, 9, '.06em') }}>{d.dow}</span>
             <span style={{ font: `700 17px/1 ${OSW}`, color: active ? T.onAccent : T.text }}>{d.num}</span>
             {d.badge !== undefined ? (
               <span style={{

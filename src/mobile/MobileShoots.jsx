@@ -79,7 +79,6 @@ export default function MobileShoots() {
       dow: d.dow,
       num: d.num,
       active: key === pickedKey,
-      activeWhite: true,
       badge: shoots.filter(s => s.shoot_date === key).length,
       dots: [],
       date: d.date,
