@@ -36,6 +36,9 @@ export default function MobileChat() {
 
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
+  // Держаться ли низа. Если человек прокрутил вверх — читает предыдущий
+  // сценарий, — дёргать его обратно на каждом токене нельзя.
+  const stickRef = useRef(true)
 
   /* ── Данные ─────────────────────────────────────────────────────────── */
 
@@ -79,10 +82,28 @@ export default function MobileChat() {
     try { if (clientId) localStorage.setItem('ai-chat-client', clientId) } catch { /* приватный режим */ }
   }, [clientId])
 
-  // Держим низ переписки в поле зрения, пока ответ печатается.
   useEffect(() => {
+    const onScroll = () => {
+      const gap = document.documentElement.scrollHeight - window.scrollY - window.innerHeight
+      stickRef.current = gap < 140
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // Новая реплика — доезжаем плавно: это одно движение, его приятно видеть.
+  useEffect(() => {
+    stickRef.current = true
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
-  }, [messages.length, streaming])
+  }, [messages.length])
+
+  // Пока ответ печатается — только мгновенная подгонка. Плавная прокрутка
+  // здесь накладывалась бы сама на себя десятки раз в секунду: каждая новая
+  // анимация перебивала бы незакончившуюся предыдущую, отсюда и дёрганье.
+  useEffect(() => {
+    if (streaming === null || !stickRef.current) return
+    bottomRef.current?.scrollIntoView({ block: 'end' })
+  }, [streaming])
 
   /* ── Отправка ───────────────────────────────────────────────────────── */
 
@@ -265,7 +286,7 @@ export default function MobileChat() {
             )}
           </>
         )}
-        <div ref={bottomRef} />
+        <div ref={bottomRef} style={{ scrollMarginBottom: 180 }} />
       </div>
 
       {/* Ввод */}

@@ -102,6 +102,13 @@ export async function sendMessage({ chatId, clientId, history, text }, onDelta) 
   let cost = 0
   let streamError = null
 
+  // Склейка: сообщаем накопленный текст максимум раз в кадр отрисовки.
+  let rafId = 0
+  const emit = () => {
+    if (rafId) return
+    rafId = requestAnimationFrame(() => { rafId = 0; onDelta?.(full) })
+  }
+
   while (true) {
     const { done, value } = await reader.read()
     if (done) break
@@ -119,10 +126,14 @@ export async function sendMessage({ chatId, clientId, history, text }, onDelta) 
       try { payload = JSON.parse(line.slice(5).trim()) } catch { continue }
 
       if (payload.error) { streamError = payload.error; continue }
-      if (payload.t) { full += payload.t; onDelta?.(full) }
+      if (payload.t) { full += payload.t; emit() }
       if (payload.done) cost = payload.cost || 0
     }
   }
+
+  // Последний кусок мог не успеть попасть в кадр.
+  if (rafId) { cancelAnimationFrame(rafId); rafId = 0 }
+  onDelta?.(full)
 
   if (streamError && !full) return { error: { message: streamError } }
 
