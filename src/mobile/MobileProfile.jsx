@@ -172,7 +172,7 @@ export default function MobileProfile() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '8px 20px 24px' }}>
+    <div className="g-safe-top" style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '8px 20px 24px' }}>
 
       {/* Хедер */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

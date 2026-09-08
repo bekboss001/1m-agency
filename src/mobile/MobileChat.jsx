@@ -39,6 +39,11 @@ export default function MobileChat() {
   // Держаться ли низа. Если человек прокрутил вверх — читает предыдущий
   // сценарий, — дёргать его обратно на каждом токене нельзя.
   const stickRef = useRef(true)
+  // Высота поля ввода. Оно растёт под текст, поэтому место под него нельзя
+  // задать числом — переписка должна освобождать ровно столько, сколько поле
+  // занимает сейчас, иначе последняя реплика уходит под него.
+  const inputBoxRef = useRef(null)
+  const [inputH, setInputH] = useState(64)
 
   /* ── Данные ─────────────────────────────────────────────────────────── */
 
@@ -81,6 +86,14 @@ export default function MobileChat() {
   useEffect(() => {
     try { if (clientId) localStorage.setItem('ai-chat-client', clientId) } catch { /* приватный режим */ }
   }, [clientId])
+
+  useEffect(() => {
+    const el = inputBoxRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setInputH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   useEffect(() => {
     const onScroll = () => {
@@ -261,7 +274,10 @@ export default function MobileChat() {
       )}
 
       {/* Переписка */}
-      <div style={{ flex: 1, padding: '16px 20px 8px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{
+        flex: 1, padding: '16px 20px 0', paddingBottom: inputH + 24,
+        display: 'flex', flexDirection: 'column', gap: 12,
+      }}>
         {!clientId ? (
           <Hint
             title="ВЫБЕРИТЕ КЛИЕНТА"
@@ -286,16 +302,19 @@ export default function MobileChat() {
             )}
           </>
         )}
-        <div ref={bottomRef} style={{ scrollMarginBottom: 180 }} />
+        <div ref={bottomRef} style={{ scrollMarginBottom: inputH + 116 }} />
       </div>
 
       {/* Ввод */}
       <div
+        ref={inputBoxRef}
         className={GLASS_SM}
         style={{
-          position: 'sticky', zIndex: 30,
+          position: 'fixed', zIndex: 30,
+          left: 'calc(14px + env(safe-area-inset-left))',
+          right: 'calc(14px + env(safe-area-inset-right))',
           bottom: 'calc(96px + env(safe-area-inset-bottom))',
-          margin: '0 14px', borderRadius: 20, padding: 8,
+          borderRadius: 20, padding: 8,
           display: 'flex', alignItems: 'flex-end', gap: 8,
         }}
       >

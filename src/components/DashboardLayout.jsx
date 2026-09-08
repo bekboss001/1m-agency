@@ -195,7 +195,7 @@ export default function DashboardLayout({ session }) {
           горизонтальные ленты внутри экрана. Отступы по краям — вырез камеры
           и скруглённые углы в ландшафте, сверху — статус-бар. */}
       <main
-        className="g-safe-x g-safe-top"
+        className="g-safe-x"
         style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: 96 }}
       >
         <InstallHint />

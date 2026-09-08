@@ -122,6 +122,7 @@ export default function MobileClientCard() {
       <div style={{
         background: color, color: T.onAccent,
         borderRadius: '0 0 28px 28px', padding: '14px 20px 20px',
+        paddingTop: 'calc(14px + env(safe-area-inset-top))',
         display: 'flex', flexDirection: 'column', gap: 16,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>

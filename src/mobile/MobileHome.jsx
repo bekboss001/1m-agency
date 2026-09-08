@@ -126,7 +126,7 @@ export default function MobileHome() {
   const initial = (profile?.name || profile?.email || '1').trim().charAt(0).toUpperCase()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '8px 20px 24px' }}>
+    <div className="g-safe-top" style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '8px 20px 24px' }}>
 
       {/* Хедер */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
