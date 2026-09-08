@@ -142,9 +142,9 @@ export default function MobileContent() {
     <div style={{ paddingBottom: 24 }}>
 
       {/* Sticky-хедер */}
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 20, background: T.bg,
-        padding: '8px 20px 12px', borderBottom: `1px solid ${T.hair}`,
+      <div className="g-topbar" style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        padding: '8px 20px 12px',
         display: 'flex', flexDirection: 'column', gap: 14,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>

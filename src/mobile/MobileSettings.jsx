@@ -122,9 +122,9 @@ export default function MobileSettings() {
   return (
     <div style={{ paddingBottom: 24 }}>
 
-      <div style={{
-        position: 'sticky', top: 0, zIndex: 20, background: T.bg,
-        padding: '8px 20px 12px', borderBottom: `1px solid ${T.hair}`,
+      <div className="g-topbar" style={{
+        position: 'sticky', top: 0, zIndex: 20,
+        padding: '8px 20px 12px',
         display: 'flex', flexDirection: 'column', gap: 12,
       }}>
         <span style={{ font: `700 26px ${OSW}`, color: T.text }}>НАСТРОЙКИ</span>

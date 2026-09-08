@@ -257,3 +257,28 @@ button, .g-tabbar, [role="button"] {
   min-height: 100vh;
   min-height: 100dvh;
 }
+
+/* ── Шапка экрана ────────────────────────────────────────────────────────
+ *
+ * Липкая шапка списка — второе место после таб-бара, где спека разрешает
+ * стекло: она перекрывает уходящий вверх контент, и непрозрачная заливка
+ * рубила бы фон пополам резкой чертой.
+ *
+ * Блюр меньше, чем у карточки: шапка постоянно в кадре и постоянно
+ * пересчитывается при скролле.
+ *
+ * Класс не вешать на элемент, внутри которого живут Sheet, Fab или Toast:
+ * backdrop-filter делает элемент containing block для position: fixed
+ * потомков, и они прилипли бы к шапке вместо экрана.
+ */
+.g-topbar {
+  background: var(--g-glass);
+  border-bottom: 1px solid var(--g-line-2);
+  box-shadow: var(--g-shadow-s);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-theme="light"] .g-topbar { background: rgba(255,255,255,.90); }
+  :root[data-theme="dark"]  .g-topbar { background: rgba(24,26,30,.94); }
+}
