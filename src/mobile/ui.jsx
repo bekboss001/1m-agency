@@ -94,7 +94,8 @@ export function Toast({ text }) {
       className="m-toast"
       role="status"
       style={{
-        position: 'fixed', left: 20, right: 20, bottom: 104, zIndex: 300,
+        position: 'fixed', left: 20, right: 20, zIndex: 300,
+        bottom: 'calc(104px + env(safe-area-inset-bottom))',
         display: 'flex', alignItems: 'center', gap: 10,
         background: T.text, color: T.bg, borderRadius: 14,
         padding: '13px 16px', boxShadow: T.shadow,
@@ -290,7 +291,8 @@ export function Fab({ label, onClick }) {
     <button
       onClick={onClick}
       style={{
-        position: 'fixed', right: 20, bottom: 96, zIndex: 200,
+        position: 'fixed', right: 20, zIndex: 200,
+        bottom: 'calc(96px + env(safe-area-inset-bottom))',
         minHeight: 52, padding: '0 20px', borderRadius: 17, border: 'none',
         background: T.accent, color: T.onAccent,
         boxShadow: T.shadow,

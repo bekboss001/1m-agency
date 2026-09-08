@@ -10,6 +10,7 @@ import DesktopShell from '../desktop/DesktopShell'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
 import GlassBackdrop from '../mobile/GlassBackdrop'
+import InstallHint from '../mobile/InstallHint'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -183,12 +184,20 @@ export default function DashboardLayout({ session }) {
     )
   }
 
+  // Высота у .g-app задана классом, а не инлайном: там нужны две записи
+  // подряд, 100vh как запасная и 100dvh как основная, а в объекте стилей
+  // второй ключ просто затирает первый.
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--g-bg)', color: 'var(--g-ink)' }}>
+    <div className="g-app" style={{ display: 'flex', background: 'var(--g-bg)', color: 'var(--g-ink)' }}>
       <GlassBackdrop />
       {/* z-index поднимает контент над слоем пятен; overflowX: clip держит
-          горизонтальные ленты внутри экрана. */}
-      <main style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: 96 }}>
+          горизонтальные ленты внутри экрана. Отступы по краям — вырез камеры
+          и скруглённые углы в ландшафте, сверху — статус-бар. */}
+      <main
+        className="g-safe-x g-safe-top"
+        style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: 96 }}
+      >
+        <InstallHint />
         <Outlet />
       </main>
       <TabBar />
@@ -296,8 +305,8 @@ const s = {
   tabBar: {
     position: 'fixed',
     bottom: 0,
-    left: 14,
-    right: 14,
+    left: 'calc(14px + env(safe-area-inset-left))',
+    right: 'calc(14px + env(safe-area-inset-right))',
     display: 'flex',
     padding: '8px 10px',
     paddingBottom: 'calc(14px + env(safe-area-inset-bottom))',

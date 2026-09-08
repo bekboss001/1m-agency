@@ -1,24 +1,48 @@
 {
+  "id": "/",
   "name": "1M Agency",
   "short_name": "1M Agency",
-  "description": "Agency Platform",
+  "description": "Внутренняя платформа агентства: контент-планы, съёмки, таргет",
+  "lang": "ru",
+  "dir": "ltr",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#0A0A0A",
-  "theme_color": "#0A0A0A",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#08090B",
+  "theme_color": "#08090B",
   "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Съёмки",
+      "url": "/shoots"
+    },
+    {
+      "name": "Контент-план",
+      "url": "/content"
     }
   ]
 }
