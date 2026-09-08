@@ -116,7 +116,10 @@ export default function MobileChat() {
     setBusy(false)
 
     if (error) {
-      flash(error.message.toUpperCase().slice(0, 60))
+      setMessages(ms => [...ms, {
+        id: `e-${Date.now()}`, role: 'error', content: error.message,
+        created_at: new Date().toISOString(),
+      }])
       return
     }
 
@@ -332,6 +335,31 @@ export default function MobileChat() {
 /* ──────────────────────────────── Части ────────────────────────────────── */
 
 function Bubble({ role, content, pending, onCopy }) {
+  // Ошибку показываем как реплику, а не как всплывашку: текст от API длинный,
+  // его нужно прочитать целиком и уметь скопировать.
+  if (role === 'error') {
+    return (
+      <div style={{
+        background: T.surface, border: `1px solid ${T.hotDot}`, borderRadius: 16,
+        padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8,
+      }}>
+        <div style={{ color: T.hot, ...mono(600, 10, '.12em') }}>ОШИБКА</div>
+        <div style={{ font: `400 12.5px/1.5 ${SANS}`, color: T.text2, wordBreak: 'break-word' }}>
+          {content}
+        </div>
+        <button
+          onClick={onCopy}
+          style={{
+            alignSelf: 'flex-start', minHeight: 32, padding: '0 10px', borderRadius: 9,
+            border: 'none', background: T.surface2, color: T.text2, ...mono(600, 10, '.06em'),
+          }}
+        >
+          СКОПИРОВАТЬ
+        </button>
+      </div>
+    )
+  }
+
   const mine = role === 'user'
   return (
     <div style={{ display: 'flex', justifyContent: mine ? 'flex-end' : 'flex-start' }}>

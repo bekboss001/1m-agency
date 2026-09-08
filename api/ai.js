@@ -232,9 +232,6 @@ export default async function handler(req, res) {
     const stream = anthropic.messages.stream({
       model: MODEL,
       max_tokens: 8000,
-      // Средний уровень: сценарий — не доказательство теоремы, а лишние
-      // размышления здесь оплачиваются задержкой, которую человек видит.
-      output_config: { effort: 'medium' },
       system,
       messages: trimmed,
     })
@@ -272,11 +269,16 @@ export default async function handler(req, res) {
     console.error('ai chat:', e)
     // Заголовки уже ушли, обычный res.status(500) сюда не годится —
     // сообщение об ошибке отдаём тем же потоком.
+    // Настоящий текст ошибки лежит в error.error.message; e.message — это
+    // строка целиком с кодом и JSON, читать её человеку тяжело.
+    const detail = e?.error?.error?.message || e?.message || ''
     const message = e?.status === 401
       ? 'Ключ Anthropic не принят. Проверьте ANTHROPIC_API_KEY в настройках Vercel.'
       : e?.status === 429
-        ? 'Anthropic ограничил частоту запросов. Попробуйте через минуту.'
-        : e?.message || 'Не удалось получить ответ'
+        ? 'Anthropic ограничил частоту. Попробуйте через минуту.'
+        : e?.status === 400
+          ? `Запрос отклонён: ${detail}`
+          : detail || 'Не удалось получить ответ'
     send({ error: message })
     res.end()
   }
