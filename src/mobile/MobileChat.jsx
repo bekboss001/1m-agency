@@ -247,10 +247,10 @@ export default function MobileChat() {
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <span style={{ font: `700 26px ${OSW}`, color: T.text }}>СЦЕНАРИСТ</span>
           <button
-            onClick={() => setList(v => !v)}
-            style={{ background: 'none', border: 'none', color: T.accentText, padding: '4px 0', ...mono(600, 10.5, '.1em') }}
+            onClick={() => setList(true)}
+            style={{ background: 'none', border: 'none', minHeight: 34, color: T.accentText, ...mono(600, 10.5, '.1em') }}
           >
-            {list ? 'ЗАКРЫТЬ' : `ЧАТЫ ${chats.length || ''}`.trim()}
+            {`ПЕРЕПИСКИ ${chats.length || ''}`.trim()}
           </button>
         </div>
 
@@ -262,53 +262,6 @@ export default function MobileChat() {
         />
       </div>
 
-      {/* Список чатов */}
-      {list && (
-        <div style={{ padding: '12px 20px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <button
-            onClick={startNew}
-            style={{
-              minHeight: 44, borderRadius: 13, border: 'none',
-              background: T.accent, color: T.onAccent, ...mono(700, 12, '.06em'),
-            }}
-          >
-            + НОВЫЙ ЧАТ
-          </button>
-          {chats.map(c => (
-            <div
-              key={c.id}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                background: c.id === chatId ? T.accentDim : T.surface,
-                border: `1px solid ${T.hair}`, borderRadius: 14, padding: '11px 13px',
-              }}
-            >
-              <button
-                onClick={() => { setChatId(c.id); setList(false) }}
-                style={{
-                  flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none',
-                  color: T.text, font: `500 13px ${SANS}`,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                }}
-              >
-                {c.title}
-              </button>
-              <button
-                onClick={() => removeChat(c.id)}
-                aria-label="Удалить переписку"
-                style={{ flex: 'none', background: 'none', border: 'none', color: T.muted, padding: 6, ...mono(500, 10, '.06em') }}
-              >
-                УДАЛИТЬ
-              </button>
-            </div>
-          ))}
-          {chats.length === 0 && (
-            <div style={{ color: T.muted, font: `400 12px ${SANS}`, padding: '4px 0' }}>
-              По этому клиенту переписок ещё нет.
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Переписка */}
       <div style={{
@@ -393,6 +346,57 @@ export default function MobileChat() {
           {busy ? '…' : 'ОТПРАВИТЬ'}
         </button>
       </div>
+
+      <Sheet open={list} title="Переписки" onClose={() => setList(false)}>
+        <button
+          onClick={startNew}
+          style={{
+            minHeight: 46, borderRadius: 13, border: 'none', marginBottom: 6,
+            background: T.accent, color: T.onAccent, ...mono(700, 12, '.06em'),
+          }}
+        >
+          + НОВАЯ ПЕРЕПИСКА
+        </button>
+
+        {chats.map(c => (
+          <div
+            key={c.id}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: c.id === chatId ? T.accentDim : 'transparent',
+              border: `1px solid ${c.id === chatId ? T.accentText : 'transparent'}`,
+              borderRadius: 13, padding: '2px 4px 2px 12px',
+            }}
+          >
+            <button
+              onClick={() => { setChatId(c.id); setList(false) }}
+              style={{
+                flex: 1, minWidth: 0, minHeight: 48, textAlign: 'left',
+                background: 'none', border: 'none', color: T.text, font: `600 14px ${SANS}`,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}
+            >
+              {c.title}
+            </button>
+            <button
+              onClick={() => removeChat(c.id)}
+              aria-label="Удалить переписку"
+              style={{
+                flex: 'none', minHeight: 44, padding: '0 12px', borderRadius: 11,
+                background: 'none', border: 'none', color: T.muted, ...mono(600, 10, '.06em'),
+              }}
+            >
+              УДАЛИТЬ
+            </button>
+          </div>
+        ))}
+
+        {chats.length === 0 && (
+          <div style={{ color: T.muted, font: `400 12.5px/1.5 ${SANS}`, padding: '8px 4px' }}>
+            По этому клиенту переписок ещё нет. Нажмите «Новая переписка» или просто напишите вопрос.
+          </div>
+        )}
+      </Sheet>
 
       <Sheet open={picker} title="Клиент" onClose={() => setPicker(false)}>
         {myClients.map(c => (
