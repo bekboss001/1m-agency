@@ -7,7 +7,7 @@ import { Icon, LimeButton, Toggle, SectionCard } from './ui'
 import {
   fetchSettings, saveSetting, fetchRoles, fetchUsers, fetchRequests,
   setUserRole, approveUser, rejectUser, fetchAuditLog, fetchTeamLoad,
-  deleteUser, saveRole, deleteRole, createEmployee, deleteEmployee,
+  deleteUser, saveRole, deleteRole, createEmployee, deleteEmployee, fetchAiPromptDefault,
 } from './data'
 
 const TZ = [
@@ -78,6 +78,7 @@ export default function ScreenSettings() {
     ['team', 'Команда', team.team.length],
     ['users', 'Пользователи и права', users.length],
     ['requests', 'Заявки', requests.length || null],
+    ['script', 'Сценарист', null],
     ['integrations', 'Интеграции', null],
     ['log', 'Журнал', null],
   ]
@@ -119,9 +120,100 @@ export default function ScreenSettings() {
         {tab === 'team' && <Team team={team} setTeam={setTeam} fail={fail} />}
         {tab === 'users' && <Users users={users} roles={roles} setUsers={setUsers} setRoles={setRoles} fail={fail} />}
         {tab === 'requests' && <Requests requests={requests} setRequests={setRequests} setUsers={setUsers} fail={fail} />}
+        {tab === 'script' && <ScriptPrompt settings={settings} put={put} fail={fail} />}
         {tab === 'integrations' && <Integrations settings={settings} put={put} />}
         {tab === 'log' && <Log log={log} />}
       </div>
+    </div>
+  )
+}
+
+/* ────────────────────────────── Сценарист ───────────────────────────── */
+
+// Правка формата сценария не должна означать выкладку новой версии: формат
+// меняется по ходу работы, а деплой занимает минуты и требует программиста.
+//
+// Редактируется только часть инструкции. Механика, которой держатся кнопки с
+// уточняющими вопросами, остаётся в коде: убери её случайно, и вопросы начнут
+// приходить текстом, а понять почему будет неоткуда.
+function ScriptPrompt({ settings, put, fail }) {
+  const [text, setText] = useState('')
+  const [base, setBase] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAiPromptDefault().then(({ data, error }) => {
+      setBase(data)
+      // Пока владелец ничего не менял, в поле лежит встроенный шаблон: пустое
+      // поле не объясняло бы, что вообще можно править.
+      setText(typeof settings.ai_script_prompt === 'string' && settings.ai_script_prompt.trim()
+        ? settings.ai_script_prompt
+        : data)
+      setLoading(false)
+      if (error) fail(error.message)
+    })
+  }, [settings.ai_script_prompt, fail])
+
+  const custom = typeof settings.ai_script_prompt === 'string' && settings.ai_script_prompt.trim()
+  const dirty = text !== (custom ? settings.ai_script_prompt : base)
+
+  async function save() {
+    await put('ai_script_prompt', text.trim())
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 860 }}>
+      <SectionCard
+        title="Инструкция сценариста"
+        subtitle="Формат сценария и правила письма для вкладки «Сценарист». Меняется здесь и действует сразу, без выкладки новой версии. Роль и механика уточняющих вопросов заданы в коде и отсюда не редактируются."
+      >
+        {loading ? (
+          <div style={{ fontFamily: GROTESK, fontSize: 12.5, color: D.mut2 }}>Загружаем шаблон…</div>
+        ) : (
+          <>
+            <textarea
+              value={text}
+              onChange={e => setText(e.target.value)}
+              rows={26}
+              spellCheck={false}
+              style={{
+                ...fieldStyle, height: 'auto', padding: '12px 14px',
+                fontFamily: 'ui-monospace, monospace', fontSize: 12.5, lineHeight: 1.6,
+                resize: 'vertical', whiteSpace: 'pre-wrap',
+              }}
+            />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
+              <LimeButton onClick={save} disabled={!dirty} height={38}>
+                {saved ? 'Сохранено' : 'Сохранить'}
+              </LimeButton>
+              <button
+                onClick={() => setText(base)}
+                disabled={text === base}
+                style={{
+                  height: 38, padding: '0 14px', borderRadius: 9, border: 'none',
+                  background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13,
+                  opacity: text === base ? 0.4 : 1,
+                }}
+              >
+                Вернуть встроенный
+              </button>
+              <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2 }}>
+                {custom ? 'Действует ваш вариант' : 'Действует встроенный шаблон'}
+              </span>
+            </div>
+
+            <div style={{ marginTop: 10, fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.6 }}>
+              Если стереть всё и сохранить, вернётся встроенный шаблон: инструкция без формата
+              дала бы сценарии без формата. Правка не трогает уже написанные сценарии, она
+              действует со следующей реплики.
+            </div>
+          </>
+        )}
+      </SectionCard>
     </div>
   )
 }

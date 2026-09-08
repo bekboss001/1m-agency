@@ -213,6 +213,25 @@ export {
   fetchInstagramAnalytics, saveInstagramSnapshot, fetchInstagramSnapshots,
 } from '../lib/instagram'
 
+/* ─────────────────────────── Сценарист (ИИ) ──────────────────────────── */
+
+// Встроенный шаблон отдаёт сервер, а не хранит копию интерфейс: два источника
+// правды для одного текста рано или поздно разойдутся, и никто не заметит.
+export async function fetchAiPromptDefault() {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { data: '', error: { message: 'Сессия истекла' } }
+
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify({ action: 'prompt' }),
+  }).catch(() => null)
+
+  if (!res || !res.ok) return { data: '', error: { message: 'Не удалось получить шаблон по умолчанию' } }
+  const body = await res.json().catch(() => ({}))
+  return { data: body.default || '', error: null }
+}
+
 /* ────────────────────────────── Настройки ────────────────────────────── */
 
 export async function fetchSettings() {
