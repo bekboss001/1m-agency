@@ -24,6 +24,7 @@ import MobileClients from './mobile/MobileClients'
 import MobileTasks from './mobile/MobileTasks'
 import MobileSettings from './mobile/MobileSettings'
 import MobileClientCard from './mobile/MobileClientCard'
+import MobileChat from './mobile/MobileChat'
 import ScreenTable from './desktop/ScreenTable'
 import ScreenPlan from './desktop/ScreenPlan'
 import ScreenShoots from './desktop/ScreenShoots'
@@ -82,6 +83,7 @@ export default function App() {
           <Route path="content"  element={<GuardedRoute perm="content"><Responsive mobile={MobileContent} desktop={ScreenPlan} /></GuardedRoute>} />
           <Route path="shoots"   element={<GuardedRoute perm="shoots"><Responsive mobile={MobileShoots} desktop={ScreenShoots} /></GuardedRoute>} />
           <Route path="target"   element={<GuardedRoute adminOnly><Responsive mobile={MobileTarget} desktop={ScreenTarget} /></GuardedRoute>} />
+          <Route path="chat"     element={<GuardedRoute perm="content"><MobileChat /></GuardedRoute>} />
           <Route path="calendar" element={<GuardedRoute perm="calendar"><CalendarPage /></GuardedRoute>} />
           <Route path="tasks"    element={<GuardedRoute perm="tasks"><Responsive mobile={MobileTasks} desktop={TasksPage} /></GuardedRoute>} />
           <Route path="settings" element={<GuardedRoute adminOnly><Responsive mobile={MobileSettings} desktop={ScreenSettings} /></GuardedRoute>} />

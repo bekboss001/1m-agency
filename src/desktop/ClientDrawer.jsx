@@ -191,6 +191,20 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
             </Row>
           </Section>
 
+          {/* Бриф для сценариста */}
+          <Section
+            title="Бриф"
+            subtitle="Что продаём, кому, каким голосом и чего говорить нельзя. Это читает ИИ-сценарист во вкладке «Сценарист» — чем конкретнее здесь, тем меньше он переспрашивает и тем меньше выдумывает."
+          >
+            <textarea
+              value={client.brief || ''}
+              onChange={e => onPatch(client.id, { brief: e.target.value })}
+              rows={7}
+              placeholder={'Например:\nДоставка воды по Алматы, 19-литровые бутыли.\nАудитория — семьи и офисы, решение принимает женщина 28–45.\nТон: спокойный, без восклицаний и «спешите».\nНельзя: обещать доставку быстрее часа, сравнивать с конкурентами по названиям.'}
+              style={{ ...field, height: 'auto', padding: '11px 12px', lineHeight: 1.5, resize: 'vertical' }}
+            />
+          </Section>
+
           {/* Реклама */}
           <Section title="Реклама" subtitle="ID рекламного кабинета Meta — по нему подтягивается статистика во вкладке «Таргет».">
             <Row label="META ADS ACCOUNT ID">

@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   LayoutDashboard, Users, FileText, Camera, Calendar,
-  Settings, LogOut, Target, CheckSquare, Home, User, Sun, Moon,
+  Settings, LogOut, Target, CheckSquare, Home, User, Sun, Moon, Sparkles,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useProfile } from '../lib/useProfile'
@@ -28,6 +28,7 @@ const MOB_TABS = [
   { to: '/',        icon: Home,        label: 'Главная',  end: true,           noClient: true },
   { to: '/content', icon: FileText,    label: 'Контент',                       page: 'content' },
   { to: '/shoots',  icon: Camera,      label: 'Съёмки',                        page: 'shoots' },
+  { to: '/chat',    icon: Sparkles,    label: 'Сценарист',                     page: 'content' },
   { to: '/target',  icon: Target,      label: 'Таргет',                        page: 'target' },
   { to: '/profile', icon: User,        label: 'Профиль' },
 ]
