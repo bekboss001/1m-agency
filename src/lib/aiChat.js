@@ -46,21 +46,16 @@ export async function fetchMessages(chatId) {
     .from('ai_messages')
     .select('id, role, content, author_id, created_at')
     .eq('chat_id', chatId)
-    .order('created_at')
+    .order('seq')
   return { data: data || [], error }
-}
-
-async function saveMessage(chatId, role, content, authorId) {
-  const { data, error } = await supabase
-    .from('ai_messages')
-    .insert({ chat_id: chatId, role, content, author_id: authorId || null })
-    .select('id, role, content, author_id, created_at')
-    .single()
-  return { data, error }
 }
 
 /**
  * Отправляет реплику и стримит ответ.
+ *
+ * Ни вопрос, ни ответ здесь не сохраняются — это делает сервер. Раньше
+ * сохранял браузер, дочитав поток до конца, и стоило уйти с экрана или
+ * закрыть приложение, как ответ пропадал: записывать было некому.
  *
  * @param onDelta  вызывается на каждый кусок текста
  * @returns { text, cost, error }
@@ -69,20 +64,12 @@ export async function sendMessage({ chatId, clientId, history, text }, onDelta) 
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: { message: 'Сессия истекла — войдите заново' } }
 
-  // Реплику человека сохраняем до запроса: если ответ не придёт, вопрос всё
-  // равно останется в переписке, и его не придётся печатать заново.
-  await saveMessage(chatId, 'user', text, session.user.id)
-
   let res
   try {
     res = await fetch('/api/ai', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({
-        chatId,
-        clientId,
-        messages: [...history, { role: 'user', content: text }],
-      }),
+      body: JSON.stringify({ chatId, clientId, history, text }),
     })
   } catch {
     return { error: { message: 'Нет связи с сервером' } }
@@ -137,10 +124,7 @@ export async function sendMessage({ chatId, clientId, history, text }, onDelta) 
 
   if (streamError && !full) return { error: { message: streamError } }
 
-  const { data: saved } = await saveMessage(chatId, 'assistant', full, null)
-  await supabase.from('ai_chats').update({ updated_at: new Date().toISOString() }).eq('id', chatId)
-
-  return { text: full, saved, cost, error: null }
+  return { text: full, cost, error: null }
 }
 
 // Заголовок чата — первая фраза человека. Отдельный запрос к модели ради

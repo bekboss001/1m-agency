@@ -33,6 +33,9 @@ export default function MobileChat() {
   const [streaming, setStreaming] = useState(null)  // текст ответа, пока он идёт
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [me, setMe] = useState(null)
+  // Имена авторов реплик. Переписка общая, и в ней важно видеть, кто спросил.
+  const [names, setNames] = useState({})
 
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
@@ -46,6 +49,20 @@ export default function MobileChat() {
   const [inputH, setInputH] = useState(64)
 
   /* ── Данные ─────────────────────────────────────────────────────────── */
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setMe(data?.user?.id || null))
+    supabase
+      .from('profiles')
+      .select('id, name, full_name, email')
+      .then(({ data }) => {
+        const map = {}
+        for (const p of data || []) {
+          map[p.id] = (p.name || p.full_name || p.email || '').split('@')[0]
+        }
+        setNames(map)
+      })
+  }, [])
 
   useEffect(() => {
     supabase
@@ -78,10 +95,29 @@ export default function MobileChat() {
 
   useEffect(() => { loadChats() }, [loadChats])
 
-  useEffect(() => {
+  const reload = useCallback(async () => {
     if (!chatId) return
-    fetchMessages(chatId).then(({ data }) => setMessages(data))
+    const { data } = await fetchMessages(chatId)
+    // База — единственный источник правды о порядке и составе переписки.
+    // Локальные пузырьки нужны только чтобы не ждать ответа сервера.
+    setMessages(data)
   }, [chatId])
+
+  useEffect(() => { reload() }, [reload])
+
+  // Возврат к приложению — момент, когда переписка могла уйти вперёд: коллега
+  // ответил с ноутбука, или ответ дописался, пока вы были на другом экране.
+  useEffect(() => {
+    const sync = () => {
+      if (document.visibilityState === 'visible' && !busy) { reload(); loadChats() }
+    }
+    document.addEventListener('visibilitychange', sync)
+    window.addEventListener('focus', sync)
+    return () => {
+      document.removeEventListener('visibilitychange', sync)
+      window.removeEventListener('focus', sync)
+    }
+  }, [reload, loadChats, busy])
 
   useEffect(() => {
     try { if (clientId) localStorage.setItem('ai-chat-client', clientId) } catch { /* приватный режим */ }
@@ -150,16 +186,17 @@ export default function MobileChat() {
     setBusy(false)
 
     if (error) {
+      await reload()
       setMessages(ms => [...ms, {
         id: `e-${Date.now()}`, role: 'error', content: error.message,
-        created_at: new Date().toISOString(),
       }])
+      // Черновик возвращаем: если запрос не дошёл до сервера, вопрос нигде не
+      // сохранился, и перепечатывать его человек не должен.
+      if (/Нет связи|Сессия истекла/.test(error.message)) setDraft(text)
       return
     }
 
-    setMessages(ms => [...ms, {
-      id: `a-${Date.now()}`, role: 'assistant', content: answer, created_at: new Date().toISOString(),
-    }])
+    await reload()
 
     // Безымянный чат получает название по первому вопросу.
     const chat = chats.find(c => c.id === id)
@@ -295,7 +332,14 @@ export default function MobileChat() {
         ) : (
           <>
             {messages.map(m => (
-              <Bubble key={m.id} role={m.role} content={m.content} onCopy={() => copy(m.content)} />
+              <Bubble
+                key={m.id}
+                role={m.role}
+                content={m.content}
+                at={m.created_at}
+                author={m.author_id ? (m.author_id === me ? 'Вы' : names[m.author_id] || '') : ''}
+                onCopy={() => copy(m.content)}
+              />
             ))}
             {streaming !== null && (
               <Bubble role="assistant" content={streaming} pending />
@@ -374,7 +418,15 @@ export default function MobileChat() {
 
 /* ──────────────────────────────── Части ────────────────────────────────── */
 
-function Bubble({ role, content, pending, onCopy }) {
+// Время у каждой реплики: в общей переписке важно видеть, что за чем шло и
+// кто спрашивал. Порядок при этом задаёт не время, а сквозной счётчик вставок.
+const hhmm = iso => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+function Bubble({ role, content, pending, at, author, onCopy }) {
   // Ошибку показываем как реплику, а не как всплывашку: текст от API длинный,
   // его нужно прочитать целиком и уметь скопировать.
   if (role === 'error') {
@@ -415,6 +467,16 @@ function Bubble({ role, content, pending, onCopy }) {
           {content}
           {pending && <Caret />}
         </div>
+        {(at || author) && (
+          <div style={{
+            marginTop: 6, display: 'flex', gap: 6,
+            color: mine ? T.onAccent : T.muted, opacity: mine ? .55 : 1,
+            ...mono(500, 9.5, '.08em'),
+          }}>
+            {author && <span>{author.toUpperCase()}</span>}
+            {at && <span>{hhmm(at)}</span>}
+          </div>
+        )}
         {!mine && !pending && content && (
           <button
             onClick={onCopy}

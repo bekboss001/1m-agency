@@ -42,6 +42,14 @@ async function sbGet(url, headers) {
   return res.json()
 }
 
+async function sbInsert(supabaseUrl, table, headers, row) {
+  return fetch(`${supabaseUrl}/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify(row),
+  })
+}
+
 // Слепок Instagram: сколько подписчиков и что у клиента реально заходит.
 // Собирается редко и складывается в строку чата — на каждой реплике ходить
 // в Graph API значило бы добавлять секунды к каждому ответу.
@@ -146,10 +154,11 @@ export default async function handler(req, res) {
   if (!userRes.ok) return res.status(401).json({ error: 'Сессия недействительна' })
   const user = await userRes.json()
 
-  const { chatId, clientId, messages } = req.body || {}
-  if (!Array.isArray(messages) || messages.length === 0) {
+  const { chatId, clientId, history, text } = req.body || {}
+  if (!chatId || typeof text !== 'string' || !text.trim()) {
     return res.status(400).json({ error: 'Пустой запрос' })
   }
+  const messages = [...(Array.isArray(history) ? history : []), { role: 'user', content: text }]
 
   // Ограничение по частоте.
   const hourAgo = new Date(Date.now() - 3600_000).toISOString()
@@ -160,6 +169,12 @@ export default async function handler(req, res) {
   if (Array.isArray(recent) && recent.length >= HOURLY_LIMIT) {
     return res.status(429).json({ error: 'Слишком много запросов за час. Попробуйте позже.' })
   }
+
+  // Вопрос сохраняем до обращения к модели: даже если ответ не придёт,
+  // он останется в переписке и его не придётся печатать заново.
+  await sbInsert(supabaseUrl, 'ai_messages', sb, {
+    chat_id: chatId, role: 'user', content: text, author_id: user.id,
+  }).catch(() => {})
 
   /* Контекст клиента */
   let context = ''
@@ -239,6 +254,23 @@ export default async function handler(req, res) {
     stream.on('text', t => send({ t }))
 
     const final = await stream.finalMessage()
+
+    // Ответ пишем здесь, а не в браузере: это единственное место, которое
+    // доживает до конца генерации при любом поведении человека.
+    const answer = (final.content || [])
+      .filter(b => b.type === 'text')
+      .map(b => b.text)
+      .join('')
+    if (answer.trim()) {
+      await sbInsert(supabaseUrl, 'ai_messages', sb, {
+        chat_id: chatId, role: 'assistant', content: answer, author_id: null,
+      }).catch(() => {})
+      fetch(`${supabaseUrl}/rest/v1/ai_chats?id=eq.${encodeURIComponent(chatId)}`, {
+        method: 'PATCH',
+        headers: { ...sb, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ updated_at: new Date().toISOString() }),
+      }).catch(() => {})
+    }
 
     const u = final.usage || {}
     const cost =
