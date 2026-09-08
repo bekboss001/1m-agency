@@ -182,7 +182,7 @@ export default function MobileShoots() {
       }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <span style={{ font: `700 26px ${OSW}`, color: T.text }}>СЪЁМКИ</span>
-          <span style={{ color: 'rgba(255,255,255,.45)', ...mono(500, 11, '.1em') }}>
+          <span style={{ color: T.muted, ...mono(500, 11, '.1em') }}>
             {MONTHS[d.getMonth()]} {d.getFullYear()}
           </span>
         </div>
@@ -205,7 +205,7 @@ export default function MobileShoots() {
 
         <div style={{ display: 'flex', gap: 8 }}>
           <div style={{ flex: 1, background: T.surface, borderRadius: 14, padding: '12px 14px' }}>
-            <div style={{ font: `700 22px ${OSW}`, color: T.accent }}>{dayShoots.length}</div>
+            <div style={{ font: `700 22px ${OSW}`, color: T.accentText }}>{dayShoots.length}</div>
             <div style={{ marginTop: 2, color: T.muted, ...mono(500, 9.5, '.12em') }}>СЪЁМОК В ЭТОТ ДЕНЬ</div>
           </div>
           <div style={{ flex: 1, background: T.surface, borderRadius: 14, padding: '12px 14px' }}>
@@ -220,7 +220,7 @@ export default function MobileShoots() {
           </span>
           <button
             onClick={() => { setExportScope('day'); setExportOpen(true) }}
-            style={{ background: 'none', border: 'none', color: T.accent, padding: '4px 0', ...mono(500, 11, '.06em') }}
+            style={{ background: 'none', border: 'none', color: T.accentText, padding: '4px 0', ...mono(500, 11, '.06em') }}
           >
             ЭКСПОРТ
           </button>
@@ -246,7 +246,7 @@ export default function MobileShoots() {
                   <span style={{ width: 52, flex: 'none', paddingTop: 16, color: T.text, ...mono(600, 13, '.02em') }}>
                     {(s.time_start || '').slice(0, 5) || '—'}
                   </span>
-                  <div style={{ flex: 1, minWidth: 0, position: 'relative', borderLeft: `1px solid rgba(255,255,255,.09)`, paddingLeft: 14 }}>
+                  <div style={{ flex: 1, minWidth: 0, position: 'relative', borderLeft: `1px solid var(--g-line-2)`, paddingLeft: 14 }}>
                     <span style={{
                       position: 'absolute', left: -4.5, top: 22,
                       width: 9, height: 9, borderRadius: '50%',
@@ -266,7 +266,7 @@ export default function MobileShoots() {
                         </span>
                         <span style={{
                           flex: 'none', borderRadius: 7, padding: '4px 8px',
-                          background: confirmed ? T.accent : 'rgba(255,255,255,.06)',
+                          background: confirmed ? T.accent : T.surface2,
                           color: confirmed ? T.onAccent : T.text2,
                           ...mono(600, 9.5, '.06em'),
                         }}>
@@ -312,8 +312,8 @@ export default function MobileShoots() {
                 onClick={() => setExportScope(id)}
                 style={{
                   flex: 1, minHeight: 40, borderRadius: 11, border: 'none',
-                  background: exportScope === id ? '#fff' : T.surface2,
-                  color: exportScope === id ? T.onAccent : 'rgba(255,255,255,.6)',
+                  background: exportScope === id ? T.text : T.surface2,
+                  color: exportScope === id ? T.bg : T.text2,
                   ...mono(600, 10.5, '.06em'),
                 }}
               >
@@ -371,7 +371,7 @@ export default function MobileShoots() {
                     style={{
                       flex: 1, minHeight: 44, borderRadius: 12, border: 'none',
                       background: selected.status === id ? T.accent : T.surface2,
-                      color: selected.status === id ? T.onAccent : 'rgba(255,255,255,.6)',
+                      color: selected.status === id ? T.onAccent : T.text2,
                       ...mono(600, 10.5, '.06em'),
                     }}
                   >
@@ -386,7 +386,7 @@ export default function MobileShoots() {
                 onClick={() => removeShoot(selected)}
                 style={{
                   minHeight: 48, borderRadius: 13, background: 'none',
-                  border: '1px solid rgba(242,98,46,.35)', color: T.hot,
+                  border: T.hair, color: T.hot,
                   ...mono(600, 12, '.08em'),
                 }}
               >

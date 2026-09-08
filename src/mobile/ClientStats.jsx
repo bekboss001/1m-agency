@@ -122,8 +122,8 @@ export default function ClientStats({ client, ads }) {
               {delta !== null && delta !== 0 && (
                 <span style={{
                   marginBottom: 4, padding: '3px 8px', borderRadius: 8,
-                  background: delta > 0 ? 'rgba(214,245,62,.14)' : 'rgba(242,98,46,.16)',
-                  color: delta > 0 ? T.accent : T.hot,
+                  background: delta > 0 ? 'var(--g-accent-dim)' : 'var(--g-glass-3)',
+                  color: delta > 0 ? T.accentText : T.hot,
                   ...mono(700, 11, '.04em'),
                 }}>
                   {delta > 0 ? '+' : ''}{num(delta)}
@@ -192,7 +192,7 @@ export default function ClientStats({ client, ads }) {
                   }}>
                     {p.caption || 'без подписи'}
                   </span>
-                  <span style={{ flex: 'none', color: T.accent, ...mono(600, 11, '.02em') }}>
+                  <span style={{ flex: 'none', color: T.accentText, ...mono(600, 11, '.02em') }}>
                     {num(p.likes + p.comments)}
                   </span>
                 </a>
@@ -208,7 +208,7 @@ export default function ClientStats({ client, ads }) {
 function Tile({ value, label, accent }) {
   return (
     <div style={{ background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16, padding: '12px 14px' }}>
-      <div style={{ font: `700 24px ${OSW}`, color: accent ? T.accent : T.text }}>{value}</div>
+      <div style={{ font: `700 24px ${OSW}`, color: accent ? T.accentText : T.text }}>{value}</div>
       <div style={{ marginTop: 2, color: T.muted, ...mono(500, 8.5, '.1em') }}>{label}</div>
     </div>
   )

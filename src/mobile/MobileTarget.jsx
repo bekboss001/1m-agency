@@ -326,7 +326,7 @@ export default function MobileTarget() {
                 style={{
                   flex: 'none', padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
                   background: on ? T.accent : T.surface2,
-                  color: on ? T.onAccent : 'rgba(255,255,255,.6)',
+                  color: on ? T.onAccent : T.text2,
                   ...mono(600, 10.5, '.06em'),
                 }}
               >
@@ -347,7 +347,7 @@ export default function MobileTarget() {
               padding: '9px 12px', borderRadius: 11, minHeight: 36,
               background: range ? T.accent : 'transparent',
               border: `1px dashed ${range ? T.accent : T.soft}`,
-              color: range ? T.onAccent : 'rgba(255,255,255,.6)',
+              color: range ? T.onAccent : T.text2,
               ...mono(600, 10.5, '.06em'),
             }}
           >
@@ -360,7 +360,7 @@ export default function MobileTarget() {
 
         {error && (
           <div style={{
-            background: 'rgba(242,98,46,.08)', border: '1px solid rgba(242,98,46,.3)',
+            background: 'var(--g-glass-3)', border: T.hair,
             borderRadius: 14, padding: '13px 16px', color: T.hot, font: `500 12px ${SANS}`,
           }}>
             {error}
@@ -376,7 +376,7 @@ export default function MobileTarget() {
                 {loading ? '···' : money(total.spend)}
               </span>
               {delta !== null && (
-                <span style={{ color: delta >= 0 ? T.accent : T.hot, ...mono(600, 12, '.04em') }}>
+                <span style={{ color: delta >= 0 ? T.accentText : T.hot, ...mono(600, 12, '.04em') }}>
                   {delta >= 0 ? '↑' : '↓'} {Math.abs(delta)}% <span style={{ color: T.faint }}>ЗА СУТКИ</span>
                 </span>
               )}
@@ -391,7 +391,7 @@ export default function MobileTarget() {
                   style={{
                     flex: 1, borderRadius: 2, minHeight: 2,
                     height: `${Math.max((v / maxBar) * 100, 5)}%`,
-                    background: i >= series.length - 3 ? T.accent : 'rgba(255,255,255,.16)',
+                    background: i >= series.length - 3 ? T.accent : T.track,
                   }}
                 />
               ))}
@@ -447,14 +447,14 @@ export default function MobileTarget() {
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || '#888', flex: 'none' }} />
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || T.muted, flex: 'none' }} />
                       <span style={{ flex: 1, minWidth: 0, font: `600 14px ${SANS}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {c.name}
                       </span>
                       <span style={{ flex: 'none', ...mono(600, 14, '.02em') }}>{m ? money(m.spend) : '—'}</span>
                     </div>
 
-                    <span style={{ height: 4, borderRadius: 3, background: 'rgba(255,255,255,.09)', overflow: 'hidden' }}>
+                    <span style={{ height: 4, borderRadius: 3, background: T.track, overflow: 'hidden' }}>
                       <span style={{
                         display: 'block', height: '100%', borderRadius: 3,
                         width: `${((m?.spend || 0) / maxSpend) * 100}%`,
@@ -531,7 +531,7 @@ export default function MobileTarget() {
                                 </span>
                                 <span style={{
                                   flex: 'none', borderRadius: 7, padding: '4px 8px',
-                                  background: on ? T.accent : 'rgba(255,255,255,.06)',
+                                  background: on ? T.accent : T.surface2,
                                   color: on ? T.onAccent : T.text2,
                                   ...mono(600, 9, '.06em'),
                                 }}>
@@ -610,7 +610,7 @@ export default function MobileTarget() {
                 onClick={() => setRangeDraft(make())}
                 style={{
                   padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
-                  background: T.surface2, color: 'rgba(255,255,255,.6)', ...mono(600, 10, '.04em'),
+                  background: T.surface2, color: T.text2, ...mono(600, 10, '.04em'),
                 }}
               >
                 {label}

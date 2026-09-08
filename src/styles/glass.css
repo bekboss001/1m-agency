@@ -1,0 +1,212 @@
+/* 1M.AGENCY — Liquid Glass: токены светлой (3b) и тёмной (3d) тем.
+ *
+ * Неймспейс --g-* сознательный: имена --bg/--ink/--line/--accent уже заняты
+ * старой системой PRESS и десктопом, и переопределять их глобально значило бы
+ * перекрасить десктоп заодно.
+ *
+ * Тема переключается атрибутом data-theme="light|dark" на <html>.
+ */
+
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --g-bg:          #EEF0F4;
+  --g-ink:         #101318;
+  --g-ink-2:       rgba(16,19,24,.62);
+  --g-ink-3:       rgba(16,19,24,.50);
+  --g-ink-4:       rgba(16,19,24,.34);
+
+  --g-glass:       rgba(255,255,255,.52);   /* панель 1-го уровня, со стеклом */
+  /* Плотнее, чем в спеке (.62): там это строка ВНУТРИ стеклянной панели, где
+     фон уже размыт. Отдельная карточка блюра не имеет, и при .62 пятно
+     просвечивало бы сквозь текст. */
+  --g-glass-2:     rgba(255,255,255,.74);   /* карточка без стекла */
+  --g-glass-3:     rgba(255,255,255,.56);   /* вложенная строка, поле ввода */
+  --g-chip:        rgba(16,19,24,.06);
+  --g-line:        rgba(255,255,255,.82);
+  --g-line-2:      rgba(255,255,255,.70);
+  --g-track:       rgba(16,19,24,.10);
+
+  --g-shadow:      0 10px 34px rgba(16,19,24,.14);
+  --g-shadow-s:    0 6px 22px rgba(16,19,24,.10);
+
+  --g-accent:      #D6F53E;   /* заливка */
+  --g-accent-ink:  #15150F;   /* текст на заливке */
+  --g-accent-text: #4A6300;   /* акцент КАК ТЕКСТ: лимон на светлом нечитаем */
+  --g-accent-dim:  rgba(74,99,0,.12);
+
+  --g-alert:       #B23A24;   /* alert как текст */
+  --g-alert-dot:   #E8452F;   /* alert как плашка/точка */
+  --g-warn:        #B4740A;
+  --g-warn-dot:    #F5A524;
+
+  --g-solid:       rgba(16,19,24,.90);
+  --g-solid-ink:   #FFFFFF;
+
+  /* Статусы контент-плана: на светлом стекле нужны затемнённые версии,
+     иначе оранжевый и лимонный как текст не читаются. */
+  --st-idea:       #6B6B6B;
+  --st-work:       #B4740A;
+  --st-review:     #2E62B8;
+  --st-published:  #4A6300;
+
+  --blob-1:        #D6F53E;
+  --blob-2:        #7FB0FF;
+  --blob-3:        #FFB07F;
+  --blob-opacity:  .50;
+  --blob-blur:     72px;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --g-bg:          #08090B;
+  --g-ink:         #FFFFFF;
+  --g-ink-2:       rgba(255,255,255,.62);
+  --g-ink-3:       rgba(255,255,255,.50);
+  --g-ink-4:       rgba(255,255,255,.32);
+
+  --g-glass:       rgba(255,255,255,.07);
+  --g-glass-2:     rgba(255,255,255,.06);
+  --g-glass-3:     rgba(255,255,255,.05);
+  --g-chip:        rgba(255,255,255,.08);
+  --g-line:        rgba(255,255,255,.16);
+  --g-line-2:      rgba(255,255,255,.10);
+  --g-track:       rgba(255,255,255,.12);
+
+  --g-shadow:      0 10px 34px rgba(0,0,0,.50);
+  --g-shadow-s:    0 6px 22px rgba(0,0,0,.40);
+
+  --g-accent:      #D6F53E;
+  --g-accent-ink:  #0A0A0B;
+  --g-accent-text: #D6F53E;
+  --g-accent-dim:  rgba(214,245,62,.14);
+
+  --g-alert:       #FF8A6B;
+  --g-alert-dot:   #E8452F;
+  --g-warn:        #F5A524;
+  --g-warn-dot:    #F5A524;
+
+  --g-solid:       rgba(255,255,255,.10);
+  --g-solid-ink:   #FFFFFF;
+
+  --st-idea:       #8B8B8B;
+  --st-work:       #F5A524;
+  --st-review:     #6AA6FF;
+  --st-published:  #D6F53E;
+
+  --blob-1:        #D6F53E;
+  --blob-2:        #7B4EE8;
+  --blob-3:        #F2622E;
+  --blob-opacity:  .30;
+  --blob-blur:     84px;
+}
+
+/* ── Рецепт стекла ───────────────────────────────────────────────────────
+ *
+ * ВАЖНО: backdrop-filter делает элемент containing block для потомков с
+ * position: fixed — ровно та же ловушка, что когда-то утащила модалки вниз
+ * страницы из-за animation-fill-mode. Поэтому стекло вешаем только на
+ * карточки-листья, никогда на корень экрана и не на обёртку, внутри которой
+ * живут Sheet, Toast или Fab.
+ */
+.g-glass {
+  background: var(--g-glass);
+  border: 1px solid var(--g-line);
+  box-shadow: var(--g-shadow);
+  border-radius: 26px;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+.g-glass-sm {
+  background: var(--g-glass);
+  border: 1px solid var(--g-line);
+  box-shadow: var(--g-shadow-s);
+  border-radius: 22px;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Там, где backdrop-filter не поддержан, стекло подменяем плотным фоном:
+   пятна остаются под ним, размытие им даёт собственный filter. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-theme="light"] .g-glass,
+  :root[data-theme="light"] .g-glass-sm { background: rgba(255,255,255,.86); }
+  :root[data-theme="dark"]  .g-glass,
+  :root[data-theme="dark"]  .g-glass-sm { background: rgba(24,26,30,.92); }
+}
+
+/* ── Живой фон ───────────────────────────────────────────────────────────
+ *
+ * Почему не режет глаз: анимируется только transform (композитный слой, без
+ * перерисовки), яркость и цвет не анимируются вовсе, а сдвиг в 60–100px при
+ * блюре 72–84px меняет лишь градиент — резких границ в кадре не появляется.
+ */
+.g-blobs {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+.g-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(var(--blob-blur));
+  opacity: var(--blob-opacity);
+  will-change: transform;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.g-blob-1 { width: 320px; height: 320px; left: -70px;  top: -40px;    background: var(--blob-1); animation-name: gDrift1; animation-duration: 22s; }
+.g-blob-2 { width: 300px; height: 300px; right: -90px; top: 190px;    background: var(--blob-2); animation-name: gDrift2; animation-duration: 28s; }
+.g-blob-3 { width: 280px; height: 280px; left: -40px;  bottom: -60px; background: var(--blob-3); animation-name: gDrift3; animation-duration: 19s; }
+
+/* Траектория из трёх точек, а не «туда-обратно»: маятник глаз читает как
+   дёрганье, замкнутый путь — как дыхание. */
+@keyframes gDrift1 {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  33%     { transform: translate3d( 64px, 46px,0) scale(1.14); }
+  66%     { transform: translate3d( 22px, 86px,0) scale(1.04); }
+}
+@keyframes gDrift2 {
+  0%,100% { transform: translate3d(0,0,0) scale(1.08); }
+  33%     { transform: translate3d(-78px,-40px,0) scale(1.00); }
+  66%     { transform: translate3d(-30px, 58px,0) scale(1.12); }
+}
+@keyframes gDrift3 {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  33%     { transform: translate3d( 70px,-52px,0) scale(1.10); }
+  66%     { transform: translate3d(104px, 10px,0) scale(1.02); }
+}
+
+/* Экран не виден — анимацию останавливаем: в фоне она жгла бы батарею зря. */
+.g-blobs[data-paused="1"] .g-blob { animation-play-state: paused; }
+
+@media (prefers-reduced-motion: reduce) {
+  .g-blob { animation: none !important; }
+}
+
+/* ── Кросс-фейд при смене темы ───────────────────────────────────────────
+ *
+ * Класс висит только те 240 мс, пока идёт переключение. Держать transition
+ * на всех элементах постоянно нельзя: он начал бы догонять каждое изменение
+ * фона — нажатия кнопок, смену статуса — и интерфейс поплыл бы.
+ */
+.g-theme-anim, .g-theme-anim * {
+  transition: background-color 220ms ease, border-color 220ms ease,
+              color 220ms ease, box-shadow 220ms ease !important;
+}
+
+/* Таб-бар — единственное стекло, которое живёт постоянно на каждом экране,
+   поэтому блюр у него меньше: он всё время в кадре и всё время стоит денег. */
+.g-tabbar {
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root[data-theme="light"] .g-tabbar { background: rgba(255,255,255,.90); }
+  :root[data-theme="dark"]  .g-tabbar { background: rgba(24,26,30,.94); }
+}

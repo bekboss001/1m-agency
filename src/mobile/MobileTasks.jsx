@@ -10,10 +10,10 @@ import { parseYmd, today } from '../lib/tz'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, Fab, EmptyState } from './ui'
 
 const COLUMNS = [
-  { id: 'new', label: 'Сделать', color: '#8B8B8B' },
-  { id: 'in_progress', label: 'В работе', color: '#F5A524' },
-  { id: 'review', label: 'Проверка', color: '#6AA6FF' },
-  { id: 'done', label: 'Готово', color: '#D6F53E' },
+  { id: 'new', label: 'Сделать', color: 'var(--st-idea)' },
+  { id: 'in_progress', label: 'В работе', color: 'var(--st-work)' },
+  { id: 'review', label: 'Проверка', color: 'var(--st-review)' },
+  { id: 'done', label: 'Готово', color: 'var(--st-published)' },
 ]
 const ORDER = COLUMNS.map(c => c.id)
 const LABEL = Object.fromEntries(COLUMNS.map(c => [c.id, c.label]))
@@ -116,8 +116,8 @@ export default function MobileTasks() {
                 style={{
                   flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
                   padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
-                  background: on ? '#fff' : T.surface2,
-                  color: on ? T.onAccent : 'rgba(255,255,255,.6)',
+                  background: on ? T.text : T.surface2,
+                  color: on ? T.bg : T.text2,
                   ...mono(600, 10.5, '.06em'),
                 }}
               >
@@ -159,7 +159,7 @@ export default function MobileTasks() {
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     {t.client?.name && (
                       <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: T.text2, ...mono(500, 10, '.06em') }}>
-                        <span style={{ width: 7, height: 7, borderRadius: 2, background: t.client.color || '#888' }} />
+                        <span style={{ width: 7, height: 7, borderRadius: 2, background: t.client.color || T.muted }} />
                         {t.client.name.toUpperCase()}
                       </span>
                     )}
@@ -178,8 +178,8 @@ export default function MobileTasks() {
                       onClick={() => advance(t)}
                       style={{
                         alignSelf: 'flex-start', minHeight: 32, padding: '7px 11px', borderRadius: 9,
-                        background: done ? T.accent : 'rgba(255,255,255,.05)',
-                        border: `1px solid ${done ? T.accent : COLOR[t.status] + '55'}`,
+                        background: done ? T.accent : T.surface2,
+                        border: `1px solid ${done ? T.accent : T.hair}`,
                         color: done ? T.onAccent : COLOR[t.status],
                         transition: 'background 120ms, color 120ms, border-color 120ms',
                         ...mono(600, 10, '.06em'),
@@ -219,8 +219,8 @@ export default function MobileTasks() {
                   onClick={() => setForm({ ...form, priority: id })}
                   style={{
                     flex: 1, minHeight: 40, borderRadius: 11, border: 'none',
-                    background: form.priority === id ? '#fff' : T.surface2,
-                    color: form.priority === id ? T.onAccent : 'rgba(255,255,255,.6)',
+                    background: form.priority === id ? T.text : T.surface2,
+                    color: form.priority === id ? T.bg : T.text2,
                     ...mono(600, 10, '.04em'),
                   }}
                 >

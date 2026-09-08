@@ -156,8 +156,8 @@ export default function MobileContent() {
                 onClick={() => setView(id)}
                 style={{
                   border: 'none', borderRadius: 9, padding: '7px 10px', minHeight: 32,
-                  background: view === id ? '#fff' : 'transparent',
-                  color: view === id ? T.onAccent : 'rgba(255,255,255,.5)',
+                  background: view === id ? T.text : 'transparent',
+                  color: view === id ? T.bg : T.text2,
                   ...mono(600, 10, '.06em'),
                 }}
               >
@@ -202,8 +202,8 @@ export default function MobileContent() {
                 style={{
                   flex: 'none', display: 'flex', alignItems: 'center', gap: 6,
                   padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
-                  background: on ? '#fff' : T.surface2,
-                  color: on ? T.onAccent : 'rgba(255,255,255,.6)',
+                  background: on ? T.text : T.surface2,
+                  color: on ? T.bg : T.text2,
                   ...mono(600, 10.5, '.06em'),
                 }}
               >
@@ -235,7 +235,7 @@ export default function MobileContent() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {groups.map(([date, items]) => (
               <div key={date}>
-                <div style={{ color: 'rgba(255,255,255,.36)', marginBottom: 10, ...mono(600, 10.5, '.14em') }}>
+                <div style={{ color: T.muted, marginBottom: 10, ...mono(600, 10.5, '.14em') }}>
                   {dayTitle(date).toUpperCase()}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -329,8 +329,8 @@ export default function MobileContent() {
                   onClick={() => setForm({ ...form, post_type: id })}
                   style={{
                     flex: 1, minHeight: 40, borderRadius: 11, border: 'none',
-                    background: form.post_type === id ? '#fff' : T.surface2,
-                    color: form.post_type === id ? T.onAccent : 'rgba(255,255,255,.6)',
+                    background: form.post_type === id ? T.text : T.surface2,
+                    color: form.post_type === id ? T.bg : T.text2,
                     ...mono(600, 10, '.04em'),
                   }}
                 >

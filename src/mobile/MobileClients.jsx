@@ -197,7 +197,7 @@ export default function MobileClients() {
                       background: 'none', border: 'none', padding: 0, textAlign: 'left', color: T.text,
                     }}
                   >
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || '#888', flex: 'none' }} />
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || T.muted, flex: 'none' }} />
                     <span style={{ flex: 1, minWidth: 0, font: `600 14px ${SANS}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {c.name}
                     </span>
@@ -210,11 +210,11 @@ export default function MobileClients() {
                       <span style={{ color: T.muted, ...mono(500, 10, '.1em') }}>
                         {done} ИЗ {total} · ОСТАЛОСЬ {left}
                       </span>
-                      <span style={{ font: `700 15px ${OSW}`, color: pct >= 100 ? T.accent : pct < 40 ? T.hot : T.text }}>
+                      <span style={{ font: `700 15px ${OSW}`, color: pct >= 100 ? T.accentText : pct < 40 ? T.hot : T.text }}>
                         {pct}%
                       </span>
                     </div>
-                    <div style={{ height: 4, borderRadius: 3, background: 'rgba(255,255,255,.09)', overflow: 'hidden' }}>
+                    <div style={{ height: 4, borderRadius: 3, background: T.track, overflow: 'hidden' }}>
                       <div style={{
                         width: `${pct}%`, height: '100%', borderRadius: 3,
                         background: pct >= 100 ? T.accent : pct < 40 ? T.hot : T.warn,
@@ -375,8 +375,8 @@ function FilterRow({ title, people, value, onPick }) {
               onClick={() => onPick(p.id)}
               style={{
                 padding: '9px 12px', borderRadius: 11, border: 'none', minHeight: 36,
-                background: on ? '#fff' : T.surface2,
-                color: on ? T.onAccent : 'rgba(255,255,255,.6)',
+                background: on ? T.text : T.surface2,
+                color: on ? T.bg : T.text2,
                 ...mono(600, 10.5, '.06em'),
               }}
             >

@@ -6,12 +6,14 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { ymd } from '../lib/tz'
-import { T, MONO, SANS, OSW, mono, useToast, Toast, SectionTitle, WeekStrip } from './ui'
+import { useTheme } from '../lib/ThemeContext'
+import { T, MONO, SANS, OSW, mono, useToast, Toast, SectionTitle, WeekStrip, GLASS, GLASS_SM } from './ui'
 import { loadTodayTasks, toggleTask, todayLabel, todayDayMonth, weekDays } from './todayTasks'
 
 export default function MobileHome() {
   const navigate = useNavigate()
   const { profile, loading: profileLoading } = useProfile()
+  const { theme, toggle } = useTheme()
   const [toast, flash] = useToast()
 
   const [userId, setUserId] = useState(null)
@@ -87,7 +89,7 @@ export default function MobileHome() {
       active: d.isToday,
       dots: [
         ...Array(Math.min(posts, 4)).fill(T.accent),
-        ...Array(Math.min(shoots, 2)).fill(T.hot),
+        ...Array(Math.min(shoots, 2)).fill(T.hotDot),
       ],
     }
   })
@@ -129,21 +131,35 @@ export default function MobileHome() {
       {/* Хедер */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ font: `700 15px ${OSW}`, letterSpacing: '.06em', color: T.text }}>
-          1M<span style={{ color: T.accent }}>.</span>AGENCY
+          1M<span style={{ color: T.accentText }}>.</span>AGENCY
         </span>
         <div style={{ display: 'flex', gap: 8 }}>
+          {/* Тумблер темы: мгновенный свет↔ночь. Полный выбор, включая «как в
+              системе», живёт в Профиль → Настройки — здесь нужна скорость. */}
+          <button
+            onClick={toggle}
+            aria-label={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
+            className={GLASS_SM}
+            style={{
+              minHeight: 36, padding: '0 11px', borderRadius: 12, color: T.text,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              ...mono(700, 10, '.1em'),
+            }}
+          >
+            {theme === 'dark' ? 'НОЧЬ' : 'СВЕТ'}
+          </button>
           <button
             onClick={() => navigate('/content')}
+            className={GLASS_SM}
             style={{
-              position: 'relative', width: 36, height: 36, borderRadius: 12,
-              border: `1px solid ${T.soft}`, background: 'none', color: T.text,
+              position: 'relative', width: 36, height: 36, borderRadius: 12, color: T.text,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               font: `500 11px ${MONO}`,
             }}
           >
             {reviewCount}
             {reviewCount > 0 && (
-              <span style={{ position: 'absolute', top: 6, right: 6, width: 5, height: 5, borderRadius: '50%', background: T.hot }} />
+              <span style={{ position: 'absolute', top: 6, right: 6, width: 5, height: 5, borderRadius: '50%', background: T.hotDot }} />
             )}
           </button>
           <button
@@ -163,60 +179,59 @@ export default function MobileHome() {
       {/* Подпись дня */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: -12 }}>
         <span style={{ color: T.muted, ...mono(600, 11, '.14em') }}>{todayLabel()}</span>
-        <span style={{ color: T.accent, ...mono(600, 11, '.14em') }}>
+        <span style={{ color: T.accentText, ...mono(600, 11, '.14em') }}>
           {loading ? '…' : left > 0 ? `ОСТАЛОСЬ ${left}` : 'ВСЁ ЗАКРЫТО'}
         </span>
       </div>
 
-      {/* Дела на сегодня */}
-      <div style={{ background: T.accent, borderRadius: 22, padding: 20, color: T.onAccent }}>
+      {/* Дела на сегодня — главная стеклянная панель экрана */}
+      <div className={GLASS} style={{ padding: 18 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          <span style={{ font: `700 40px/.9 ${OSW}` }}>ЗАДАЧИ<br />НА {todayDayMonth()}</span>
-          <span style={{ font: `700 56px/.8 ${OSW}` }}>{loading ? '·' : left}</span>
+          <span style={{ font: `700 34px/.92 ${OSW}`, color: T.text }}>ЗАДАЧИ<br />НА {todayDayMonth()}</span>
+          <span style={{ font: `700 52px/.8 ${OSW}`, color: T.accentText }}>{loading ? '·' : left}</span>
         </div>
 
-        <div style={{ marginTop: 18 }}>
+        <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 9 }}>
           {loading ? (
-            <div style={{ padding: '14px 0', ...mono(500, 11, '.1em'), color: 'rgba(10,10,11,.6)' }}>ЗАГРУЗКА…</div>
+            <div style={{ padding: '4px 0', color: T.muted, ...mono(500, 11, '.1em') }}>ЗАГРУЗКА…</div>
           ) : tasks.length === 0 ? (
-            <div style={{ padding: '14px 0', borderTop: '1px solid rgba(10,10,11,.16)' }}>
-              <div style={{ font: `600 14.5px ${SANS}` }}>На сегодня задач нет</div>
-              <div style={{ marginTop: 3, color: 'rgba(10,10,11,.6)', ...mono(500, 10.5, '.1em') }}>
+            <div style={{ background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16, padding: '12px 13px' }}>
+              <div style={{ font: `600 13.5px ${SANS}`, color: T.text }}>На сегодня задач нет</div>
+              <div style={{ marginTop: 3, color: T.muted, ...mono(500, 10, '.1em') }}>
                 СЪЁМОК НЕ НАЗНАЧЕНО
               </div>
             </div>
           ) : tasks.map(t => (
+            // Строка внутри стекла — плотный фон без своего backdrop-filter:
+            // второй слой размытия дал бы грязь и просадку кадров.
             <button
               key={t.id}
               onClick={() => onToggle(t)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-                minHeight: 44, padding: '11px 0', textAlign: 'left',
-                borderTop: '1px solid rgba(10,10,11,.16)',
-                borderLeft: 'none', borderRight: 'none', borderBottom: 'none',
-                background: 'none', color: T.onAccent,
+                display: 'flex', alignItems: 'center', gap: 11, width: '100%',
+                minHeight: 44, padding: '11px 12px', textAlign: 'left',
+                background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16,
+                color: T.text,
               }}
             >
               <span style={{
-                width: 22, height: 22, flex: 'none', borderRadius: 7,
-                border: '1.5px solid rgba(10,10,11,.55)',
-                background: t.done ? T.onAccent : 'transparent',
-                color: T.accent, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 20, height: 20, flex: 'none', borderRadius: 7,
+                border: `1.5px solid ${t.done ? 'transparent' : T.muted}`,
+                background: t.done ? T.accent : 'transparent',
+                color: T.onAccent, display: 'flex', alignItems: 'center', justifyContent: 'center',
                 font: `700 11px ${MONO}`,
               }}>
                 {t.done ? '✓' : ''}
               </span>
               <span style={{ flex: 1, minWidth: 0 }}>
                 <span style={{
-                  display: 'block', font: `600 14.5px/1.2 ${SANS}`,
-                  textDecoration: t.done ? 'line-through' : 'none', opacity: t.done ? 0.45 : 1,
+                  display: 'block', font: `600 13.5px/1.2 ${SANS}`,
+                  color: t.done ? T.muted : T.text,
+                  textDecoration: t.done ? 'line-through' : 'none',
                 }}>
                   {t.title}
                 </span>
-                <span style={{
-                  display: 'block', marginTop: 3, color: 'rgba(10,10,11,.6)',
-                  opacity: t.done ? 0.45 : 1, ...mono(500, 10.5, '.1em'),
-                }}>
+                <span style={{ display: 'block', marginTop: 3, color: T.muted, ...mono(500, 10, '.1em') }}>
                   {t.meta}
                 </span>
               </span>
@@ -235,7 +250,7 @@ export default function MobileHome() {
         {/* Тап по дню открывает съёмки этого дня — там же виден весь его состав. */}
         <WeekStrip days={strip} onPick={day => navigate(`/shoots?date=${ymd(day.date)}`)} />
         <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
-          {[['ПОСТЫ', T.accent], ['СЪЁМКИ', T.hot]].map(([label, color]) => (
+          {[['ПОСТЫ', T.accent], ['СЪЁМКИ', T.hotDot]].map(([label, color]) => (
             <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, color: T.muted, ...mono(500, 10, '.1em') }}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: color }} />
               {label}
@@ -259,26 +274,31 @@ export default function MobileHome() {
                 style={{
                   display: 'flex', flexDirection: 'column', gap: 10, width: '100%', textAlign: 'left',
                   background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16,
-                  padding: '14px 16px', color: T.text,
+                  padding: '14px 16px', color: T.text, boxShadow: T.shadowS,
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || '#888', flex: 'none' }} />
+                  {/* Метке нужен собственный контур: светлые цвета клиентов
+                      (NEW COLOR, ВИВА) на светлом стекле иначе исчезают. */}
+                  <span style={{
+                    width: 10, height: 10, borderRadius: 3, flex: 'none',
+                    background: c.color || T.muted, boxShadow: 'inset 0 0 0 1px rgba(16,19,24,.22)',
+                  }} />
                   <span style={{ flex: 1, minWidth: 0, font: `600 14px ${SANS}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.name}
                   </span>
                   <span style={{
                     flex: 'none', borderRadius: 7, padding: '4px 7px',
                     color: hot ? T.hot : T.warn,
-                    border: `1px solid ${hot ? 'rgba(242,98,46,.4)' : 'rgba(245,165,36,.35)'}`,
+                    border: `1px solid ${T.hair}`,
                     ...mono(600, 9.5, '.08em'),
                   }}>
                     {hot ? 'ГОРИТ' : 'ОТСТАЁТ'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ flex: 1, height: 5, borderRadius: 3, background: 'rgba(255,255,255,.09)', overflow: 'hidden' }}>
-                    <span style={{ display: 'block', width: `${c.pct}%`, height: '100%', borderRadius: 3, background: hot ? T.hot : T.accent }} />
+                  <span style={{ flex: 1, height: 6, borderRadius: 3, background: T.track, overflow: 'hidden' }}>
+                    <span style={{ display: 'block', width: `${c.pct}%`, height: '100%', borderRadius: 3, background: hot ? T.hotDot : (c.color || T.accent) }} />
                   </span>
                   <span style={{ flex: 'none', ...mono(600, 12, '.04em') }}>{c.pct}%</span>
                 </div>

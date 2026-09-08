@@ -1,0 +1,122 @@
+/* 1M.AGENCY — Liquid Glass theme (3b light / 3d dark)
+   Единственный источник правды по токенам. Тема переключается атрибутом
+   data-theme="light|dark" на корневом элементе приложения. */
+
+:root,
+[data-theme="light"] {
+  --bg:          #EEF0F4;
+  --ink:         #101318;
+  --ink-2:       rgba(16,19,24,.62);
+  --ink-3:       rgba(16,19,24,.50);
+
+  --glass:       rgba(255,255,255,.52);  /* панель 1-го уровня */
+  --glass-2:     rgba(255,255,255,.62);  /* вложенная строка внутри панели */
+  --line:        rgba(255,255,255,.82);  /* блик-граница панели */
+  --line-2:      rgba(255,255,255,.70);  /* разделители внутри панели */
+  --track:       rgba(16,19,24,.10);
+
+  --shadow:      0 10px 34px rgba(16,19,24,.14);
+  --shadow-s:    0 6px 22px rgba(16,19,24,.10);
+
+  --accent:      #D6F53E;   /* заливка кнопок */
+  --accent-ink:  #15150F;   /* текст на заливке */
+  --accent-text: #4A6300;   /* акцент КАК ТЕКСТ на светлом стекле (контраст 4.5:1) */
+
+  --solid:       rgba(16,19,24,.90);   /* вторичная «непрозрачная» кнопка */
+  --solid-ink:   #FFFFFF;
+  --alert:       #B23A24;   /* alert как текст */
+  --alert-dot:   #E8452F;   /* alert как плашка/бар */
+
+  --blob-1:      #D6F53E;
+  --blob-2:      #7FB0FF;
+  --blob-3:      #FFB07F;
+  --blob-opacity: .50;
+  --blob-blur:   72px;
+}
+
+[data-theme="dark"] {
+  --bg:          #08090B;
+  --ink:         #FFFFFF;
+  --ink-2:       rgba(255,255,255,.62);
+  --ink-3:       rgba(255,255,255,.50);
+
+  --glass:       rgba(255,255,255,.07);
+  --glass-2:     rgba(255,255,255,.06);
+  --line:        rgba(255,255,255,.16);
+  --line-2:      rgba(255,255,255,.10);
+  --track:       rgba(255,255,255,.12);
+
+  --shadow:      0 10px 34px rgba(0,0,0,.50);
+  --shadow-s:    0 6px 22px rgba(0,0,0,.40);
+
+  --accent:      #D6F53E;
+  --accent-ink:  #0A0A0B;
+  --accent-text: #D6F53E;
+
+  --solid:       rgba(255,255,255,.10);
+  --solid-ink:   #FFFFFF;
+  --alert:       #FF8A6B;
+  --alert-dot:   #E8452F;
+
+  --blob-1:      #D6F53E;
+  --blob-2:      #7B4EE8;
+  --blob-3:      #F2622E;
+  --blob-opacity: .30;
+  --blob-blur:   84px;
+}
+
+/* --- Рецепт стеклянной панели ------------------------------------------- */
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-radius: 26px;
+}
+.glass--sm { backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
+             box-shadow: var(--shadow-s); border-radius: 22px; }
+.glass__row { background: var(--glass-2); border: 1px solid var(--line-2); border-radius: 16px; }
+
+/* Фолбэк там, где нет backdrop-filter (старый Android WebView, RN без blur-либы) */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-theme="light"] .glass, [data-theme="light"] .glass--sm { background: rgba(255,255,255,.86); }
+  [data-theme="dark"]  .glass, [data-theme="dark"]  .glass--sm { background: rgba(24,26,30,.92); }
+}
+
+/* --- Живой фон: три пятна, «дышат» медленно ----------------------------- */
+.blobs { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.blob {
+  position: absolute; border-radius: 50%;
+  filter: blur(var(--blob-blur));
+  opacity: var(--blob-opacity);
+  will-change: transform;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+}
+.blob--1 { width: 320px; height: 320px; left: -70px; top: -40px;    background: var(--blob-1); animation-name: drift1; animation-duration: 22s; }
+.blob--2 { width: 300px; height: 300px; right: -90px; top: 190px;   background: var(--blob-2); animation-name: drift2; animation-duration: 28s; }
+.blob--3 { width: 280px; height: 280px; left: -40px; bottom: -60px; background: var(--blob-3); animation-name: drift3; animation-duration: 19s; }
+
+/* Траектория из трёх точек, а не «туда-обратно»: путь не читается как маятник. */
+@keyframes drift1 {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  33%     { transform: translate3d( 64px, 46px,0) scale(1.14); }
+  66%     { transform: translate3d( 22px, 86px,0) scale(1.04); }
+}
+@keyframes drift2 {
+  0%,100% { transform: translate3d(0,0,0) scale(1.08); }
+  33%     { transform: translate3d(-78px,-40px,0) scale(1.00); }
+  66%     { transform: translate3d(-30px, 58px,0) scale(1.12); }
+}
+@keyframes drift3 {
+  0%,100% { transform: translate3d(0,0,0) scale(1); }
+  33%     { transform: translate3d( 70px,-52px,0) scale(1.10); }
+  66%     { transform: translate3d(104px, 10px,0) scale(1.02); }
+}
+
+@media (prefers-reduced-motion: reduce) { .blob { animation: none !important; } }
+
+/* Смена темы — мягкий кросс-фейд, без «мигания» */
+[data-theme] { transition: background-color 220ms ease, color 220ms ease; }
+.glass, .glass--sm, .glass__row, .blob { transition: background-color 220ms ease, border-color 220ms ease, opacity 220ms ease; }

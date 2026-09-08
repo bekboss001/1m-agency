@@ -9,6 +9,7 @@ import { useProfile } from '../lib/useProfile'
 import DesktopShell from '../desktop/DesktopShell'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
+import GlassBackdrop from '../mobile/GlassBackdrop'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -146,15 +147,15 @@ export default function DashboardLayout({ session }) {
       return true
     })
     return (
-      <div style={s.tabBar}>
+      <div className="g-tabbar" style={s.tabBar}>
         {tabs.map(({ to, icon: Icon, label, end }) => {
           const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
           return (
             // Иконка + моно-подпись капсом под акцентной полоской: хендофф
             // разрешает вернуть иконки, если полоска-индикатор остаётся.
             <button key={to} onClick={() => navigate(to)}
-              style={{ ...s.tabItem, gap: 4, minHeight: 44, color: isActive ? 'var(--m-accent)' : 'rgba(255,255,255,.35)' }}>
-              <span style={{ width: 22, height: 2, borderRadius: 1, background: isActive ? 'var(--m-accent)' : 'transparent' }} />
+              style={{ ...s.tabItem, gap: 4, minHeight: 44, color: isActive ? 'var(--g-accent-text)' : 'var(--g-ink-3)' }}>
+              <span style={{ width: 22, height: 3, borderRadius: 2, background: isActive ? 'var(--g-accent-text)' : 'transparent' }} />
               <Icon size={19} strokeWidth={isActive ? 2.1 : 1.7} />
               <span style={{ fontFamily: "'IBM Plex Mono', ui-monospace, monospace", fontSize: 9, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' }}>
                 {label}
@@ -183,8 +184,11 @@ export default function DashboardLayout({ session }) {
   }
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)' }}>
-      <main style={{ flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: 80 }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--g-bg)', color: 'var(--g-ink)' }}>
+      <GlassBackdrop />
+      {/* z-index поднимает контент над слоем пятен; overflowX: clip держит
+          горизонтальные ленты внутри экрана. */}
+      <main style={{ position: 'relative', zIndex: 1, flex: 1, minWidth: 0, overflowX: 'clip', paddingBottom: 96 }}>
         <Outlet />
       </main>
       <TabBar />
@@ -287,15 +291,21 @@ const s = {
     display: 'flex',
     alignItems: 'center',
   },
+  // Таб-бар парит: подложка видна по бокам, поэтому стекло здесь читается
+  // как стекло, а не как просто светлая полоса.
   tabBar: {
     position: 'fixed',
     bottom: 0,
-    left: 0,
-    right: 0,
+    left: 14,
+    right: 14,
     display: 'flex',
-    padding: '8px 14px 26px',
-    background: 'var(--surface)',
-    borderTop: '1px solid var(--line)',
+    padding: '8px 10px',
+    paddingBottom: 'calc(14px + env(safe-area-inset-bottom))',
+    background: 'var(--g-glass)',
+    border: '1px solid var(--g-line)',
+    borderBottom: 'none',
+    borderRadius: '24px 24px 0 0',
+    boxShadow: 'var(--g-shadow-s)',
     gap: 4,
     zIndex: 50,
   },

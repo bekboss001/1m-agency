@@ -137,8 +137,8 @@ export default function MobileSettings() {
                 onClick={() => setTab(id)}
                 style={{
                   flex: 1, padding: '10px 12px', borderRadius: 11, border: 'none', minHeight: 40,
-                  background: on ? '#fff' : T.surface2,
-                  color: on ? T.onAccent : 'rgba(255,255,255,.6)',
+                  background: on ? T.text : T.surface2,
+                  color: on ? T.bg : T.text2,
                   ...mono(600, 10.5, '.06em'),
                 }}
               >
@@ -186,8 +186,8 @@ export default function MobileSettings() {
                             onClick={() => setRoleFor(m => ({ ...m, [u.id]: r }))}
                             style={{
                               flex: '1 1 auto', minHeight: 40, padding: '0 10px', borderRadius: 11, border: 'none',
-                              background: on ? '#fff' : T.surface2,
-                              color: on ? T.onAccent : 'rgba(255,255,255,.6)',
+                              background: on ? T.text : T.surface2,
+                              color: on ? T.bg : T.text2,
                               ...mono(600, 10, '.04em'),
                             }}
                           >
@@ -215,7 +215,7 @@ export default function MobileSettings() {
                       disabled={busy === u.id}
                       style={{
                         flex: 1, minHeight: 44, borderRadius: 12, background: 'none',
-                        border: '1px solid rgba(242,98,46,.35)', color: T.hot,
+                        border: T.hair, color: T.hot,
                         opacity: busy === u.id ? .6 : 1,
                         ...mono(600, 11, '.06em'),
                       }}
@@ -266,7 +266,7 @@ export default function MobileSettings() {
                   aria-label="Удалить сотрудника"
                   style={{
                     width: 44, height: 44, flex: 'none', borderRadius: 12, background: 'none',
-                    border: '1px solid rgba(242,98,46,.3)', color: T.hot, ...mono(600, 14, '0'),
+                    border: T.hair, color: T.hot, ...mono(600, 14, '0'),
                   }}
                 >
                   ×
@@ -295,8 +295,8 @@ export default function MobileSettings() {
                   onClick={() => setForm({ ...form, role: r })}
                   style={{
                     flex: 1, minHeight: 44, borderRadius: 11, border: 'none',
-                    background: form.role === r ? '#fff' : T.surface2,
-                    color: form.role === r ? T.onAccent : 'rgba(255,255,255,.6)',
+                    background: form.role === r ? T.text : T.surface2,
+                    color: form.role === r ? T.bg : T.text2,
                     ...mono(600, 10.5, '.04em'),
                   }}
                 >

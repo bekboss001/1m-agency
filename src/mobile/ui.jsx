@@ -1,27 +1,52 @@
-// Примитивы мобильного редизайна (вариант 1a).
-// Токены продублированы здесь в JS, потому что экраны собраны на inline-стилях,
-// как и остальной код проекта, — из CSS-переменных нельзя считать значение
-// для вычислений вроде «цвет статуса + альфа 55».
+// Примитивы мобильного редизайна.
+//
+// Экраны собраны на inline-стилях, а CSS-переменные в них работают — поэтому
+// вся тема держится на подмене значений здесь: ни один из одиннадцати экранов
+// не пришлось править, чтобы он поехал в светлую тему.
+//
+// Единственное, чего так нельзя, — считать значение для вычислений вроде
+// «цвет статуса + альфа 55». Такие места переведены на готовые токены линий.
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect } from "react"
 
 export const T = {
-  bg: '#0A0A0B',
-  surface: '#141416',
-  surface2: '#17171A',
-  chip: '#1D1F24',
-  avatar: '#22242A',
-  hair: 'rgba(255,255,255,.07)',
-  soft: 'rgba(255,255,255,.12)',
-  text: '#FFFFFF',
-  text2: 'rgba(255,255,255,.60)',
-  muted: 'rgba(255,255,255,.40)',
-  faint: 'rgba(255,255,255,.28)',
-  accent: '#D6F53E',
-  onAccent: '#0A0A0B',
-  hot: '#F2622E',
-  warn: '#F5A524',
+  bg: "var(--g-bg)",
+
+  surface: "var(--g-glass-2)",   // карточка без стекла
+  surface2: "var(--g-glass-3)",  // вложенная строка, поле ввода
+  chip: "var(--g-chip)",
+  avatar: "var(--g-chip)",
+
+  glass: "var(--g-glass)",       // фон стеклянной панели
+  line: "var(--g-line)",         // блик-граница панели
+  hair: "var(--g-line-2)",
+  soft: "var(--g-line)",
+
+  text: "var(--g-ink)",
+  text2: "var(--g-ink-2)",
+  muted: "var(--g-ink-3)",
+  faint: "var(--g-ink-4)",
+
+  accent: "var(--g-accent)",           // заливка кнопок — лимон в обеих темах
+  accentText: "var(--g-accent-text)",  // акцент КАК ТЕКСТ: на светлом лимон нечитаем
+  accentDim: "var(--g-accent-dim)",
+  onAccent: "var(--g-accent-ink)",
+
+  hot: "var(--g-alert)",          // alert как текст
+  hotDot: "var(--g-alert-dot)",   // alert как точка или полоса
+  warn: "var(--g-warn)",
+  warnDot: "var(--g-warn-dot)",
+
+  track: "var(--g-track)",
+  shadow: "var(--g-shadow)",
+  shadowS: "var(--g-shadow-s)",
 }
+
+// Классы стекла — в styles/glass.css. Здесь только имена, чтобы экраны не
+// знали про CSS-файл. Стекло вешаем на карточки-листья: backdrop-filter
+// делает элемент containing block для position: fixed внутри него.
+export const GLASS = "g-glass"
+export const GLASS_SM = "g-glass-sm"
 
 export const MONO = "'IBM Plex Mono', ui-monospace, monospace"
 export const SANS = "'IBM Plex Sans', system-ui, sans-serif"
@@ -30,7 +55,10 @@ export const OSW = "'Oswald', 'Arial Narrow', sans-serif"
 // Ключи статусов — как в базе; цикл продвижения по тапу — как FLOW в прототипе.
 export const FLOW = ['idea', 'in_progress', 'review', 'published']
 export const STATUS_LABEL = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликовано' }
-export const STATUS_COLOR = { idea: '#8B8B8B', in_progress: '#F5A524', review: '#6AA6FF', published: '#D6F53E' }
+export const STATUS_COLOR = {
+  idea: 'var(--st-idea)', in_progress: 'var(--st-work)',
+  review: 'var(--st-review)', published: 'var(--st-published)',
+}
 export const TYPE_MARK = { reels: 'RE', carousel: 'CA', story: 'ST', stories: 'ST', post: 'PO' }
 
 export function nextStatus(status) {
@@ -68,8 +96,8 @@ export function Toast({ text }) {
       style={{
         position: 'fixed', left: 20, right: 20, bottom: 104, zIndex: 300,
         display: 'flex', alignItems: 'center', gap: 10,
-        background: '#fff', color: T.onAccent, borderRadius: 14,
-        padding: '13px 16px', boxShadow: '0 12px 30px rgba(0,0,0,.5)',
+        background: T.text, color: T.bg, borderRadius: 14,
+        padding: '13px 16px', boxShadow: T.shadow,
         ...mono(600, 12, '.06em'),
       }}
     >
@@ -98,7 +126,8 @@ export function Sheet({ open, title, onClose, children }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 250,
-        background: 'rgba(0,0,0,.6)',
+        background: 'rgba(8,9,11,.46)',
+        backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'flex-end',
         overscrollBehavior: 'contain',
       }}
@@ -109,7 +138,8 @@ export function Sheet({ open, title, onClose, children }) {
         style={{
           width: '100%', maxHeight: '78dvh',
           display: 'flex', flexDirection: 'column',
-          background: T.surface, borderTop: `1px solid ${T.soft}`,
+          background: T.glass, borderTop: `1px solid ${T.line}`,
+          backdropFilter: 'blur(28px) saturate(180%)', WebkitBackdropFilter: 'blur(28px) saturate(180%)',
           borderRadius: '26px 26px 0 0',
           padding: '18px 20px 26px',
           paddingBottom: 'calc(26px + env(safe-area-inset-bottom))',
@@ -138,8 +168,8 @@ export function SheetRow({ color, name, count, selected, onClick }) {
       style={{
         display: 'flex', alignItems: 'center', gap: 11, width: '100%',
         minHeight: 48, padding: '13px 14px', borderRadius: 13, textAlign: 'left',
-        background: selected ? 'rgba(214,245,62,.12)' : 'transparent',
-        border: `1px solid ${selected ? 'rgba(214,245,62,.4)' : 'transparent'}`,
+        background: selected ? T.accentDim : 'transparent',
+        border: `1px solid ${selected ? T.accentText : 'transparent'}`,
         color: T.text,
       }}
     >
@@ -177,7 +207,7 @@ export function ClientSelector({ color, name, meta, onOpen }) {
         </span>
         <span style={{ display: 'block', marginTop: 3, color: T.muted, ...mono(500, 10, '.1em') }}>{meta}</span>
       </span>
-      <span style={{ color: T.accent, flex: 'none', ...mono(500, 11, '.06em') }}>СМЕНИТЬ</span>
+      <span style={{ color: T.accentText, flex: 'none', ...mono(500, 11, '.06em') }}>СМЕНИТЬ</span>
     </button>
   )
 }
@@ -196,8 +226,8 @@ export function StatusChip({ status, onAdvance }) {
       style={{
         alignSelf: 'flex-start',
         minHeight: 32, padding: '7px 11px', borderRadius: 9,
-        background: published ? T.accent : 'rgba(255,255,255,.05)',
-        border: `1px solid ${published ? T.accent : color + '55'}`,
+        background: published ? T.accent : T.surface2,
+        border: `1px solid ${published ? T.accent : T.line}`,
         color: published ? T.onAccent : color,
         transition: 'background 120ms, color 120ms, border-color 120ms',
         ...mono(600, 10, '.06em'),
@@ -215,7 +245,7 @@ export function SectionTitle({ children, action, onAction }) {
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
       <span style={{ color: T.muted, ...mono(600, 10.5, '.14em') }}>{children}</span>
       {action && (
-        <button onClick={onAction} style={{ background: 'none', border: 'none', color: T.accent, padding: '4px 0', ...mono(500, 11, '.06em') }}>
+        <button onClick={onAction} style={{ background: 'none', border: 'none', color: T.accentText, padding: '4px 0', ...mono(500, 11, '.06em') }}>
           {action}
         </button>
       )}
@@ -226,7 +256,7 @@ export function SectionTitle({ children, action, onAction }) {
 export function Tile({ value, label, accent }) {
   return (
     <div style={{ flex: 1, minWidth: 0, background: T.surface, borderRadius: 14, padding: '12px 14px' }}>
-      <div style={{ font: `700 22px ${OSW}`, color: accent ? T.accent : T.text }}>{value}</div>
+      <div style={{ font: `700 22px ${OSW}`, color: accent ? T.accentText : T.text }}>{value}</div>
       <div style={{ marginTop: 2, color: T.muted, ...mono(500, 9.5, '.12em') }}>{label}</div>
     </div>
   )
@@ -235,7 +265,7 @@ export function Tile({ value, label, accent }) {
 export function EmptyState({ title, hint, action, onAction }) {
   return (
     <div style={{
-      border: `1px dashed ${T.soft}`, borderRadius: 18, padding: '26px 20px',
+      border: `1px dashed ${T.line}`, borderRadius: 18, padding: '26px 20px',
       display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, textAlign: 'center',
     }}>
       <div style={{ font: `700 18px ${OSW}`, color: T.text, textTransform: 'uppercase' }}>{title}</div>
@@ -263,7 +293,7 @@ export function Fab({ label, onClick }) {
         position: 'fixed', right: 20, bottom: 96, zIndex: 200,
         minHeight: 52, padding: '0 20px', borderRadius: 17, border: 'none',
         background: T.accent, color: T.onAccent,
-        boxShadow: '0 10px 26px rgba(0,0,0,.45)',
+        boxShadow: T.shadow,
         ...mono(700, 12, '.06em'),
       }}
     >
@@ -286,18 +316,18 @@ export function WeekStrip({ days, onPick }) {
             style={{
               flex: 1, minWidth: 0, borderRadius: 14, padding: '10px 4px',
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-              background: active ? (d.activeWhite ? '#fff' : T.accent) : T.surface,
+              background: active ? (d.activeWhite ? T.text : T.accent) : T.surface,
               border: `1px solid ${active ? 'transparent' : T.hair}`,
               cursor: onPick ? 'pointer' : 'default',
             }}
           >
-            <span style={{ color: active ? 'rgba(10,10,11,.65)' : T.muted, ...mono(500, 9, '.06em') }}>{d.dow}</span>
+            <span style={{ color: active ? T.onAccent : T.muted, opacity: active ? .7 : 1, ...mono(500, 9, '.06em') }}>{d.dow}</span>
             <span style={{ font: `700 17px/1 ${OSW}`, color: active ? T.onAccent : T.text }}>{d.num}</span>
             {d.badge !== undefined ? (
               <span style={{
                 minWidth: 16, textAlign: 'center', borderRadius: 6, padding: '2px 4px',
-                background: d.badge === 0 ? 'transparent' : active ? T.onAccent : 'rgba(214,245,62,.15)',
-                color: d.badge === 0 ? 'transparent' : T.accent,
+                background: d.badge === 0 ? 'transparent' : active ? T.onAccent : T.accentDim,
+                color: d.badge === 0 ? 'transparent' : active ? T.accent : T.accentText,
                 ...mono(600, 9, '.04em'),
               }}>
                 {d.badge}

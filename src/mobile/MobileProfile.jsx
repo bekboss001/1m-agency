@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { ymd } from '../lib/tz'
 import { weekDays, todayDate } from './todayTasks'
+import { useTheme } from '../lib/ThemeContext'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, SectionTitle } from './ui'
 
 const ROLE_LABEL = { admin: 'ВЛАДЕЛЕЦ', smm: 'SMM-МЕНЕДЖЕР', operator: 'ОПЕРАТОР', client: 'КЛИЕНТ' }
@@ -176,7 +177,7 @@ export default function MobileProfile() {
       {/* Хедер */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ font: `700 15px ${OSW}`, letterSpacing: '.06em', color: T.text }}>
-          1M<span style={{ color: T.accent }}>.</span>AGENCY
+          1M<span style={{ color: T.accentText }}>.</span>AGENCY
         </span>
         <span style={{ color: T.muted, ...mono(500, 11, '.08em') }}>МОЙ ПРОФИЛЬ</span>
       </div>
@@ -188,14 +189,14 @@ export default function MobileProfile() {
             <img
               src={me.avatar_url}
               alt=""
-              style={{ width: 78, height: 78, borderRadius: 26, objectFit: 'cover', border: `1px solid rgba(255,255,255,.1)`, display: 'block' }}
+              style={{ width: 78, height: 78, borderRadius: 26, objectFit: 'cover', border: `1px solid var(--g-line)`, display: 'block' }}
             />
           ) : (
             <span style={{
               width: 78, height: 78, borderRadius: 26, background: T.avatar,
-              border: `1px solid rgba(255,255,255,.1)`,
+              border: `1px solid var(--g-line)`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'rgba(255,255,255,.75)', font: `700 28px ${OSW}`,
+              color: T.text2, font: `700 28px ${OSW}`,
             }}>
               {initials(name)}
             </span>
@@ -223,7 +224,7 @@ export default function MobileProfile() {
           <span style={{ font: `700 28px ${OSW}`, color: T.text, textTransform: 'uppercase', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {name}
           </span>
-          <span style={{ color: 'rgba(255,255,255,.42)', ...mono(500, 10.5, '.1em') }}>
+          <span style={{ color: T.muted, ...mono(500, 10.5, '.1em') }}>
             {ROLE_LABEL[profile?.role] || '—'}
             {myClients.length > 0 && ` · ${myClients.length} ${plural(myClients.length, 'КЛИЕНТ', 'КЛИЕНТА', 'КЛИЕНТОВ')}`}
           </span>
@@ -261,7 +262,7 @@ export default function MobileProfile() {
                 ['МОИХ ПРОЕКТОВ', myClients.length, true],
               ].map(([label, value, accent]) => (
                 <div key={label} style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: `700 30px ${OSW}`, color: accent ? T.accent : T.text }}>{value}</div>
+                  <div style={{ font: `700 30px ${OSW}`, color: accent ? T.accentText : T.text }}>{value}</div>
                   <div style={{ marginTop: 2, color: T.muted, ...mono(500, 8.5, '.09em') }}>{label}</div>
                 </div>
               ))}
@@ -274,7 +275,7 @@ export default function MobileProfile() {
                   style={{
                     flex: 1, borderRadius: 3, minHeight: 3,
                     height: `${Math.max((v / maxBar) * 100, 8)}%`,
-                    background: days[i].isToday || (v === maxBar && v > 0) ? T.accent : 'rgba(255,255,255,.16)',
+                    background: days[i].isToday || (v === maxBar && v > 0) ? T.accent : T.track,
                   }}
                 />
               ))}
@@ -282,18 +283,18 @@ export default function MobileProfile() {
 
             <div style={{
               display: 'flex', alignItems: 'center', gap: 12,
-              borderTop: '1px solid rgba(255,255,255,.08)', paddingTop: 13,
+              borderTop: '1px solid var(--g-line-2)', paddingTop: 13,
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ font: `600 12.5px ${SANS}`, color: T.text }}>Загрузка на неделю</div>
-                <div style={{ marginTop: 3, color: 'rgba(255,255,255,.38)', ...mono(500, 10, '.06em') }}>
+                <div style={{ marginTop: 3, color: T.muted, ...mono(500, 10, '.06em') }}>
                   {week.tasksTotal === 0
                     ? 'ЗАДАЧ НА НЕДЕЛЮ НЕТ'
                     : `${week.tasksDone} ИЗ ${week.tasksTotal} ${plural(week.tasksTotal, 'ЗАДАЧИ', 'ЗАДАЧ', 'ЗАДАЧ')}` +
                       (week.tasksDone === week.tasksTotal ? ' · ВСЁ ЗАКРЫТО' : ` · ОСТАЛОСЬ ${week.tasksTotal - week.tasksDone}`)}
                 </div>
               </div>
-              <span style={{ width: 74, height: 6, flex: 'none', borderRadius: 3, background: 'rgba(255,255,255,.09)', overflow: 'hidden' }}>
+              <span style={{ width: 74, height: 6, flex: 'none', borderRadius: 3, background: T.track, overflow: 'hidden' }}>
                 <span style={{ display: 'block', width: `${loadPct}%`, height: '100%', borderRadius: 3, background: T.accent }} />
               </span>
             </div>
@@ -317,17 +318,17 @@ export default function MobileProfile() {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 11, width: '100%',
                     padding: '13px 15px', background: 'none', color: T.text, textAlign: 'left',
-                    border: 'none', borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,.06)',
+                    border: 'none', borderTop: i === 0 ? 'none' : '1px solid var(--g-line-2)',
                   }}
                 >
-                  <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || '#888', flex: 'none' }} />
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || T.muted, flex: 'none' }} />
                   <span style={{ flex: 1, minWidth: 0, font: `600 13.5px ${SANS}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.name}
                   </span>
-                  <span style={{ width: 62, height: 5, flex: 'none', borderRadius: 3, background: 'rgba(255,255,255,.09)', overflow: 'hidden' }}>
+                  <span style={{ width: 62, height: 5, flex: 'none', borderRadius: 3, background: T.track, overflow: 'hidden' }}>
                     <span style={{ display: 'block', width: `${c.pct}%`, height: '100%', borderRadius: 3, background: hot ? T.hot : T.accent }} />
                   </span>
-                  <span style={{ minWidth: 32, textAlign: 'right', flex: 'none', color: hot ? T.hot : 'rgba(255,255,255,.7)', ...mono(600, 11, '.02em') }}>
+                  <span style={{ minWidth: 32, textAlign: 'right', flex: 'none', color: hot ? T.hot : T.text2, ...mono(600, 11, '.02em') }}>
                     {c.pct}%
                   </span>
                 </button>
@@ -344,7 +345,7 @@ export default function MobileProfile() {
           <div style={{ background: T.surface, borderRadius: 16, overflow: 'hidden' }}>
             <label style={{ ...rowStyle(true), cursor: 'pointer' }}>
               <span style={{ font: `500 13.5px ${SANS}`, color: T.text }}>Фото профиля</span>
-              <span style={{ color: T.accent, ...mono(600, 10.5, '.06em') }}>
+              <span style={{ color: T.accentText, ...mono(600, 10.5, '.06em') }}>
                 {me.avatar_url ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
               </span>
               <input
@@ -361,7 +362,7 @@ export default function MobileProfile() {
               onClick={() => { setDraft({ name: me.name || '' }); setEditing('name') }}
             />
           </div>
-          <div style={{ marginTop: 8, font: `400 11px/1.5 ${SANS}`, color: 'rgba(255,255,255,.3)' }}>
+          <div style={{ marginTop: 8, font: `400 11px/1.5 ${SANS}`, color: T.faint }}>
             Роль, доступы и список клиентов меняет только владелец.
           </div>
         </div>
@@ -402,7 +403,7 @@ export default function MobileProfile() {
         onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
         style={{
           minHeight: 48, borderRadius: 14, background: 'none',
-          border: '1px solid rgba(242,98,46,.35)', color: T.hot,
+          border: T.hair, color: T.hot,
           ...mono(600, 12, '.08em'),
         }}
       >
@@ -431,9 +432,18 @@ export default function MobileProfile() {
   )
 }
 
-// Настройки и доступ к разделам — без изменений: что видно, решают
-// разрешения роли, вкладки «Клиенты» и «Настройки» остаются у владельца.
+const THEME_OPTIONS = [
+  { key: 'light', label: 'СВЕТ' },
+  { key: 'dark', label: 'НОЧЬ' },
+  { key: 'system', label: 'СИСТЕМА' },
+]
+
+// Настройки и доступ к разделам: что видно, решают разрешения роли, вкладки
+// «Клиенты» и «Настройки» остаются у владельца. Сверху — выбор темы: тумблер
+// в шапке даёт только свет↔ночь, а «как в системе» выбирается здесь.
 function Settings({ navigate, can, isAdmin }) {
+  const { setting, setSetting } = useTheme()
+
   const rows = [
     { label: 'Клиенты и цвета', value: '→', to: '/clients', show: can('clients') },
     { label: 'Задачи', value: '→', to: '/tasks', show: can('tasks') },
@@ -441,17 +451,35 @@ function Settings({ navigate, can, isAdmin }) {
     { label: 'Настройки', value: '→', to: '/settings', show: isAdmin },
   ].filter(r => r.show)
 
-  if (rows.length === 0) return null
-
   return (
     <div>
       <SectionTitle>НАСТРОЙКИ</SectionTitle>
       <div style={{ background: T.surface, borderRadius: 16, overflow: 'hidden' }}>
-        {rows.map((row, i) => (
+        <div style={{ ...rowStyle(true), gap: 12 }}>
+          <span style={{ font: `500 13.5px ${SANS}`, color: T.text, flex: 'none' }}>Тема</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 4 }}>
+            {THEME_OPTIONS.map(o => (
+              <button
+                key={o.key}
+                onClick={() => setSetting(o.key)}
+                style={{
+                  minHeight: 32, padding: '0 10px', borderRadius: 9, border: 'none',
+                  background: setting === o.key ? T.accent : T.surface2,
+                  color: setting === o.key ? T.onAccent : T.text2,
+                  ...mono(setting === o.key ? 700 : 500, 10, '.06em'),
+                }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {rows.map(row => (
           <button
             key={row.label}
             onClick={() => navigate(row.to)}
-            style={{ ...rowStyle(i === 0), width: '100%', background: 'none', textAlign: 'left', font: `500 13.5px ${SANS}`, color: T.text }}
+            style={{ ...rowStyle(false), width: '100%', background: 'none', textAlign: 'left', font: `500 13.5px ${SANS}`, color: T.text }}
           >
             {row.label}
             <span style={{ marginLeft: 'auto', color: T.muted, ...mono(500, 11, '.06em') }}>{row.value}</span>
@@ -466,7 +494,7 @@ function PersonalRow({ label, value, onClick }) {
   return (
     <button onClick={onClick} style={{ ...rowStyle(false), width: '100%', background: 'none', textAlign: 'left' }}>
       <span style={{ font: `500 13.5px ${SANS}`, color: T.text }}>{label}</span>
-      <span style={{ marginLeft: 'auto', color: 'rgba(255,255,255,.45)', ...mono(500, 10.5, '.06em') }}>
+      <span style={{ marginLeft: 'auto', color: T.muted, ...mono(500, 10.5, '.06em') }}>
         {value.toUpperCase()} →
       </span>
     </button>
@@ -480,7 +508,7 @@ function EditForm({ children, hint, saving, onSubmit }) {
       style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
     >
       {children}
-      {hint && <div style={{ font: `400 11px/1.5 ${SANS}`, color: 'rgba(255,255,255,.3)' }}>{hint}</div>}
+      {hint && <div style={{ font: `400 11px/1.5 ${SANS}`, color: T.faint }}>{hint}</div>}
       <button type="submit" disabled={saving} style={{
         minHeight: 48, borderRadius: 13, border: 'none',
         background: T.accent, color: T.onAccent, opacity: saving ? .6 : 1,
@@ -495,7 +523,7 @@ function EditForm({ children, hint, saving, onSubmit }) {
 const rowStyle = first => ({
   display: 'flex', alignItems: 'center', gap: 10,
   minHeight: 44, padding: '14px 15px',
-  border: 'none', borderTop: first ? 'none' : '1px solid rgba(255,255,255,.06)',
+  border: 'none', borderTop: first ? 'none' : '1px solid var(--g-line-2)',
 })
 
 const inputStyle = {

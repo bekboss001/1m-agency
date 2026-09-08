@@ -159,7 +159,7 @@ export default function MobileClientCard() {
             [ads === null ? '—' : `$${Math.round(ads.spend)}`, 'ТАРГЕТ · 30 ДН', true],
           ].map(([value, label, accent]) => (
             <div key={label} style={{ flex: 1, minWidth: 0, background: T.surface, borderRadius: 14, padding: '12px 14px' }}>
-              <div style={{ font: `700 22px ${OSW}`, color: accent ? T.accent : T.text }}>{value}</div>
+              <div style={{ font: `700 22px ${OSW}`, color: accent ? T.accentText : T.text }}>{value}</div>
               <div style={{ marginTop: 2, color: T.muted, ...mono(500, 8.5, '.1em') }}>{label}</div>
             </div>
           ))}

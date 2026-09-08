@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#DCDEE4; }
+  a { color:#4A6300; } a:hover { color:#15150F; }
+  [data-theme] { --bg:#EEF0F4; --ink:#101318; --ink-2:rgba(16,19,24,.62); --ink-3:rgba(16,19,24,.5);
+    --glass:rgba(255,255,255,.52); --glass-2:rgba(255,255,255,.62); --line:rgba(255,255,255,.82);
+    --line-2:rgba(255,255,255,.7); --track:rgba(16,19,24,.1); --shadow:0 10px 34px rgba(16,19,24,.14);
+    --shadow-s:0 6px 22px rgba(16,19,24,.1); --accent:#D6F53E; --accent-ink:#15150F; --accent-text:#4A6300;
+    --solid:rgba(16,19,24,.9); --solid-ink:#fff; --alert:#B23A24; --alert-dot:#E8452F;
+    --b1:#D6F53E; --b2:#7FB0FF; --b3:#FFB07F; --b-op:.5; --b-blur:72px; }
+  [data-theme="dark"] { --bg:#08090B; --ink:#FFFFFF; --ink-2:rgba(255,255,255,.62); --ink-3:rgba(255,255,255,.5);
+    --glass:rgba(255,255,255,.07); --glass-2:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
+    --line-2:rgba(255,255,255,.1); --track:rgba(255,255,255,.12); --shadow:0 10px 34px rgba(0,0,0,.5);
+    --shadow-s:0 6px 22px rgba(0,0,0,.4); --accent:#D6F53E; --accent-ink:#0A0A0B; --accent-text:#D6F53E;
+    --solid:rgba(255,255,255,.1); --solid-ink:#fff; --alert:#FF8A6B; --alert-dot:#E8452F;
+    --b1:#D6F53E; --b2:#7B4EE8; --b3:#F2622E; --b-op:.3; --b-blur:84px; }
+  @keyframes drift1 { 0%{transform:translate3d(0,0,0) scale(1)} 33%{transform:translate3d(64px,46px,0) scale(1.14)} 66%{transform:translate3d(22px,86px,0) scale(1.04)} 100%{transform:translate3d(0,0,0) scale(1)} }
+  @keyframes drift2 { 0%{transform:translate3d(0,0,0) scale(1.08)} 33%{transform:translate3d(-78px,-40px,0) scale(1)} 66%{transform:translate3d(-30px,58px,0) scale(1.12)} 100%{transform:translate3d(0,0,0) scale(1.08)} }
+  @keyframes drift3 { 0%{transform:translate3d(0,0,0) scale(1)} 33%{transform:translate3d(70px,-52px,0) scale(1.1)} 66%{transform:translate3d(104px,10px,0) scale(1.02)} 100%{transform:translate3d(0,0,0) scale(1)} }
+  @media (prefers-reduced-motion: reduce) { [data-blob] { animation:none !important; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;padding:34px 26px 60px;display:flex;flex-direction:column;gap:26px;align-items:center;font-family:'IBM Plex Sans',sans-serif">
+
+<div style="max-width:760px;display:flex;flex-direction:column;gap:10px;text-align:center">
+  <div style="font:700 13px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#4A6300">LIQUID GLASS · 3B / 3D · РЕФЕРЕНС ДЛЯ РЕАЛИЗАЦИИ</div>
+  <div style="font:700 34px/1.02 'Oswald',sans-serif;color:#101318">ОДНА СИСТЕМА, ДВЕ ТЕМЫ</div>
+  <div style="font:400 14px/1.5 'IBM Plex Sans',sans-serif;color:rgba(16,19,24,.62);text-wrap:pretty">Переключатель в шапке меняет тему живьём. Градиентные пятна ходят по замкнутым траекториям (19–28 с у каждого свой путь): движение заметно, но из-за блюра 72–84px меняется только градиент — яркость и цвет не мигают. Кнопка «ПАУЗА ФОНА» и <code>prefers-reduced-motion</code> останавливают всё.</div>
+</div>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;align-items:center">
+  <button onClick="{{ setLight }}" style="min-height:44px;padding:0 18px;border-radius:14px;border:1px solid rgba(16,19,24,.16);background:{{ lightBtnBg }};color:#101318;font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;cursor:pointer">СВЕТЛАЯ 3B</button>
+  <button onClick="{{ setDark }}" style="min-height:44px;padding:0 18px;border-radius:14px;border:1px solid rgba(16,19,24,.16);background:{{ darkBtnBg }};color:{{ darkBtnInk }};font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;cursor:pointer">ТЁМНАЯ 3D</button>
+  <button onClick="{{ toggleMotion }}" style="min-height:44px;padding:0 18px;border-radius:14px;border:1px solid rgba(16,19,24,.16);background:transparent;color:#101318;font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.1em;cursor:pointer">{{ motionLabel }}</button>
+</div>
+
+<div data-theme="{{ theme }}" data-screen-label="Главная · стекло" style="width:390px;height:844px;border-radius:46px;background:#111;border:1px solid rgba(0,0,0,.18);box-shadow:0 26px 64px rgba(0,0,0,.32);position:relative;overflow:hidden;flex:none">
+<div style="position:absolute;inset:0;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden">
+
+  <div data-blob="1" style="position:absolute;width:320px;height:320px;left:-70px;top:-40px;border-radius:50%;background:var(--b1);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift1 22s ease-in-out infinite;animation-play-state:{{ playState }};will-change:transform"></div>
+  <div data-blob="2" style="position:absolute;width:300px;height:300px;right:-90px;top:190px;border-radius:50%;background:var(--b2);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift2 28s ease-in-out infinite;animation-play-state:{{ playState }};will-change:transform"></div>
+  <div data-blob="3" style="position:absolute;width:280px;height:280px;left:-40px;bottom:-60px;border-radius:50%;background:var(--b3);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift3 19s ease-in-out infinite;animation-play-state:{{ playState }};will-change:transform"></div>
+
+  <div style="position:relative;z-index:1;height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink-2)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid var(--ink-3);border-radius:2px;display:block"></span></div>
+
+  <div style="position:relative;z-index:1;flex:1;min-height:0;overflow:hidden;padding:10px 18px 0;display:flex;flex-direction:column;gap:16px">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <div style="font:700 15px/1 'Oswald',sans-serif;letter-spacing:.06em">1M<span style="color:var(--accent-text)">.</span>AGENCY</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button onClick="{{ toggleTheme }}" style="min-height:34px;padding:0 12px;border-radius:12px;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--line);box-shadow:var(--shadow-s);color:var(--ink);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.1em;cursor:pointer">{{ themeLabel }}</button>
+        <div style="width:34px;height:34px;border-radius:12px;background:var(--glass);backdrop-filter:blur(20px) saturate(180%);-webkit-backdrop-filter:blur(20px) saturate(180%);border:1px solid var(--line);box-shadow:var(--shadow-s);display:flex;align-items:center;justify-content:center;font:700 13px 'Oswald',sans-serif;color:var(--ink)">A</div>
+      </div>
+    </div>
+
+    <div style="background:var(--glass);backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);border:1px solid var(--line);border-radius:26px;padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--shadow)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between">
+        <div style="font:500 10px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-2)">ВС · 6 СЕНТЯБРЯ</div>
+        <div style="font:600 10px 'IBM Plex Mono',monospace;color:var(--accent-text)">ОСТАЛОСЬ 6</div>
+      </div>
+      <div style="display:flex;align-items:flex-end;justify-content:space-between">
+        <div style="font:700 34px/.92 'Oswald',sans-serif">ДЕЛА<br>НА СЕГОДНЯ</div>
+        <div style="font:700 52px/.8 'Oswald',sans-serif;color:var(--ink)">6</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:11px;align-items:center;background:var(--glass-2);border:1px solid var(--line-2);border-radius:16px;padding:11px 12px">
+          <span style="width:20px;height:20px;flex:none;border-radius:7px;border:1.5px solid var(--ink-3);display:block"></span>
+          <div style="flex:1;min-width:0"><div style="font:600 13.5px/1.2 'IBM Plex Sans',sans-serif">Съёмка Диханкол</div><div style="font:500 10px 'IBM Plex Mono',monospace;color:var(--ink-3);padding-top:2px">10:00 · ОБЪЕКТ</div></div>
+          <span style="width:8px;height:8px;border-radius:50%;background:#F2622E;display:block"></span>
+        </div>
+        <div style="display:flex;gap:11px;align-items:center;background:var(--glass-2);border:1px solid var(--line-2);border-radius:16px;padding:11px 12px">
+          <span style="width:20px;height:20px;flex:none;border-radius:7px;border:1.5px solid var(--ink-3);display:block"></span>
+          <div style="flex:1;min-width:0"><div style="font:600 13.5px/1.2 'IBM Plex Sans',sans-serif">Проверить 3 Reels</div><div style="font:500 10px 'IBM Plex Mono',monospace;color:var(--ink-3);padding-top:2px">АРНУР · БЭЙБИ РУМ</div></div>
+          <span style="width:8px;height:8px;border-radius:50%;background:#4E7BE8;display:block"></span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;background:var(--accent);border-radius:14px;padding:12px;text-align:center;font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:#15150F">+ ПОСТ</div>
+        <div style="flex:1;background:var(--solid);border:1px solid var(--line-2);border-radius:14px;padding:12px;text-align:center;font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--solid-ink)">+ СЪЁМКА</div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="font:600 10.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ТРЕБУЮТ ВНИМАНИЯ</div>
+      <div style="background:var(--glass);backdrop-filter:blur(24px) saturate(180%);-webkit-backdrop-filter:blur(24px) saturate(180%);border:1px solid var(--line);border-radius:22px;overflow:hidden;box-shadow:var(--shadow-s)">
+        <div style="padding:13px 15px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:3px;background:var(--alert-dot);display:block"></span><div style="flex:1;font:600 14px 'IBM Plex Sans',sans-serif">КТВ</div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--alert)">ГОРИТ</div></div>
+          <div style="height:6px;border-radius:3px;background:var(--track);overflow:hidden"><div style="width:17%;height:100%;background:var(--alert-dot)"></div></div>
+          <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">2 ИЗ 12 · ДЕДЛАЙН СЕГОДНЯ 18:00</div>
+        </div>
+        <div style="padding:13px 15px;display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line-2)">
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:3px;background:#A24EE8;display:block"></span><div style="flex:1;font:600 14px 'IBM Plex Sans',sans-serif">REVITA</div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">ОТСТАЁТ</div></div>
+          <div style="height:6px;border-radius:3px;background:var(--track);overflow:hidden"><div style="width:25%;height:100%;background:#A24EE8"></div></div>
+          <div style="font:500 10.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">2 ИЗ 8 · ДЕДЛАЙН 12 СЕН</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="position:relative;z-index:1;flex:none;height:78px;margin:0 14px;display:flex;align-items:flex-start;background:var(--glass);backdrop-filter:blur(26px) saturate(180%);-webkit-backdrop-filter:blur(26px) saturate(180%);border:1px solid var(--line);border-radius:24px 24px 0 0;padding:12px 6px 14px;box-shadow:var(--shadow-s)">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:3px;border-radius:2px;background:var(--accent-text)"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--accent-text)">ГЛАВНАЯ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:3px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3)">КОНТЕНТ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:3px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3)">СЪЁМКИ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:3px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3)">ТАРГЕТ</div></div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:22px;height:3px;background:transparent"></div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3)">ПРОФИЛЬ</div></div>
+  </div>
+</div>
+</div>
+
+<div style="max-width:760px;font:400 13px/1.55 'IBM Plex Sans',sans-serif;color:rgba(16,19,24,.6);text-wrap:pretty">Правила стекла: не больше двух слоёв стекла друг над другом, текст всегда полной непрозрачности (не альфа), контраст на светлой теме считается по самому светлому пятну под панелью. Цвета клиентов в обеих темах одни и те же.</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;'light' | 'dark'&quot;}}">
+class Component extends DCLogic {
+  state = { theme: null, motion: true };
+  componentDidMount() {
+    let t = null;
+    try { t = localStorage.getItem('1m.glass.theme'); } catch (e) {}
+    if (!t) {
+      const q = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)');
+      t = q && q.matches ? 'dark' : 'light';
+    }
+    this.setState({ theme: t });
+  }
+  set(t) {
+    this.setState({ theme: t });
+    try { localStorage.setItem('1m.glass.theme', t); } catch (e) {}
+  }
+  renderVals() {
+    const theme = this.state.theme || this.props.theme || 'light';
+    const dark = theme === 'dark';
+    return {
+      theme,
+      themeLabel: dark ? 'СВЕТ' : 'НОЧЬ',
+      motionLabel: this.state.motion ? 'ПАУЗА ФОНА' : 'ЗАПУСТИТЬ ФОН',
+      playState: this.state.motion ? 'running' : 'paused',
+      lightBtnBg: dark ? 'transparent' : '#D6F53E',
+      darkBtnBg: dark ? '#101318' : 'transparent',
+      darkBtnInk: dark ? '#fff' : '#101318',
+      setLight: () => this.set('light'),
+      setDark: () => this.set('dark'),
+      toggleTheme: () => this.set(dark ? 'light' : 'dark'),
+      toggleMotion: () => this.setState(s => ({ motion: !s.motion })),
+    };
+  }
+}
+</script>
+</body>
+</html>

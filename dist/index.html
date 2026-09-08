@@ -15,11 +15,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Grotesk:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Archivo:wght@600;700;800;900&display=swap" rel="stylesheet">
-    <script type="module" crossorigin src="/assets/index-C0TCrfZ0.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-rzvgj8Tl.css">
+    <script type="module" crossorigin src="/assets/index-Il-J_Vk9.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-C34i5i4i.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Ставим тему до первого кадра: если ждать React, человек с ночной темой
+      // увидит вспышку светлого экрана.
+      (function () {
+        try {
+          var v = localStorage.getItem('agency-theme') || localStorage.getItem('press-theme') || 'system'
+          var t = v === 'light' || v === 'dark'
+            ? v
+            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+          document.documentElement.setAttribute('data-theme', t)
+          var m = document.querySelector('meta[name="theme-color"]')
+          if (m) m.content = t === 'light' ? '#EEF0F4' : '#08090B'
+        } catch (e) {}
+      })()
+    </script>
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js'))
