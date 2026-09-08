@@ -16,7 +16,7 @@ import { logAction } from '../lib/auditLog'
 export async function fetchClients() {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief')
+    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief, brief_data')
     .eq('is_active', true)
     .order('number')
 
@@ -38,6 +38,7 @@ export async function fetchClients() {
       igUsername: c.instagram_username || '',
       syncedAt: c.instagram_synced_at || null,
       brief: c.brief || '',
+      briefData: c.brief_data || {},
     })),
     error: null,
   }
@@ -57,6 +58,7 @@ const CLIENT_FIELDS = {
   igUsername: 'instagram_username',
   syncedAt: 'instagram_synced_at',
   brief: 'brief',
+  briefData: 'brief_data',
 }
 
 export async function patchClient(id, patch) {

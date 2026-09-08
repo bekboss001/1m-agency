@@ -10,6 +10,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import { ASK_TOOL, renderAsk, validAsk } from './askTool.js'
+import { renderBrief } from './briefFields.js'
 
 const MODEL = 'claude-opus-5'
 const GRAPH = 'https://graph.facebook.com/v19.0'
@@ -135,7 +136,8 @@ const TYPE_RU = { IMAGE: 'фото', VIDEO: 'reels', CAROUSEL_ALBUM: 'карус
 function renderContext(client, posts, ig) {
   const lines = [`Клиент: ${client.name}.`]
 
-  if (client.brief) lines.push(`\nБриф:\n${client.brief}`)
+  const brief = renderBrief(client.brief_data, client.brief)
+  if (brief) lines.push('\nБриф:\n' + brief)
   else lines.push('\nБрифа нет. Если для сценария нужны детали о продукте или аудитории, спроси.')
 
   if (client.total_posts) {
@@ -247,7 +249,7 @@ export default async function handler(req, res) {
   let client = null
   if (clientId) {
     const rows = await sbGet(
-      `${supabaseUrl}/rest/v1/clients?select=id,name,brief,total_posts,published_posts,instagram_account_id&id=eq.${encodeURIComponent(clientId)}`,
+      `${supabaseUrl}/rest/v1/clients?select=id,name,brief,brief_data,total_posts,published_posts,instagram_account_id&id=eq.${encodeURIComponent(clientId)}`,
       sb,
     )
     client = rows?.[0] || null

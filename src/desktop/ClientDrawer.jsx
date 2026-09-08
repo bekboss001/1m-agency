@@ -14,6 +14,7 @@ import {
   fetchInstagramAccounts, refreshInstagramAccounts,
 } from './data'
 import { pullInstagram, planPeriod } from '../lib/instagram'
+import { BRIEF_GROUPS, BRIEF_KEYS } from '../../api/briefFields.js'
 
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 
@@ -191,19 +192,7 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
             </Row>
           </Section>
 
-          {/* Бриф для сценариста */}
-          <Section
-            title="Бриф"
-            subtitle="Что продаём, кому, каким голосом и чего говорить нельзя. Это читает ИИ-сценарист во вкладке «Сценарист» — чем конкретнее здесь, тем меньше он переспрашивает и тем меньше выдумывает."
-          >
-            <textarea
-              value={client.brief || ''}
-              onChange={e => onPatch(client.id, { brief: e.target.value })}
-              rows={7}
-              placeholder={'Например:\nДоставка воды по Алматы, 19-литровые бутыли.\nАудитория — семьи и офисы, решение принимает женщина 28–45.\nТон: спокойный, без восклицаний и «спешите».\nНельзя: обещать доставку быстрее часа, сравнивать с конкурентами по названиям.'}
-              style={{ ...field, height: 'auto', padding: '11px 12px', lineHeight: 1.5, resize: 'vertical' }}
-            />
-          </Section>
+          <BriefSection client={client} onPatch={onPatch} />
 
           {/* Реклама */}
           <Section title="Реклама" subtitle="ID рекламного кабинета Meta — по нему подтягивается статистика во вкладке «Таргет».">
@@ -279,6 +268,99 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
         </div>
       </aside>
     </div>
+  )
+}
+
+// Анкета клиента для сценариста.
+//
+// Пишется по потере фокуса, а не на каждое нажатие клавиши: полей двенадцать,
+// и сохранять посимвольно значило бы слать в базу запрос на каждую букву.
+//
+// Заполненность показана числом. Это единственный честный способ объяснить,
+// почему у одного клиента сценарий выходит с первого раза, а у другого модель
+// переспрашивает: она знает ровно то, что здесь написано.
+function BriefSection({ client, onPatch }) {
+  const data = client.briefData || {}
+  const filled = BRIEF_KEYS.filter(k => (data[k] || '').trim()).length + ((client.brief || '').trim() ? 1 : 0)
+  const total = BRIEF_KEYS.length + 1
+
+  const put = (key, value) => {
+    if ((data[key] || '') === value) return
+    onPatch(client.id, { briefData: { ...data, [key]: value } })
+  }
+
+  return (
+    <Section
+      title={`Бриф · ${filled} из ${total}`}
+      subtitle="Это читает ИИ-сценарист. Чем конкретнее здесь, тем меньше он переспрашивает и тем меньше выдумывает. Заполнять всё сразу не обязательно, пустые пункты просто не попадают в запрос."
+    >
+      {BRIEF_GROUPS.map(g => (
+        <div key={g.group} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{
+            fontFamily: GROTESK, fontSize: 9.5, letterSpacing: '0.16em',
+            color: D.quiet, marginTop: 4,
+          }}>
+            {g.group.toUpperCase()}
+          </div>
+          {g.items.map(([key, label, hint]) => (
+            <BriefField
+              key={key}
+              label={label}
+              hint={hint}
+              value={data[key] || ''}
+              onCommit={v => put(key, v)}
+            />
+          ))}
+        </div>
+      ))}
+
+      <div style={{
+        fontFamily: GROTESK, fontSize: 9.5, letterSpacing: '0.16em',
+        color: D.quiet, marginTop: 4,
+      }}>
+        ПРОЧЕЕ
+      </div>
+      <BriefField
+        label="Что не влезло в графы"
+        hint="Всё остальное, что сценаристу стоит знать про этот проект."
+        value={client.brief || ''}
+        onCommit={v => { if ((client.brief || '') !== v) onPatch(client.id, { brief: v }) }}
+      />
+    </Section>
+  )
+}
+
+// Сохранение по потере фокуса: пока человек печатает, значение живёт локально.
+// Без этого каждая буква уезжала бы в базу, а при слабой связи ещё и
+// возвращалась бы обратно устаревшей, стирая набранное.
+function BriefField({ label, hint, value, onCommit }) {
+  const [local, setLocal] = useState(value)
+  const [focus, setFocus] = useState(false)
+
+  useEffect(() => { if (!focus) setLocal(value) }, [value, focus])
+
+  return (
+    <label style={{ display: 'block' }}>
+      <span style={{
+        display: 'block', marginBottom: 4, fontFamily: GROTESK, fontSize: 12,
+        color: local.trim() ? D.t3 : D.mut2,
+      }}>
+        {label}
+      </span>
+      <textarea
+        value={local}
+        placeholder={hint}
+        rows={2}
+        onChange={e => setLocal(e.target.value)}
+        onFocus={() => setFocus(true)}
+        onBlur={() => { setFocus(false); onCommit(local.trim()) }}
+        style={{
+          ...field, height: 'auto', padding: '9px 12px', fontSize: 12.5, lineHeight: 1.5,
+          resize: 'vertical',
+          boxShadow: focus ? `inset 0 0 0 1px ${D.lime}` : 'none',
+        }}
+      />
+    </label>
   )
 }
 
