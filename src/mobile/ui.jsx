@@ -8,6 +8,7 @@
 // «цвет статуса + альфа 55». Такие места переведены на готовые токены линий.
 
 import { useState, useRef, useCallback, useEffect } from "react"
+import { createPortal } from "react-dom"
 
 export const T = {
   bg: "var(--g-bg)",
@@ -87,9 +88,18 @@ export function useToast() {
   return [toast, flash]
 }
 
+// Всплывающее рисуем в document.body, а не там, где вызвали.
+//
+// Оболочка приложения задаёт <main> z-index, чтобы контент лёг поверх слоя
+// градиентных пятен. Тем самым main становится контекстом наложения, и любой
+// z-index внутри него меряется уже внутри первого слоя: лист с z-index 250
+// оказывается ниже панели вкладок с её пятьюдесятью. Портал выносит узел из
+// этого контекста, и числа снова сравниваются между собой.
+const toBody = node => (typeof document === 'undefined' ? node : createPortal(node, document.body))
+
 export function Toast({ text }) {
   if (!text) return null
-  return (
+  return toBody(
     <div
       className="m-toast"
       role="status"
@@ -121,7 +131,7 @@ export function Sheet({ open, title, onClose, children }) {
 
   if (!open) return null
 
-  return (
+  return toBody(
     <div
       className="m-overlay"
       onClick={onClose}
@@ -287,7 +297,7 @@ export function EmptyState({ title, hint, action, onAction }) {
 }
 
 export function Fab({ label, onClick }) {
-  return (
+  return toBody(
     <button
       onClick={onClick}
       style={{
