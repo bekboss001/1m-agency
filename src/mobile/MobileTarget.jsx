@@ -8,6 +8,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { ymd } from '../lib/tz'
 import { todayDate, addDays } from './todayTasks'
+import { streamAi } from '../lib/streamAi'
 import {
   T, SANS, OSW, MONO, mono, useToast, Toast, Sheet, SheetRow, ClientSelector, SectionTitle,
 } from './ui'
@@ -103,6 +104,9 @@ export default function MobileTarget() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [updatedAt, setUpdatedAt] = useState(null)
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analysisOpen, setAnalysisOpen] = useState(false)
+  const [analysis, setAnalysis] = useState('')
 
   useEffect(() => {
     supabase.from('clients').select('id, name, color, meta_account_id')
@@ -214,6 +218,49 @@ export default function MobileTarget() {
   // Экспорт разворачивает статистику по рекламным кампаниям. Кампании для всех
   // кабинетов сразу на экране не грузятся (это пятнадцать лишних запросов на
   // каждое переключение периода), поэтому здесь они догружаются по нажатию.
+  // Разбор идёт по тем же числам, что уже на экране: в Meta второй раз не
+  // ходим. Расхождение между тем, что человек видит, и тем, что разбирает
+  // модель, было бы хуже лишнего запроса.
+  async function analyze() {
+    if (analyzing || rows.length === 0) return
+    setAnalyzing(true)
+    setAnalysisOpen(true)
+    setAnalysis('')
+
+    const payload = {
+      action: 'analyze',
+      period: periodLabel,
+      scope: targetClient === 'all' ? 'все кабинеты' : (active?.name || ''),
+      series,
+      rows: rows.filter(r => r.m).map(r => ({
+        name: r.client.name,
+        spend: r.m.spend,
+        reach: r.m.reach,
+        clicks: r.m.clicks,
+        ctr: r.m.ctr,
+        messaging: r.m.messaging,
+        cpm: r.m.cpm,
+        // Кампании грузятся только при выбранном клиенте, и только там они
+        // осмысленны: по пятнадцати кабинетам это каша, а не разбор.
+        campaigns: (r.campaigns || [])
+          .map(c => ({ name: c.name, m: extract(c.insights?.data?.[0]) }))
+          .filter(x => x.m && (x.m.spend > 0 || x.m.impressions > 0))
+          .sort((a, b) => b.m.spend - a.m.spend)
+          .slice(0, 15)
+          .map(x => ({
+            name: x.name,
+            spend: x.m.spend, reach: x.m.reach, ctr: x.m.ctr,
+            messaging: x.m.messaging, cpm: x.m.cpm,
+          })),
+      })),
+    }
+
+    const { text, error } = await streamAi(payload, partial => setAnalysis(partial))
+    setAnalyzing(false)
+    if (error) setAnalysis('Не удалось получить разбор.\n\n' + error)
+    else if (!text.trim()) setAnalysis('Модель вернула пустой ответ. Попробуйте ещё раз.')
+  }
+
   async function exportText() {
     setExporting(true)
     setExportOpen(true)
@@ -417,6 +464,22 @@ export default function MobileTarget() {
             ))}
           </div>
         </div>
+
+        {/* Разбор. Кнопка отдельной строкой, а не действием в заголовке
+            секции: разбор это не «ещё один экспорт», он стоит денег и его
+            ждут секунд десять. */}
+        <button
+          onClick={analyze}
+          disabled={loading || rows.length === 0 || analyzing}
+          style={{
+            minHeight: 48, borderRadius: 14, border: 'none',
+            background: rows.length && !loading ? T.accent : T.surface2,
+            color: rows.length && !loading ? T.onAccent : T.muted,
+            ...mono(700, 12, '.06em'),
+          }}
+        >
+          {analyzing ? 'РАЗБИРАЕМ…' : 'РАЗБОР ИИ'}
+        </button>
 
         {/* По клиентам */}
         <div>
@@ -638,6 +701,43 @@ export default function MobileTarget() {
             </button>
           )}
         </form>
+      </Sheet>
+
+      <Sheet open={analysisOpen} title="Разбор" onClose={() => setAnalysisOpen(false)}>
+        <div style={{ color: T.muted, marginBottom: 10, ...mono(500, 9.5, '.12em') }}>
+          {periodLabel} · {targetClient === 'all' ? 'ВСЕ КАБИНЕТЫ' : (active?.name || '').toUpperCase()}
+        </div>
+
+        {!analysis && analyzing ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '20px 0' }}>
+            <div className="spinner" style={{ width: 22, height: 22 }} />
+            <span style={{ color: T.muted, ...mono(500, 11, '.08em') }}>ЧИТАЕМ ЦИФРЫ…</span>
+          </div>
+        ) : (
+          <div style={{
+            background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16,
+            padding: '14px 15px',
+            font: `400 13px/1.6 ${SANS}`, color: T.text,
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          }}>
+            {analysis}
+          </div>
+        )}
+
+        {analysis && !analyzing && (
+          <button
+            onClick={async () => {
+              try { await navigator.clipboard.writeText(analysis); flash('СКОПИРОВАНО') }
+              catch { flash('НЕ УДАЛОСЬ СКОПИРОВАТЬ') }
+            }}
+            style={{
+              marginTop: 10, minHeight: 46, borderRadius: 13, border: 'none',
+              background: T.accent, color: T.onAccent, ...mono(700, 12, '.06em'),
+            }}
+          >
+            СКОПИРОВАТЬ
+          </button>
+        )}
       </Sheet>
 
       <Sheet open={exportOpen} title="Выгрузка" onClose={() => setExportOpen(false)}>

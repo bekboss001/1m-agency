@@ -5,6 +5,7 @@
 // весь ответ, а чтение потока с колбэком на каждый кусок текста.
 
 import { supabase } from './supabase'
+import { streamAi } from './streamAi'
 
 export async function fetchChats(clientId) {
   let q = supabase
@@ -64,67 +65,10 @@ export async function sendMessage({ chatId, clientId, history, text }, onDelta) 
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: { message: 'Сессия истекла — войдите заново' } }
 
-  let res
-  try {
-    res = await fetch('/api/ai', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ chatId, clientId, history, text }),
-    })
-  } catch {
-    return { error: { message: 'Нет связи с сервером' } }
-  }
+  const { text: full, error } = await streamAi({ chatId, clientId, history, text }, onDelta)
+  if (error) return { error: { message: error } }
 
-  // До начала потока сервер ещё может ответить обычным JSON с ошибкой.
-  if (!res.ok && res.headers.get('content-type')?.includes('application/json')) {
-    const body = await res.json().catch(() => ({}))
-    return { error: { message: body.error || 'Ошибка сервера' } }
-  }
-  if (!res.body) return { error: { message: 'Сервер не вернул ответ' } }
-
-  const reader = res.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ''
-  let full = ''
-  let cost = 0
-  let streamError = null
-
-  // Склейка: сообщаем накопленный текст максимум раз в кадр отрисовки.
-  let rafId = 0
-  const emit = () => {
-    if (rafId) return
-    rafId = requestAnimationFrame(() => { rafId = 0; onDelta?.(full) })
-  }
-
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-
-    // Кадры SSE разделены пустой строкой. Последний кусок буфера может быть
-    // обрезан посередине, поэтому он остаётся ждать следующего чтения.
-    const frames = buffer.split('\n\n')
-    buffer = frames.pop() || ''
-
-    for (const frame of frames) {
-      const line = frame.trim()
-      if (!line.startsWith('data:')) continue
-      let payload
-      try { payload = JSON.parse(line.slice(5).trim()) } catch { continue }
-
-      if (payload.error) { streamError = payload.error; continue }
-      if (payload.t) { full += payload.t; emit() }
-      if (payload.done) cost = payload.cost || 0
-    }
-  }
-
-  // Последний кусок мог не успеть попасть в кадр.
-  if (rafId) { cancelAnimationFrame(rafId); rafId = 0 }
-  onDelta?.(full)
-
-  if (streamError && !full) return { error: { message: streamError } }
-
-  return { text: full, cost, error: null }
+  return { text: full, error: null }
 }
 
 // Заголовок чата — первая фраза человека. Отдельный запрос к модели ради

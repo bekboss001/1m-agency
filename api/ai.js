@@ -11,6 +11,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { ASK_TOOL, renderAsk, validAsk } from './askTool.js'
 import { renderBrief } from './briefFields.js'
+import { TARGET_SYSTEM, renderTargetData } from './targetPrompt.js'
 
 const MODEL = 'claude-opus-5'
 const GRAPH = 'https://graph.facebook.com/v19.0'
@@ -89,6 +90,54 @@ async function sbInsert(supabaseUrl, table, headers, row) {
     headers: { ...headers, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
     body: JSON.stringify(row),
   })
+}
+
+/* ─────────────────────── Общее для всех действий ──────────────────────── */
+
+function startStream(res) {
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders?.()
+}
+
+// Расход в долларах, а не в токенах: токены сами по себе владельцу ничего не
+// говорят. Пишется без await и без права уронить ответ: человек своё уже
+// получил, и сбой журнала не повод показывать ему ошибку.
+function logUsage({ supabaseUrl, sb, user, kind, clientId = null, usage }) {
+  const u = usage || {}
+  const cost =
+    ((u.input_tokens || 0) * PRICE.input +
+     (u.output_tokens || 0) * PRICE.output +
+     (u.cache_read_input_tokens || 0) * PRICE.cacheRead) / 1_000_000
+
+  fetch(`${supabaseUrl}/rest/v1/ai_usage`, {
+    method: 'POST',
+    headers: { ...sb, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      user_id: user.id,
+      client_id: clientId,
+      kind,
+      model: MODEL,
+      input_tokens: u.input_tokens || 0,
+      output_tokens: u.output_tokens || 0,
+      cache_read_tokens: u.cache_read_input_tokens || 0,
+      cost_usd: Number(cost.toFixed(5)),
+    }),
+  }).catch(() => {})
+
+  return Number(cost.toFixed(4))
+}
+
+// Заголовки к этому моменту уже ушли, обычный res.status(500) не годится.
+// Настоящий текст ошибки лежит в error.error.message; e.message это строка
+// целиком с кодом и JSON, читать её человеку тяжело.
+function describeError(e) {
+  const detail = e?.error?.error?.message || e?.message || ''
+  if (e?.status === 401) return 'Ключ Anthropic не принят. Проверьте ANTHROPIC_API_KEY в настройках Vercel.'
+  if (e?.status === 429) return 'Anthropic ограничил частоту. Попробуйте через минуту.'
+  if (e?.status === 400) return `Запрос отклонён: ${detail}`
+  return detail || 'Не удалось получить ответ'
 }
 
 // Слепок Instagram: сколько подписчиков и что у клиента реально заходит.
@@ -200,6 +249,56 @@ export default async function handler(req, res) {
     return res.status(200).json({ default: SYSTEM_STYLE_DEFAULT })
   }
 
+  // Ограничение по частоте общее для всех действий: оно про защиту от цикла,
+  // а циклу всё равно, что именно он шлёт.
+  const hourAgo = new Date(Date.now() - 3600_000).toISOString()
+  const recent = await sbGet(
+    `${supabaseUrl}/rest/v1/ai_usage?select=id&user_id=eq.${encodeURIComponent(user.id)}&created_at=gte.${hourAgo}`,
+    sb,
+  )
+  if (Array.isArray(recent) && recent.length >= HOURLY_LIMIT) {
+    return res.status(429).json({ error: 'Слишком много запросов за час. Попробуйте позже.' })
+  }
+
+  /* ───────────────────────── Разбор рекламы ──────────────────────────── */
+
+  if (req.body?.action === 'analyze') {
+    const { period, scope, rows, series } = req.body || {}
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return res.status(400).json({ error: 'Нет данных для разбора' })
+    }
+
+    const data = renderTargetData({ period, scope, rows, series })
+
+    startStream(res)
+    const send = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`)
+
+    try {
+      const anthropic = new Anthropic({ apiKey })
+      const stream = anthropic.messages.stream({
+        model: MODEL,
+        max_tokens: 4000,
+        output_config: { effort: 'medium' },
+        // Инструкция стабильна, а выгрузка меняется каждый раз, поэтому кэш
+        // ставим на инструкцию: иначе он не попадал бы ни разу.
+        system: [{ type: 'text', text: TARGET_SYSTEM, cache_control: { type: 'ephemeral' } }],
+        messages: [{ role: 'user', content: data }],
+      })
+
+      stream.on('text', t => send({ t }))
+      const final = await stream.finalMessage()
+
+      logUsage({ supabaseUrl, sb, user, kind: 'target', usage: final.usage })
+      send({ done: true })
+      res.end()
+    } catch (e) {
+      console.error('ai analyze:', e)
+      send({ error: describeError(e) })
+      res.end()
+    }
+    return
+  }
+
   const { chatId, clientId, history, text } = req.body || {}
 
   // Браузер может держать сборку, выпущенную до этой функции: страницу не
@@ -218,16 +317,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Вопрос пустой' })
   }
   const messages = [...(Array.isArray(history) ? history : []), { role: 'user', content: text }]
-
-  // Ограничение по частоте.
-  const hourAgo = new Date(Date.now() - 3600_000).toISOString()
-  const recent = await sbGet(
-    `${supabaseUrl}/rest/v1/ai_usage?select=id&user_id=eq.${encodeURIComponent(user.id)}&created_at=gte.${hourAgo}`,
-    sb,
-  )
-  if (Array.isArray(recent) && recent.length >= HOURLY_LIMIT) {
-    return res.status(429).json({ error: 'Слишком много запросов за час. Попробуйте позже.' })
-  }
 
   // Вопрос сохраняем до обращения к модели: даже если ответ не придёт,
   // он останется в переписке и его не придётся печатать заново.
@@ -289,11 +378,7 @@ export default async function handler(req, res) {
   }
 
   /* Поток */
-  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
-  res.setHeader('Connection', 'keep-alive')
-  res.setHeader('X-Accel-Buffering', 'no')
-  res.flushHeaders?.()
-
+  startStream(res)
   const send = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`)
 
   try {
@@ -354,46 +439,13 @@ export default async function handler(req, res) {
       }).catch(() => {})
     }
 
-    const u = final.usage || {}
-    const cost =
-      ((u.input_tokens || 0) * PRICE.input +
-       (u.output_tokens || 0) * PRICE.output +
-       (u.cache_read_input_tokens || 0) * PRICE.cacheRead) / 1_000_000
+    const cost = logUsage({ supabaseUrl, sb, user, kind: 'chat', clientId: clientId || null, usage: final.usage })
 
-    // Журнал расхода пишем после ответа и не даём его сбою уронить ответ:
-    // человек уже получил свой сценарий.
-    fetch(`${supabaseUrl}/rest/v1/ai_usage`, {
-      method: 'POST',
-      headers: { ...sb, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-      body: JSON.stringify({
-        user_id: user.id,
-        client_id: clientId || null,
-        kind: 'chat',
-        model: MODEL,
-        input_tokens: u.input_tokens || 0,
-        output_tokens: u.output_tokens || 0,
-        cache_read_tokens: u.cache_read_input_tokens || 0,
-        cost_usd: Number(cost.toFixed(5)),
-      }),
-    }).catch(() => {})
-
-    send({ done: true, cost: Number(cost.toFixed(4)), ask })
+    send({ done: true, cost, ask })
     res.end()
   } catch (e) {
     console.error('ai chat:', e)
-    // Заголовки уже ушли, обычный res.status(500) сюда не годится —
-    // сообщение об ошибке отдаём тем же потоком.
-    // Настоящий текст ошибки лежит в error.error.message; e.message — это
-    // строка целиком с кодом и JSON, читать её человеку тяжело.
-    const detail = e?.error?.error?.message || e?.message || ''
-    const message = e?.status === 401
-      ? 'Ключ Anthropic не принят. Проверьте ANTHROPIC_API_KEY в настройках Vercel.'
-      : e?.status === 429
-        ? 'Anthropic ограничил частоту. Попробуйте через минуту.'
-        : e?.status === 400
-          ? `Запрос отклонён: ${detail}`
-          : detail || 'Не удалось получить ответ'
-    send({ error: message })
+    send({ error: describeError(e) })
     res.end()
   }
 }
