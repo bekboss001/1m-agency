@@ -12,6 +12,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import { ASK_TOOL, renderAsk, validAsk } from './askTool.js'
 import { renderBrief } from './briefFields.js'
 import { TARGET_SYSTEM, renderTargetData } from './targetPrompt.js'
+import {
+  SCRIPT_TOOL, SCRIPT_SYSTEM, validScript, FORMAT_LABEL, GOAL_LABEL,
+} from './scriptTool.js'
 
 const MODEL = 'claude-opus-5'
 const GRAPH = 'https://graph.facebook.com/v19.0'
@@ -293,6 +296,106 @@ export default async function handler(req, res) {
       res.end()
     } catch (e) {
       console.error('ai analyze:', e)
+      send({ error: describeError(e) })
+      res.end()
+    }
+    return
+  }
+
+  /* ──────────────────────────── Сценарий ─────────────────────────────── */
+
+  if (req.body?.action === 'script') {
+    const { clientId: scriptClient, format, goal, durationSec, topic, previous, instruction } = req.body || {}
+
+    if (!FORMAT_LABEL[format] || !GOAL_LABEL[goal]) {
+      return res.status(400).json({ error: 'Формат или цель не распознаны' })
+    }
+    const seconds = Math.round(Number(durationSec) || 0)
+    if (seconds < 5 || seconds > 600) {
+      return res.status(400).json({ error: 'Хронометраж вне допустимого' })
+    }
+    if (typeof topic !== 'string' || !topic.trim()) {
+      return res.status(400).json({ error: 'Не сказано, о чём ролик' })
+    }
+
+    // Контекст клиента тот же, что у остальных действий: бриф и то, что у
+    // него заходит. Собирается здесь, а не приходит из браузера, чтобы
+    // сотрудник не мог подсунуть чужого клиента.
+    let context = ''
+    if (scriptClient) {
+      const rows = await sbGet(
+        `${supabaseUrl}/rest/v1/clients?select=id,name,brief,brief_data,total_posts,published_posts,instagram_account_id&id=eq.${encodeURIComponent(scriptClient)}`,
+        sb,
+      )
+      const client = rows?.[0]
+      if (client) {
+        const ig = client.instagram_account_id
+          ? await fetchIgContext(client.instagram_account_id, metaToken)
+          : null
+        context = renderContext(client, null, ig)
+      }
+    }
+
+    const brief = [
+      `Формат: ${FORMAT_LABEL[format]}.`,
+      `Цель ролика: ${GOAL_LABEL[goal]}.`,
+      `Хронометраж: ${seconds} секунд.`,
+      `О чём ролик: ${topic.trim().slice(0, 2000)}`,
+    ].join('\n')
+
+    // Правка это не новый сценарий с нуля: модель получает предыдущую версию
+    // целиком и меняет в ней только то, о чём просят. Иначе каждая правка
+    // переписывала бы удачные реплики заодно с неудачными.
+    const task = instruction
+      ? [
+          brief, '',
+          'Текущая версия сценария:',
+          JSON.stringify(previous, null, 1).slice(0, 8000), '',
+          `Что поправить: ${String(instruction).slice(0, 500)}`,
+          'Верни сценарий целиком. Реплики, которых правка не касается, оставь дословно как есть.',
+        ].join('\n')
+      : brief
+
+    startStream(res)
+    const send = obj => res.write(`data: ${JSON.stringify(obj)}\n\n`)
+
+    try {
+      const anthropic = new Anthropic({ apiKey })
+      const stream = anthropic.messages.stream({
+        model: MODEL,
+        max_tokens: 6000,
+        output_config: { effort: 'medium' },
+        // Инструмент единственный, и отвечать модель обязана только им:
+        // без принуждения она иногда пишет сценарий текстом рядом.
+        tools: [SCRIPT_TOOL],
+        tool_choice: { type: 'tool', name: 'script' },
+        system: [
+          { type: 'text', text: SCRIPT_SYSTEM },
+          ...(context ? [{ type: 'text', text: context, cache_control: { type: 'ephemeral' } }] : []),
+        ],
+        messages: [{ role: 'user', content: task }],
+      })
+
+      const final = await stream.finalMessage()
+
+      const block = (final.content || []).find(b => b.type === 'tool_use' && b.name === 'script')
+      const script = block ? validScript(block.input, seconds) : null
+
+      const cost = logUsage({
+        supabaseUrl, sb, user, kind: 'script',
+        clientId: scriptClient || null, usage: final.usage,
+      })
+
+      if (!script) {
+        send({ error: 'Модель вернула сценарий не в том виде. Попробуйте ещё раз.' })
+        res.end()
+        return
+      }
+
+      send({ script, cost, done: true })
+      res.end()
+    } catch (e) {
+      console.error('ai script:', e)
       send({ error: describeError(e) })
       res.end()
     }

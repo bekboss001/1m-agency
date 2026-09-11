@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; background:#0E1013; }
+  a { color:#D6F53E; } a:hover { color:#fff; }
+  [data-theme="dark"] { --bg:#08090B; --ink:#FFFFFF; --ink-2:rgba(255,255,255,.62); --ink-3:rgba(255,255,255,.5);
+    --glass:rgba(255,255,255,.07); --glass-2:rgba(255,255,255,.06); --line:rgba(255,255,255,.16);
+    --line-2:rgba(255,255,255,.1); --track:rgba(255,255,255,.12); --shadow:0 10px 34px rgba(0,0,0,.5);
+    --shadow-s:0 6px 22px rgba(0,0,0,.4); --accent:#D6F53E; --accent-ink:#0A0A0B; --accent-text:#D6F53E;
+    --solid:rgba(255,255,255,.1); --solid-ink:#fff; --alert:#FF8A6B;
+    --b1:#D6F53E; --b2:#7B4EE8; --b3:#F2622E; --b-op:.3; --b-blur:84px; }
+  @keyframes drift1 { 0%,100%{transform:translate3d(0,0,0) scale(1)} 33%{transform:translate3d(64px,46px,0) scale(1.14)} 66%{transform:translate3d(22px,86px,0) scale(1.04)} }
+  @keyframes drift2 { 0%,100%{transform:translate3d(0,0,0) scale(1.08)} 33%{transform:translate3d(-78px,-40px,0) scale(1)} 66%{transform:translate3d(-30px,58px,0) scale(1.12)} }
+  @keyframes drift3 { 0%,100%{transform:translate3d(0,0,0) scale(1)} 33%{transform:translate3d(70px,-52px,0) scale(1.1)} 66%{transform:translate3d(104px,10px,0) scale(1.02)} }
+  @media (prefers-reduced-motion: reduce) { [data-blob] { animation:none !important; } }
+</style>
+</helmet>
+
+<div style="min-height:100vh;padding:34px 28px 70px;display:flex;flex-direction:column;gap:30px;font-family:'IBM Plex Sans',sans-serif;color:#fff">
+
+<section style="display:flex;flex-direction:column;gap:22px">
+  <div style="max-width:820px;display:flex;flex-direction:column;gap:9px">
+    <div style="font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#D6F53E">ТУРН 2 · ФИНАЛЬНЫЙ ЭКРАН</div>
+    <div style="font:700 32px/1.05 'Oswald',sans-serif">ГИБРИД: ЧИПЫ НА СТАРТЕ, ПРАВКИ ЧАТОМ</div>
+    <div style="font:400 14px/1.55 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.62);text-wrap:pretty">Бриф собирается касаниями и сворачивается в одну строку, как только сценарий сгенерирован. ИИ пишет только реплики — никаких кадров и монтажа. Готовый сценарий уходит в контент-план, в съёмки или в буфер.</div>
+  </div>
+
+  <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
+
+    <div id="2a" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:baseline;gap:10px;max-width:390px">
+        <a href="#2a" style="font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-decoration:none;padding:4px 8px;border:1px solid rgba(255,255,255,.16);border-radius:8px">2a</a>
+        <div style="font:700 17px 'Oswald',sans-serif;letter-spacing:.03em">ШАГ 1 · ПОСТАНОВКА</div>
+      </div>
+      <div style="max-width:390px;font:400 12.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.55);text-wrap:pretty">Четыре касания — клиент, формат, цель, хронометраж — и одно поле про суть. Всё видно без скролла, кнопка генерации закреплена над таб-баром.</div>
+
+      <div data-theme="dark" data-screen-label="Сценарист · постановка" style="width:390px;height:844px;border-radius:46px;background:#111;border:1px solid rgba(255,255,255,.1);box-shadow:0 26px 64px rgba(0,0,0,.5);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden">
+        <div data-blob="1" style="position:absolute;width:320px;height:320px;left:-70px;top:-40px;border-radius:50%;background:var(--b1);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift1 22s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="2" style="position:absolute;width:300px;height:300px;right:-90px;top:210px;border-radius:50%;background:var(--b2);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift2 28s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="3" style="position:absolute;width:280px;height:280px;left:-40px;bottom:-60px;border-radius:50%;background:var(--b3);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift3 19s ease-in-out infinite;will-change:transform"></div>
+
+        <div style="position:relative;z-index:1;height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink-2)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid var(--ink-3);border-radius:2px;display:block"></span></div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:6px 16px 12px;display:flex;align-items:center;gap:10px;min-height:44px">
+          <div style="flex:1;min-width:0;font:700 24px/1 'Oswald',sans-serif;letter-spacing:.04em">СЦЕНАРИСТ</div>
+          <div style="min-height:36px;padding:0 12px;display:flex;align-items:center;gap:7px;border-radius:12px;background:var(--glass);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);border:1px solid var(--line);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">ПОСЛЕДНИЕ<span style="min-width:16px;height:16px;padding:0 4px;border-radius:5px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font:700 9px 'IBM Plex Mono',monospace">7</span></div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px;display:flex;flex-direction:column;gap:14px">
+          <div style="border-radius:24px;background:var(--glass);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:15px">
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">КЛИЕНТ</div>
+              <div style="min-height:44px;display:flex;align-items:center;gap:9px;padding:0 12px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line-2)">
+                <span style="width:9px;height:9px;flex:none;border-radius:3px;background:#E8452F;display:block"></span>
+                <span style="flex:1;font:600 14px 'IBM Plex Sans',sans-serif">КТВ</span>
+                <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">СМЕНИТЬ ▾</span>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ФОРМАТ</div>
+              <div style="display:flex;gap:6px">
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--accent);color:var(--accent-ink);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em">REELS</div>
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">СТОРИС</div>
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ПОСТ</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ЦЕЛЬ</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--accent);color:var(--accent-ink);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em">ЗАЯВКИ</div>
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ОХВАТ</div>
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ДОВЕРИЕ</div>
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ПРОГРЕВ</div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ХРОНОМЕТРАЖ</div>
+                <div style="font:700 11px 'IBM Plex Mono',monospace;color:var(--accent-text)">45 СЕК</div>
+              </div>
+              <div style="min-height:44px;display:flex;align-items:center;padding:0 4px">
+                <div style="flex:1;height:6px;border-radius:3px;background:var(--track);position:relative">
+                  <div style="width:52%;height:100%;border-radius:3px;background:var(--accent)"></div>
+                  <div style="position:absolute;left:52%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:9px;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.5)"></div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">О ЧЁМ РОЛИК</div>
+              <div style="min-height:76px;padding:12px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line-2);font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Опоры СВ-95/105/110 напрямую с завода, доставка своим транспортом<span style="color:var(--ink-3)">|</span></div>
+              <div style="display:flex;gap:6px">
+                <div style="min-height:34px;padding:0 11px;display:flex;align-items:center;border-radius:11px;border:1px dashed var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ГОЛОСОМ</div>
+                <div style="min-height:34px;padding:0 11px;display:flex;align-items:center;border-radius:11px;border:1px dashed var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ИЗ БРИФА КЛИЕНТА</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;padding-bottom:4px">
+            <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ЧТО УЖЕ ЗАХОДИЛО У КТВ</div>
+            <div style="border-radius:20px;background:var(--glass);border:1px solid var(--line);box-shadow:var(--shadow-s);overflow:hidden">
+              <div style="padding:12px 14px;display:flex;align-items:center;gap:10px">
+                <div style="flex:1;min-width:0;font:400 13.5px/1.35 'IBM Plex Sans',sans-serif">«Опора за 40 и за 25 — одна и та же опора»</div>
+                <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:var(--accent-text);white-space:nowrap">×2 ЗАЯВКИ</div>
+              </div>
+              <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--line-2)">
+                <div style="flex:1;min-width:0;font:400 13.5px/1.35 'IBM Plex Sans',sans-serif">Разбор: как считают доставку до объекта</div>
+                <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3);white-space:nowrap">ОХВАТ 18К</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+          <div style="min-height:52px;display:flex;align-items:center;justify-content:center;border-radius:17px;background:var(--accent);color:var(--accent-ink);font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.1em">НАПИСАТЬ СЦЕНАРИЙ</div>
+          <div style="text-align:center;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ЧЕРНОВИК СОХРАНЯЕТСЯ · РАБОТАЕТ ОФЛАЙН</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;height:74px;box-sizing:border-box;margin:0 12px;display:flex;align-items:flex-start;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:10px 4px 14px;box-shadow:var(--shadow-s)">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ГЛАВНАЯ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">КОНТЕНТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">СЪЁМКИ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:var(--accent)"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--accent-text)">СЦЕНАРИСТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ПРОФИЛЬ</div></div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <div id="2b" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:baseline;gap:10px;max-width:390px">
+        <a href="#2b" style="font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-decoration:none;padding:4px 8px;border:1px solid rgba(255,255,255,.16);border-radius:8px">2b</a>
+        <div style="font:700 17px 'Oswald',sans-serif;letter-spacing:.03em">ШАГ 2 · СЦЕНАРИЙ И ПРАВКИ</div>
+      </div>
+      <div style="max-width:390px;font:400 12.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.55);text-wrap:pretty">Бриф свернулся в строку. Только реплики, разбитые по роли в ролике, с таймингом и копированием поштучно. Правки — чипами или обычным сообщением.</div>
+
+      <div data-theme="dark" data-screen-label="Сценарист · результат" style="width:390px;height:844px;border-radius:46px;background:#111;border:1px solid rgba(255,255,255,.1);box-shadow:0 26px 64px rgba(0,0,0,.5);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden">
+        <div data-blob="2" style="position:absolute;width:300px;height:300px;right:-90px;top:120px;border-radius:50%;background:var(--b2);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift2 28s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="3" style="position:absolute;width:280px;height:280px;left:-40px;bottom:-60px;border-radius:50%;background:var(--b3);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift3 19s ease-in-out infinite;will-change:transform"></div>
+
+        <div style="position:relative;z-index:1;height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink-2)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid var(--ink-3);border-radius:2px;display:block"></span></div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:6px 16px 10px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:10px;min-height:44px">
+            <div style="width:36px;height:36px;flex:none;border-radius:12px;background:var(--glass);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font:700 14px 'IBM Plex Mono',monospace;color:var(--ink-2)">←</div>
+            <div style="flex:1;min-width:0;font:700 20px/1 'Oswald',sans-serif;letter-spacing:.04em">СЦЕНАРИЙ</div>
+            <div style="min-height:36px;padding:0 11px;display:flex;align-items:center;gap:6px;border-radius:12px;background:var(--glass);border:1px solid var(--line);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">В2 ▾</div>
+          </div>
+          <div style="min-height:44px;display:flex;align-items:center;gap:8px;padding:0 8px 0 12px;border-radius:15px;background:var(--glass);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow-s)">
+            <span style="width:9px;height:9px;flex:none;border-radius:3px;background:#E8452F;display:block"></span>
+            <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:7px;overflow:hidden">
+              <span style="font:600 14px 'IBM Plex Sans',sans-serif">КТВ</span>
+              <span style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3);white-space:nowrap">REELS · ЗАЯВКИ · 45 СЕК</span>
+            </div>
+            <div style="min-height:32px;padding:0 10px;display:flex;align-items:center;border-radius:10px;background:var(--solid);border:1px solid var(--line-2);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">БРИФ ▾</div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:8px;padding:0 2px">
+            <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink-3)">ВЕРСИЯ 2 · 23:37</div>
+            <div style="flex:1;height:1px;background:var(--line-2)"></div>
+            <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink-3)">≈ 46 СЕК · 96 СЛОВ</div>
+          </div>
+
+          <div style="flex:none;border-radius:24px;background:var(--glass);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow)">
+            <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line-2)">
+              <div style="flex:1;min-width:0;font:700 12px 'Oswald',sans-serif;letter-spacing:.08em">ПРЯМО С ЗАВОДА</div>
+              <div style="min-height:30px;padding:0 10px;display:flex;align-items:center;border-radius:10px;background:var(--accent);color:var(--accent-ink);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em">КОПИЯ ВСЕГО</div>
+            </div>
+            <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--accent);color:var(--accent-ink);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em">ХУК</span>
+                <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:00–0:04</span>
+                <span style="flex:1"></span>
+                <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+              </div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Опора за 40 тысяч и опора за 25 — одна и та же опора. Разница только в том, сколько рук её потрогало.</div>
+            </div>
+            <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line-2)">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--solid);border:1px solid var(--line-2);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">СУТЬ</span>
+                <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:04–0:18</span>
+                <span style="flex:1"></span>
+                <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+              </div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">СВ-95, СВ-105, СВ-110. Три размера закрывают почти любую линию: от участка до промышленного объекта.</div>
+            </div>
+            <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line-2)">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--solid);border:1px solid var(--line-2);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">АРГУМЕНТ</span>
+                <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:18–0:30</span>
+                <span style="flex:1"></span>
+                <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+              </div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Берёте напрямую с завода, без посредника в цепочке. Значит, и цена без чужой наценки. Доставка по Шымкенту и области своим транспортом.</div>
+            </div>
+            <div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line-2)">
+              <div style="display:flex;align-items:center;gap:7px">
+                <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--solid);border:1px solid var(--line-2);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">ПРИЗЫВ</span>
+                <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:30–0:46</span>
+                <span style="flex:1"></span>
+                <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+              </div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Напишите в WhatsApp количество и марку опор — посчитаем стоимость с доставкой <span style="padding:1px 5px;border-radius:5px;background:rgba(255,138,107,.16);border:1px solid rgba(255,138,107,.4);font:600 12.5px 'IBM Plex Mono',monospace;color:var(--alert)">срок ответа?</span></div>
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--alert)">1 УТОЧНЕНИЕ У КЛИЕНТА</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;padding-bottom:4px">
+            <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--solid);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em">В КОНТЕНТ-ПЛАН</div>
+            <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--solid);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em">В СЪЁМКИ</div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:10px 16px 0;display:flex;gap:7px;overflow:hidden">
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;white-space:nowrap">КОРОЧЕ</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;white-space:nowrap">ДРУГОЙ ХУК</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;white-space:nowrap">ПРОЩЕ</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3);white-space:nowrap">+ ЕЩЁ</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:10px 16px 12px;display:flex;gap:8px;align-items:center">
+          <div style="flex:1;min-width:0;min-height:48px;display:flex;align-items:center;padding:0 14px;border-radius:16px;background:var(--glass-2);border:1px solid var(--line);font:400 14px 'IBM Plex Sans',sans-serif;color:var(--ink-3)">Что поправить?</div>
+          <div style="width:48px;height:48px;flex:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font:700 16px 'IBM Plex Mono',monospace">↑</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;height:74px;box-sizing:border-box;margin:0 12px;display:flex;align-items:flex-start;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:10px 4px 14px;box-shadow:var(--shadow-s)">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ГЛАВНАЯ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">КОНТЕНТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">СЪЁМКИ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:var(--accent)"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--accent-text)">СЦЕНАРИСТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ПРОФИЛЬ</div></div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:900px;font:400 13px/1.55 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.62);text-wrap:pretty">Кадров и монтажа нет — только реплики; метки ХУК / СУТЬ / АРГУМЕНТ / ПРИЗЫВ показывают роль реплики, а не план съёмки. Копия есть у каждого блока и одна на весь сценарий. «В контент-план» и «В съёмки» лежат в конце скролла, чтобы не спорить с полем правок. Тайминг считается по словам и пересчитывается после каждой правки.</div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:22px">
+  <div style="max-width:820px;display:flex;flex-direction:column;gap:9px">
+    <div style="font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.16em;color:#D6F53E">ТУРН 1 · СЦЕНАРИСТ · PWA</div>
+    <div style="font:700 32px/1.05 'Oswald',sans-serif">ДВА ПОДХОДА К ЭКРАНУ</div>
+    <div style="font:400 14px/1.55 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.62);text-wrap:pretty">Сейчас сценарий приходит стеной текста в чат: нельзя скопировать один блок, нельзя отправить в контент-план, бриф занимает четверть экрана и не редактируется. Оба варианта на тех же токенах тёмного стекла — меняется только структура ответа и способ постановки задачи.</div>
+  </div>
+
+  <div style="display:flex;gap:26px;flex-wrap:wrap;align-items:flex-start">
+
+    <div id="1a" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:baseline;gap:10px;max-width:390px">
+        <a href="#1a" style="font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-decoration:none;padding:4px 8px;border:1px solid rgba(255,255,255,.16);border-radius:8px">1a</a>
+        <div style="font:700 17px 'Oswald',sans-serif;letter-spacing:.03em">СЦЕНАРИЙ ПО БЛОКАМ</div>
+      </div>
+      <div style="max-width:390px;font:400 12.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.55);text-wrap:pretty">Чат остаётся, но ответ ИИ — не текст, а карточка сценария из блоков: у каждого свой тип, хронометраж и своя кнопка копирования. Правки — чипами, без переписывания промта.</div>
+
+      <div data-theme="dark" data-screen-label="Сценарист · блоки" style="width:390px;height:844px;border-radius:46px;background:#111;border:1px solid rgba(255,255,255,.1);box-shadow:0 26px 64px rgba(0,0,0,.5);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden">
+        <div data-blob="1" style="position:absolute;width:320px;height:320px;left:-70px;top:-40px;border-radius:50%;background:var(--b1);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift1 22s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="2" style="position:absolute;width:300px;height:300px;right:-90px;top:210px;border-radius:50%;background:var(--b2);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift2 28s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="3" style="position:absolute;width:280px;height:280px;left:-40px;bottom:-60px;border-radius:50%;background:var(--b3);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift3 19s ease-in-out infinite;will-change:transform"></div>
+
+        <div style="position:relative;z-index:1;height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink-2)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid var(--ink-3);border-radius:2px;display:block"></span></div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:6px 16px 10px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:10px;min-height:44px">
+            <div style="flex:1;min-width:0;font:700 24px/1 'Oswald',sans-serif;letter-spacing:.04em">СЦЕНАРИСТ</div>
+            <div style="min-height:36px;padding:0 12px;display:flex;align-items:center;gap:7px;border-radius:12px;background:var(--glass);backdrop-filter:blur(20px) saturate(170%);-webkit-backdrop-filter:blur(20px) saturate(170%);border:1px solid var(--line);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">ИСТОРИЯ<span style="min-width:16px;height:16px;padding:0 4px;border-radius:5px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font:700 9px 'IBM Plex Mono',monospace">7</span></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;min-height:44px;padding:0 8px 0 12px;border-radius:15px;background:var(--glass);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow-s)">
+            <span style="width:9px;height:9px;flex:none;border-radius:3px;background:#E8452F;display:block"></span>
+            <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:7px;overflow:hidden">
+              <span style="font:600 14px 'IBM Plex Sans',sans-serif">КТВ</span>
+              <span style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3);white-space:nowrap">REELS · ТАРГЕТ · 40–50 СЕК</span>
+            </div>
+            <div style="min-height:32px;padding:0 10px;display:flex;align-items:center;border-radius:10px;background:var(--solid);border:1px solid var(--line-2);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">БРИФ ▾</div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px;display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;gap:8px;padding:0 2px">
+            <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink-3)">ВЕРСИЯ 2 · 23:37</div>
+            <div style="flex:1;height:1px;background:var(--line-2)"></div>
+            <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink-3)">≈ 46 СЕК · 96 СЛОВ</div>
+          </div>
+
+          <div style="flex:none;border-radius:24px;background:var(--glass);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow);display:flex;flex-direction:column">
+            <div style="flex:none;display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line-2)">
+              <div style="flex:1;min-width:0;font:700 12px 'Oswald',sans-serif;letter-spacing:.08em">ОПОРЫ СВ · ПРЯМО С ЗАВОДА</div>
+              <div style="min-height:30px;padding:0 10px;display:flex;align-items:center;border-radius:10px;background:var(--accent);color:var(--accent-ink);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em">КОПИЯ ВСЕГО</div>
+            </div>
+
+            <div style="flex:none;display:flex;flex-direction:column">
+              <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--accent);color:var(--accent-ink);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em">ХУК</span>
+                  <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:00–0:04 · В КАМЕРУ</span>
+                  <span style="flex:1"></span>
+                  <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+                </div>
+                <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Опора за 40 тысяч и опора за 25 — одна и та же опора. Разница только в том, сколько рук её потрогало.</div>
+              </div>
+
+              <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line-2)">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--solid);border:1px solid var(--line-2);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">ЗКТ</span>
+                  <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:04–0:18 · КАДРЫ СКЛАДА</span>
+                  <span style="flex:1"></span>
+                  <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+                </div>
+                <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">СВ-95, СВ-105, СВ-110. Три размера закрывают почти любую линию электропередачи: от участка до промышленного объекта.</div>
+              </div>
+
+              <div style="padding:12px 14px;display:flex;flex-direction:column;gap:7px;border-top:1px solid var(--line-2)">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--solid);border:1px solid var(--line-2);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">В КАМЕРУ</span>
+                  <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:18–0:30</span>
+                  <span style="flex:1"></span>
+                  <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+                </div>
+                <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Берёте напрямую с завода, без посредника в цепочке. Значит, и цена без чужой наценки. Доставка по Шымкенту и области своим транспортом.</div>
+              </div>
+
+              <div style="padding:12px 14px;display:flex;flex-direction:column;gap:8px;border-top:1px solid var(--line-2)">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <span style="min-height:20px;padding:0 7px;display:flex;align-items:center;border-radius:6px;background:var(--solid);border:1px solid var(--line-2);font:700 9px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">ПРИЗЫВ</span>
+                  <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:30–0:46</span>
+                  <span style="flex:1"></span>
+                  <span style="width:30px;height:30px;flex:none;border-radius:9px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</span>
+                </div>
+                <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Напишите в WhatsApp количество и марку опор — посчитаем стоимость с доставкой <span style="padding:1px 5px;border-radius:5px;background:rgba(255,138,107,.16);border:1px solid rgba(255,138,107,.4);font:600 12.5px 'IBM Plex Mono',monospace;color:var(--alert)">срок ответа?</span></div>
+                <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--alert)">1 УТОЧНЕНИЕ У КЛИЕНТА</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:10px 16px 0;display:flex;gap:7px;overflow:hidden">
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink);white-space:nowrap">КОРОЧЕ</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink);white-space:nowrap">ДРУГОЙ ХУК</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink);white-space:nowrap">ПРОЩЕ</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3);white-space:nowrap">+ ЕЩЁ</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:10px 16px 12px;display:flex;gap:8px;align-items:center">
+          <div style="flex:1;min-width:0;min-height:48px;display:flex;align-items:center;padding:0 14px;border-radius:16px;background:var(--glass-2);border:1px solid var(--line);font:400 14px 'IBM Plex Sans',sans-serif;color:var(--ink-3)">Что поправить?</div>
+          <div style="width:48px;height:48px;flex:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font:700 16px 'IBM Plex Mono',monospace">↑</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;display:flex;gap:8px;padding:0 16px 8px">
+          <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--solid);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em">В КОНТЕНТ-ПЛАН</div>
+          <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--solid);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em">В СЪЁМКИ</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;height:74px;margin:0 12px;display:flex;align-items:flex-start;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:10px 4px 14px;box-shadow:var(--shadow-s)">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ГЛАВНАЯ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">КОНТЕНТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">СЪЁМКИ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:var(--accent)"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--accent-text)">СЦЕНАРИСТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ПРОФИЛЬ</div></div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <div id="1b" style="display:flex;flex-direction:column;gap:12px;flex:none">
+      <div style="display:flex;align-items:baseline;gap:10px;max-width:390px">
+        <a href="#1b" style="font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-decoration:none;padding:4px 8px;border:1px solid rgba(255,255,255,.16);border-radius:8px">1b</a>
+        <div style="font:700 17px 'Oswald',sans-serif;letter-spacing:.03em">БРИФ ВМЕСТО ПРОМТА</div>
+      </div>
+      <div style="max-width:390px;font:400 12.5px/1.5 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.55);text-wrap:pretty">Сотрудник не пишет промт, а собирает бриф касаниями: клиент, формат, цель, тон, хронометраж. Свободное поле — только про суть. Результат — раскадровка со кадрами и репликами.</div>
+
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <div data-theme="dark" data-screen-label="Сценарист · бриф" style="width:390px;height:844px;border-radius:46px;background:#111;border:1px solid rgba(255,255,255,.1);box-shadow:0 26px 64px rgba(0,0,0,.5);position:relative;overflow:hidden;flex:none">
+      <div style="position:absolute;inset:0;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden">
+        <div data-blob="1" style="position:absolute;width:320px;height:320px;left:-70px;top:-40px;border-radius:50%;background:var(--b1);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift1 22s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="2" style="position:absolute;width:300px;height:300px;right:-90px;top:210px;border-radius:50%;background:var(--b2);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift2 28s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="3" style="position:absolute;width:280px;height:280px;left:-40px;bottom:-60px;border-radius:50%;background:var(--b3);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift3 19s ease-in-out infinite;will-change:transform"></div>
+
+        <div style="position:relative;z-index:1;height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink-2)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid var(--ink-3);border-radius:2px;display:block"></span></div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:6px 16px 12px;display:flex;align-items:center;gap:10px;min-height:44px">
+          <div style="flex:1;min-width:0;font:700 24px/1 'Oswald',sans-serif;letter-spacing:.04em">СЦЕНАРИСТ</div>
+          <div style="min-height:36px;padding:0 12px;display:flex;align-items:center;gap:7px;border-radius:12px;background:var(--glass);border:1px solid var(--line);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">ИСТОРИЯ<span style="min-width:16px;height:16px;padding:0 4px;border-radius:5px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font:700 9px 'IBM Plex Mono',monospace">7</span></div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px;display:flex;flex-direction:column;gap:14px">
+
+          <div style="border-radius:24px;background:var(--glass);backdrop-filter:blur(26px) saturate(170%);-webkit-backdrop-filter:blur(26px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow);padding:16px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">КЛИЕНТ</div>
+              <div style="min-height:44px;display:flex;align-items:center;gap:9px;padding:0 12px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line-2)">
+                <span style="width:9px;height:9px;flex:none;border-radius:3px;background:#E8452F;display:block"></span>
+                <span style="flex:1;font:600 14px 'IBM Plex Sans',sans-serif">КТВ</span>
+                <span style="font:600 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3)">СМЕНИТЬ ▾</span>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ФОРМАТ</div>
+              <div style="display:flex;gap:6px">
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--accent);color:var(--accent-ink);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em">REELS</div>
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">СТОРИС</div>
+                <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:13px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ПОСТ</div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ЦЕЛЬ</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--accent);color:var(--accent-ink);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em">ЗАЯВКИ</div>
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ОХВАТ</div>
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ДОВЕРИЕ</div>
+                <div style="min-height:38px;padding:0 13px;display:flex;align-items:center;border-radius:12px;background:var(--glass-2);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ПРОГРЕВ</div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between">
+                <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ХРОНОМЕТРАЖ</div>
+                <div style="font:700 11px 'IBM Plex Mono',monospace;color:var(--accent-text)">45 СЕК</div>
+              </div>
+              <div style="min-height:44px;display:flex;align-items:center;padding:0 4px">
+                <div style="flex:1;height:6px;border-radius:3px;background:var(--track);position:relative">
+                  <div style="width:52%;height:100%;border-radius:3px;background:var(--accent)"></div>
+                  <div style="position:absolute;left:52%;top:50%;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:9px;background:#fff;box-shadow:0 3px 10px rgba(0,0,0,.5)"></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">О ЧЁМ РОЛИК</div>
+              <div style="min-height:78px;padding:12px;border-radius:14px;background:var(--glass-2);border:1px solid var(--line-2);font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">Опоры СВ-95/105/110 напрямую с завода, доставка своим транспортом, рассрочка 0-0-12<span style="color:var(--ink-3)">|</span></div>
+              <div style="display:flex;gap:6px">
+                <div style="min-height:34px;padding:0 11px;display:flex;align-items:center;border-radius:11px;background:transparent;border:1px dashed var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">🎙 ГОЛОСОМ</div>
+                <div style="min-height:34px;padding:0 11px;display:flex;align-items:center;border-radius:11px;background:transparent;border:1px dashed var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-2)">ИЗ БРИФА КЛИЕНТА</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.14em;color:var(--ink-3)">ЧТО УЖЕ ЗАХОДИЛО У КТВ</div>
+            <div style="border-radius:20px;background:var(--glass);border:1px solid var(--line);box-shadow:var(--shadow-s);overflow:hidden">
+              <div style="padding:12px 14px;display:flex;align-items:center;gap:10px">
+                <div style="flex:1;min-width:0;font:400 13.5px/1.35 'IBM Plex Sans',sans-serif">«Опора за 40 и за 25 — одна и та же опора»</div>
+                <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:var(--accent-text);white-space:nowrap">×2 ЗАЯВКИ</div>
+              </div>
+              <div style="padding:12px 14px;display:flex;align-items:center;gap:10px;border-top:1px solid var(--line-2)">
+                <div style="flex:1;min-width:0;font:400 13.5px/1.35 'IBM Plex Sans',sans-serif">Разбор: как считают доставку до объекта</div>
+                <div style="font:700 9.5px 'IBM Plex Mono',monospace;color:var(--ink-3);white-space:nowrap">ОХВАТ 18К</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:12px 16px 12px;display:flex;flex-direction:column;gap:8px">
+          <div style="min-height:52px;display:flex;align-items:center;justify-content:center;gap:9px;border-radius:17px;background:var(--accent);color:var(--accent-ink);font:700 12px 'IBM Plex Mono',monospace;letter-spacing:.1em">НАПИСАТЬ СЦЕНАРИЙ</div>
+          <div style="text-align:center;font:500 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ЧЕРНОВИК СОХРАНЯЕТСЯ АВТОМАТИЧЕСКИ · РАБОТАЕТ ОФЛАЙН</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;height:74px;margin:0 12px;display:flex;align-items:flex-start;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:10px 4px 14px;box-shadow:var(--shadow-s)">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ГЛАВНАЯ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">КОНТЕНТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">СЪЁМКИ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:var(--accent)"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--accent-text)">СЦЕНАРИСТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ПРОФИЛЬ</div></div>
+        </div>
+      </div>
+      </div>
+
+      <div data-theme="dark" data-screen-label="Сценарист · раскадровка" style="width:390px;height:844px;border-radius:46px;background:#111;border:1px solid rgba(255,255,255,.1);box-shadow:0 26px 64px rgba(0,0,0,.5);position:relative;overflow:hidden;flex:none">
+      <div style="position:absolute;inset:0;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;overflow:hidden">
+        <div data-blob="2" style="position:absolute;width:300px;height:300px;right:-90px;top:120px;border-radius:50%;background:var(--b2);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift2 28s ease-in-out infinite;will-change:transform"></div>
+        <div data-blob="3" style="position:absolute;width:280px;height:280px;left:-40px;bottom:-60px;border-radius:50%;background:var(--b3);filter:blur(var(--b-blur));opacity:var(--b-op);animation:drift3 19s ease-in-out infinite;will-change:transform"></div>
+
+        <div style="position:relative;z-index:1;height:46px;flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding:0 26px 4px;font:500 12px 'IBM Plex Mono',monospace;color:var(--ink-2)"><span>9:41</span><span style="width:15px;height:8px;border:1px solid var(--ink-3);border-radius:2px;display:block"></span></div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:6px 16px 10px;display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;gap:10px;min-height:44px">
+            <div style="width:36px;height:36px;flex:none;border-radius:12px;background:var(--glass);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font:700 14px 'IBM Plex Mono',monospace;color:var(--ink-2)">←</div>
+            <div style="flex:1;min-width:0"><div style="font:700 16px/1.1 'Oswald',sans-serif;letter-spacing:.04em">КТВ · REELS 45 СЕК</div><div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3);padding-top:3px">ЗАЯВКИ · 4 КАДРА</div></div>
+            <div style="min-height:36px;padding:0 11px;display:flex;align-items:center;border-radius:12px;background:var(--glass);border:1px solid var(--line);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">БРИФ ▾</div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <div style="min-height:32px;padding:0 12px;display:flex;align-items:center;border-radius:10px;background:var(--accent);color:var(--accent-ink);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em">В2</div>
+            <div style="min-height:32px;padding:0 12px;display:flex;align-items:center;border-radius:10px;background:var(--glass-2);border:1px solid var(--line-2);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-3)">В1</div>
+            <div style="flex:1"></div>
+            <div style="min-height:32px;padding:0 12px;display:flex;align-items:center;border-radius:10px;background:var(--glass-2);border:1px solid var(--line-2);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;color:var(--ink-2)">СРАВНИТЬ</div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 16px;display:flex;flex-direction:column;gap:10px">
+
+          <div style="border-radius:22px;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow-s);padding:14px;display:flex;gap:12px;align-items:flex-start">
+            <div style="width:36px;flex:none;display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:36px;height:36px;border-radius:11px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font:700 15px 'Oswald',sans-serif">1</div>
+              <div style="font:600 9px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:04</div>
+            </div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--accent-text)">ХУК · КРУПНО, В КАМЕРУ</div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">«Опора за 40 тысяч и опора за 25 — одна и та же опора.»</div>
+              <div style="font:400 12px/1.4 'IBM Plex Sans',sans-serif;color:var(--ink-3);text-wrap:pretty">Кадр: склад, герой рядом с опорой, естественный свет.</div>
+            </div>
+            <div style="width:32px;height:32px;flex:none;border-radius:10px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</div>
+          </div>
+
+          <div style="border-radius:22px;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow-s);padding:14px;display:flex;gap:12px;align-items:flex-start">
+            <div style="width:36px;flex:none;display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:36px;height:36px;border-radius:11px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 15px 'Oswald',sans-serif;color:var(--ink)">2</div>
+              <div style="font:600 9px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:14</div>
+            </div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink-2)">ЗКТ · КАДРЫ ПРОДУКЦИИ</div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">«СВ-95, СВ-105, СВ-110 — три размера на любую линию: от участка до промобъекта.»</div>
+              <div style="font:400 12px/1.4 'IBM Plex Sans',sans-serif;color:var(--ink-3);text-wrap:pretty">Кадр: проезд вдоль штабеля, крупно маркировка.</div>
+            </div>
+            <div style="width:32px;height:32px;flex:none;border-radius:10px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</div>
+          </div>
+
+          <div style="border-radius:22px;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);box-shadow:var(--shadow-s);padding:14px;display:flex;gap:12px;align-items:flex-start">
+            <div style="width:36px;flex:none;display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:36px;height:36px;border-radius:11px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 15px 'Oswald',sans-serif;color:var(--ink)">3</div>
+              <div style="font:600 9px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:12</div>
+            </div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink-2)">В КАМЕРУ · АРГУМЕНТ</div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">«Берём напрямую с завода — цена без чужой наценки. Доставка своим транспортом до объекта.»</div>
+            </div>
+            <div style="width:32px;height:32px;flex:none;border-radius:10px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 11px 'IBM Plex Mono',monospace;color:var(--ink-2)">⧉</div>
+          </div>
+
+          <div style="border-radius:22px;background:var(--glass);border:1px solid var(--line);box-shadow:var(--shadow-s);padding:14px;display:flex;gap:12px;align-items:flex-start">
+            <div style="width:36px;flex:none;display:flex;flex-direction:column;align-items:center;gap:5px">
+              <div style="width:36px;height:36px;border-radius:11px;background:var(--solid);border:1px solid var(--line-2);display:flex;align-items:center;justify-content:center;font:700 15px 'Oswald',sans-serif;color:var(--ink)">4</div>
+              <div style="font:600 9px 'IBM Plex Mono',monospace;color:var(--ink-3)">0:15</div>
+            </div>
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:8px">
+              <div style="font:600 9.5px 'IBM Plex Mono',monospace;letter-spacing:.1em;color:var(--ink-2)">ПРИЗЫВ</div>
+              <div style="font:400 14px/1.45 'IBM Plex Sans',sans-serif;text-wrap:pretty">«Напишите в WhatsApp марку и количество — посчитаем с доставкой <span style="padding:1px 5px;border-radius:5px;background:rgba(255,138,107,.16);border:1px solid rgba(255,138,107,.4);font:600 12.5px 'IBM Plex Mono',monospace;color:var(--alert)">срок?</span>»</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:10px 16px 0;display:flex;gap:7px;overflow:hidden">
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;white-space:nowrap">ЖЁСТЧЕ ХУК</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;white-space:nowrap">30 СЕК</div>
+          <div style="min-height:34px;padding:0 12px;display:flex;align-items:center;border-radius:11px;background:var(--glass);border:1px solid var(--line);font:700 9.5px 'IBM Plex Mono',monospace;letter-spacing:.08em;white-space:nowrap">ЕЩЁ ВЕРСИЯ</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;padding:10px 16px 12px;display:flex;gap:8px;align-items:center">
+          <div style="flex:1;min-width:0;min-height:48px;display:flex;align-items:center;padding:0 14px;border-radius:16px;background:var(--glass-2);border:1px solid var(--line);font:400 14px 'IBM Plex Sans',sans-serif;color:var(--ink-3)">Правка к кадру 1…</div>
+          <div style="width:48px;height:48px;flex:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);display:flex;align-items:center;justify-content:center;font:700 16px 'IBM Plex Mono',monospace">↑</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;display:flex;gap:8px;padding:0 16px 8px">
+          <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--solid);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em">В КОНТЕНТ-ПЛАН</div>
+          <div style="flex:1;min-height:44px;display:flex;align-items:center;justify-content:center;border-radius:14px;background:var(--solid);border:1px solid var(--line-2);font:700 10px 'IBM Plex Mono',monospace;letter-spacing:.08em">В СЪЁМКИ</div>
+        </div>
+
+        <div style="position:relative;z-index:1;flex:none;height:74px;margin:0 12px;display:flex;align-items:flex-start;background:var(--glass);backdrop-filter:blur(24px) saturate(170%);-webkit-backdrop-filter:blur(24px) saturate(170%);border:1px solid var(--line);border-radius:22px 22px 0 0;padding:10px 4px 14px;box-shadow:var(--shadow-s)">
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ГЛАВНАЯ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">КОНТЕНТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">СЪЁМКИ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:var(--accent)"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--accent-text)">СЦЕНАРИСТ</div></div>
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:7px"><div style="width:20px;height:3px;border-radius:2px;background:transparent"></div><div style="font:600 9px 'IBM Plex Mono',monospace;letter-spacing:.06em;color:var(--ink-3)">ПРОФИЛЬ</div></div>
+        </div>
+      </div>
+      </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="max-width:900px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:18px">
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#D6F53E">ЧТО ИСПРАВЛЕНО</div>
+      <div style="font:400 13px/1.55 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.62);text-wrap:pretty">Шапка и бриф сжаты с ~200px до 44+44: клиент, формат и хронометраж — в одну строку, промт спрятан за «БРИФ». Экрана хватает на сам сценарий. Копирование — у каждого блока, а не одно на всё. Сценарий уходит в контент-план и в съёмки без пересылки текста руками.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#D6F53E">УЧТЕНО ДЛЯ PWA</div>
+      <div style="font:400 13px/1.55 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.62);text-wrap:pretty">Поле ввода и таб-бар — на <code>env(safe-area-inset-bottom)</code> и <code>visualViewport</code>, чтобы клавиатура не перекрывала отправку. Черновик брифа в IndexedDB — офлайн и после выгрузки вкладки. Генерация продолжается по возврату в приложение (стрим на сервере, не в памяти вкладки). Копирование — <code>navigator.clipboard</code> с фолбэком, без надежды на нативный шэр.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+      <div style="font:700 11px 'IBM Plex Mono',monospace;letter-spacing:.12em;color:#D6F53E">ОТКРЫТЫЕ ВОПРОСЫ</div>
+      <div style="font:400 13px/1.55 'IBM Plex Sans',sans-serif;color:rgba(255,255,255,.62);text-wrap:pretty">Нужна ли история переписок отдельной вкладкой или хватит списка «последние сценарии». Кто утверждает сценарий перед съёмкой — и нужен ли статус «на согласовании у клиента». Пишет ли ИИ раскадровку (кадры) или только реплики.</div>
+    </div>
+  </div>
+</section>
+
+</div>
+</x-dc>
+</body>
+</html>
