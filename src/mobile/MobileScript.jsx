@@ -263,6 +263,8 @@ export default function MobileScript() {
       ) : (
         <ScriptView
           brief={draft}
+          setBrief={setDraft}
+          clients={myClients}
           client={client}
           script={script}
           version={version}
@@ -274,8 +276,8 @@ export default function MobileScript() {
           onCopy={copy}
           onRevise={revise}
           onPickVersion={pickVersion}
-          onEditBrief={() => setStep('brief')}
           onFillGap={fillGap}
+          onRegenerate={generate}
           onLineAction={lineAction}
           onToContentPlan={() => exportTo('plan')}
           onToShoots={() => exportTo('shoots')}

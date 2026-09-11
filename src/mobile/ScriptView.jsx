@@ -10,6 +10,7 @@ import {
 } from '../lib/aiScript'
 import { useKeyboardInset } from '../lib/useKeyboardInset'
 import { T, SANS, OSW, MONO, mono, Sheet, GLASS, GLASS_SM } from './ui'
+import ScriptBriefCard from './ScriptBriefCard'
 
 // Первые три правки видны сразу, остальные под «ещё»: ряд из восьми чипов
 // пришлось бы листать, а эти три покрывают почти все случаи.
@@ -17,10 +18,11 @@ const QUICK_FIXES = ['короче', 'другой хук', 'проще']
 const MORE_FIXES = ['жёстче', 'добавить цифры', 'убрать канцелярит', 'под сторис']
 
 export default function ScriptView({
-  brief, client, script, version, versions, createdAt, busy, exporting,
-  onBack, onCopy, onRevise, onPickVersion, onEditBrief, onFillGap, onLineAction,
-  onToContentPlan, onToShoots,
+  brief, setBrief, clients, client, script, version, versions, createdAt, busy, exporting,
+  onBack, onCopy, onRevise, onPickVersion, onFillGap, onLineAction,
+  onRegenerate, onToContentPlan, onToShoots,
 }) {
+  const [briefOpen, setBriefOpen] = useState(false)
   const [instruction, setInstruction] = useState('')
   const [moreOpen, setMoreOpen] = useState(false)
   const [versionsOpen, setVersionsOpen] = useState(false)
@@ -158,13 +160,15 @@ export default function ScriptView({
             {FORMAT_LABEL[brief.format]} · {GOAL_LABEL[brief.goal]} · {brief.durationSec} СЕК
           </span>
           <button
-            onClick={onEditBrief}
+            onClick={() => setBriefOpen(v => !v)}
             style={{
               flex: 'none', minHeight: 34, padding: '0 11px', borderRadius: 11, border: 'none',
-              background: T.surface2, color: T.text2, ...mono(700, 9.5, '.08em'),
+              background: briefOpen ? T.accent : T.surface2,
+              color: briefOpen ? T.onAccent : T.text2,
+              ...mono(700, 9.5, '.08em'),
             }}
           >
-            БРИФ ▾
+            БРИФ {briefOpen ? '▴' : '▾'}
           </button>
         </div>
       </div>
@@ -177,6 +181,28 @@ export default function ScriptView({
         paddingBottom: dockH + 16,
         display: 'flex', flexDirection: 'column', gap: 12,
       }}>
+
+        {briefOpen && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <ScriptBriefCard draft={brief} setDraft={setBrief} clients={clients} client={client} />
+            <button
+              onClick={() => { setBriefOpen(false); onRegenerate() }}
+              disabled={locked}
+              style={{
+                minHeight: 48, borderRadius: 15, border: 'none',
+                background: locked ? T.surface2 : T.accent,
+                color: locked ? T.muted : T.onAccent,
+                ...mono(700, 12, '.08em'),
+              }}
+            >
+              ПЕРЕГЕНЕРИРОВАТЬ
+            </button>
+            <div style={{ color: T.muted, font: `400 11.5px/1.5 ${SANS}`, padding: '0 2px' }}>
+              Новый бриф это новый сценарий, а не версия текущего: версии живут внутри
+              одной постановки. Нынешний останется в «Последних».
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ flex: 'none', color: T.muted, ...mono(600, 9.5, '.1em') }}>
