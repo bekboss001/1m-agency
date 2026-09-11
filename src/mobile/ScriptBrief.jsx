@@ -15,7 +15,7 @@ const STEP_SEC = 5
 
 export default function ScriptBrief({
   draft, setDraft, clients, client, busy, error,
-  savedCount, onOpenRecent, onGenerate,
+  savedCount, hasScript, onOpenRecent, onGenerate, onBackToScript,
 }) {
   const [picker, setPicker] = useState(false)
   const [online, setOnline] = useState(() => navigator.onLine !== false)
@@ -227,6 +227,17 @@ export default function ScriptBrief({
           : 'calc(96px + env(safe-area-inset-bottom))',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 7,
       }}>
+        {hasScript && (
+          <button
+            onClick={onBackToScript}
+            style={{
+              width: '100%', minHeight: 44, borderRadius: 14, border: 'none',
+              background: T.surface2, color: T.text2, ...mono(700, 10.5, '.08em'),
+            }}
+          >
+            ← ВЕРНУТЬСЯ К СЦЕНАРИЮ
+          </button>
+        )}
         <button
           onClick={onGenerate}
           disabled={!ready || busy}
@@ -238,7 +249,11 @@ export default function ScriptBrief({
             ...mono(700, 12, '.1em'),
           }}
         >
-          {busy ? 'ПИШЕМ СЦЕНАРИЙ…' : online ? 'НАПИСАТЬ СЦЕНАРИЙ' : 'НЕТ СЕТИ · ЧЕРНОВИК СОХРАНЁН'}
+          {busy
+            ? 'ПИШЕМ СЦЕНАРИЙ…'
+            : !online
+              ? 'НЕТ СЕТИ · ЧЕРНОВИК СОХРАНЁН'
+              : hasScript ? 'ПЕРЕГЕНЕРИРОВАТЬ' : 'НАПИСАТЬ СЦЕНАРИЙ'}
         </button>
         <span style={{ color: T.muted, ...mono(500, 9.5, '.1em') }}>
           ЧЕРНОВИК СОХРАНЯЕТСЯ · РАБОТАЕТ ОФЛАЙН

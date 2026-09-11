@@ -1,14 +1,35 @@
-// Шаг 2 «Сценарий»: прочитать, скопировать, растащить по местам.
+// Шаг 2 «Сценарий»: прочитать, поправить и растащить по местам.
 //
 // Реплики отдельными блоками, а не стеной текста: копируют их поштучно, и
 // каждая уходит в свой чат или в описание съёмки сама по себе.
 
-import { ROLE_LABEL, FORMAT_LABEL, GOAL_LABEL, mmss, splitGaps, plainLine, estimateSec, countWords, gapCount, renderScriptText } from '../lib/aiScript'
-import { T, SANS, OSW, mono, GLASS, GLASS_SM } from './ui'
+import { useState, useRef } from 'react'
+import {
+  ROLE_LABEL, FORMAT_LABEL, GOAL_LABEL, mmss, splitGaps, plainLine,
+  estimateSec, countWords, gapCount, renderScriptText,
+} from '../lib/aiScript'
+import { useKeyboardInset } from '../lib/useKeyboardInset'
+import { T, SANS, OSW, MONO, mono, Sheet, GLASS, GLASS_SM } from './ui'
+
+// Первые три правки видны сразу, остальные под «ещё»: ряд из восьми чипов
+// пришлось бы листать, а эти три покрывают почти все случаи.
+const QUICK_FIXES = ['короче', 'другой хук', 'проще']
+const MORE_FIXES = ['жёстче', 'добавить цифры', 'убрать канцелярит', 'под сторис']
 
 export default function ScriptView({
-  brief, client, script, version, createdAt, busy, onBack, onCopy,
+  brief, client, script, version, versions, createdAt, busy, exporting,
+  onBack, onCopy, onRevise, onPickVersion, onEditBrief, onFillGap, onLineAction,
+  onToContentPlan, onToShoots,
 }) {
+  const [instruction, setInstruction] = useState('')
+  const [moreOpen, setMoreOpen] = useState(false)
+  const [versionsOpen, setVersionsOpen] = useState(false)
+  const [menuLine, setMenuLine] = useState(null)
+  const [gap, setGap] = useState(null)          // { lineIndex, label }
+  const [gapValue, setGapValue] = useState('')
+  const keyboard = useKeyboardInset()
+  const pressTimer = useRef(null)
+
   const lines = script?.lines || []
   const words = countWords(lines)
   const estimate = estimateSec(lines)
@@ -22,10 +43,35 @@ export default function ScriptView({
     ? `${String(new Date(createdAt).getHours()).padStart(2, '0')}:${String(new Date(createdAt).getMinutes()).padStart(2, '0')}`
     : ''
 
+  const locked = busy || exporting
+
+  function send(text) {
+    const value = String(text || '').trim()
+    if (!value || locked) return
+    setInstruction('')
+    setMoreOpen(false)
+    onRevise(value)
+  }
+
+  // Долгий тап: на телефоне это единственный жест «дай меню», короткого
+  // нажатия на реплике нет, так что он ничему не мешает.
+  function pressStart(index) {
+    clearTimeout(pressTimer.current)
+    pressTimer.current = setTimeout(() => setMenuLine(index), 500)
+  }
+  const pressEnd = () => clearTimeout(pressTimer.current)
+
+  function applyGap() {
+    const value = gapValue.trim()
+    if (!value) return
+    onFillGap(gap.lineIndex, gap.label, value)
+    setGap(null)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
 
-      {/* Хедер: возврат, заголовок, свёрнутый бриф */}
+      {/* Хедер: возврат, заголовок, версия, свёрнутый бриф */}
       <div className="g-topbar" style={{
         position: 'sticky', top: 0, zIndex: 20,
         padding: '6px 16px 10px',
@@ -47,18 +93,22 @@ export default function ScriptView({
           <span style={{ flex: 1, font: `700 20px ${OSW}`, letterSpacing: '.04em', color: T.text }}>
             СЦЕНАРИЙ
           </span>
-          <span className={GLASS_SM} style={{
-            minHeight: 34, padding: '0 11px', borderRadius: 12, color: T.text, flex: 'none',
-            display: 'flex', alignItems: 'center', ...mono(700, 10, '.08em'),
-          }}>
-            В{version}
-          </span>
+          <button
+            onClick={() => versions.length > 1 && setVersionsOpen(true)}
+            className={GLASS_SM}
+            style={{
+              minHeight: 34, padding: '0 11px', borderRadius: 12, color: T.text, flex: 'none',
+              display: 'flex', alignItems: 'center', ...mono(700, 10, '.08em'),
+            }}
+          >
+            В{version}{versions.length > 1 ? ' ▾' : ''}
+          </button>
         </div>
 
         {/* Свёрнутый бриф: одна строка, чтобы не отъедать экран у сценария */}
         <div style={{
           display: 'flex', alignItems: 'center', gap: 9,
-          minHeight: 44, padding: '0 12px', borderRadius: 15,
+          minHeight: 44, padding: '0 6px 0 12px', borderRadius: 15,
           background: T.surface, border: `1px solid ${T.hair}`,
         }}>
           <span style={{
@@ -76,13 +126,25 @@ export default function ScriptView({
           }}>
             {FORMAT_LABEL[brief.format]} · {GOAL_LABEL[brief.goal]} · {brief.durationSec} СЕК
           </span>
+          <button
+            onClick={onEditBrief}
+            style={{
+              flex: 'none', minHeight: 34, padding: '0 11px', borderRadius: 11, border: 'none',
+              background: T.surface2, color: T.text2, ...mono(700, 9.5, '.08em'),
+            }}
+          >
+            БРИФ ▾
+          </button>
         </div>
       </div>
 
       {/* Скролл */}
-      <div style={{ flex: 1, padding: '12px 16px', paddingBottom: 130, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{
+        flex: 1, padding: '12px 16px',
+        paddingBottom: keyboard ? 140 : 210,
+        display: 'flex', flexDirection: 'column', gap: 12,
+      }}>
 
-        {/* Метаданные */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ flex: 'none', color: T.muted, ...mono(600, 9.5, '.1em') }}>
             ВЕРСИЯ {version}{time ? ` · ${time}` : ''}
@@ -93,11 +155,8 @@ export default function ScriptView({
           </span>
         </div>
 
-        {/* Сценарий */}
         <div className={GLASS} style={{ overflow: 'hidden' }}>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px',
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '13px 14px' }}>
             <span style={{
               flex: 1, minWidth: 0, font: `700 12px ${OSW}`, letterSpacing: '.08em', color: T.text,
               textTransform: 'uppercase',
@@ -106,43 +165,240 @@ export default function ScriptView({
             </span>
             <button
               onClick={() => onCopy(renderScriptText(script?.title, lines), 'СЦЕНАРИЙ СКОПИРОВАН')}
-              disabled={busy}
+              disabled={locked || lines.length === 0}
               style={{
                 flex: 'none', minHeight: 30, padding: '0 11px', borderRadius: 10, border: 'none',
-                background: T.accent, color: T.onAccent, ...mono(700, 9.5, '.06em'),
+                background: lines.length ? T.accent : T.surface2,
+                color: lines.length ? T.onAccent : T.muted,
+                ...mono(700, 9.5, '.06em'),
               }}
             >
               КОПИЯ ВСЕГО
             </button>
           </div>
 
-          {lines.map((l, i) => (
-            <Line key={i} line={l} onCopy={onCopy} />
-          ))}
-
-          {busy && lines.length === 0 && <Skeleton />}
+          {busy && lines.length === 0
+            ? <Skeleton />
+            : lines.map((l, i) => (
+                <Line
+                  key={i}
+                  line={l}
+                  onCopy={onCopy}
+                  onGap={label => { setGap({ lineIndex: i, label }); setGapValue('') }}
+                  onPressStart={() => pressStart(i)}
+                  onPressEnd={pressEnd}
+                />
+              ))}
         </div>
 
         {gaps > 0 && (
           <div style={{
             padding: '11px 14px', borderRadius: 14,
-            background: 'rgba(255,138,107,.10)', border: `1px solid rgba(255,138,107,.4)`,
+            background: 'rgba(255,138,107,.10)', border: '1px solid rgba(255,138,107,.4)',
             color: T.hot, ...mono(600, 10, '.08em'),
           }}>
-            {gaps} {plural(gaps, 'УТОЧНЕНИЕ', 'УТОЧНЕНИЯ', 'УТОЧНЕНИЙ')} У КЛИЕНТА
+            {gaps} {plural(gaps, 'УТОЧНЕНИЕ', 'УТОЧНЕНИЯ', 'УТОЧНЕНИЙ')} У КЛИЕНТА · ТАП ПО МЕТКЕ
           </div>
         )}
+
+        {/* Выгрузка. Внутри скролла, чтобы не спорить с полем правок за низ. */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={onToContentPlan}
+            disabled={locked || lines.length === 0}
+            style={outButton(locked || lines.length === 0)}
+          >
+            В КОНТЕНТ-ПЛАН
+          </button>
+          <button
+            onClick={onToShoots}
+            disabled={locked || lines.length === 0}
+            style={outButton(locked || lines.length === 0)}
+          >
+            В СЪЁМКИ
+          </button>
+        </div>
       </div>
+
+      {/* Док: быстрые правки и поле */}
+      <div style={{
+        position: 'fixed', zIndex: 30,
+        left: 'calc(14px + env(safe-area-inset-left))',
+        right: 'calc(14px + env(safe-area-inset-right))',
+        bottom: keyboard ? keyboard + 12 : 'calc(96px + env(safe-area-inset-bottom))',
+        display: 'flex', flexDirection: 'column', gap: 8,
+      }}>
+        <div className="m-hscroll" style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
+          {QUICK_FIXES.map(f => (
+            <button
+              key={f}
+              onClick={() => send(f)}
+              disabled={locked}
+              className={GLASS_SM}
+              style={{
+                flex: 'none', minHeight: 34, padding: '0 12px', borderRadius: 11,
+                color: T.text, opacity: locked ? .5 : 1, ...mono(600, 10, '.08em'),
+              }}
+            >
+              {f.toUpperCase()}
+            </button>
+          ))}
+          <button
+            onClick={() => setMoreOpen(true)}
+            disabled={locked}
+            className={GLASS_SM}
+            style={{
+              flex: 'none', minHeight: 34, padding: '0 12px', borderRadius: 11,
+              color: T.text, opacity: locked ? .5 : 1, ...mono(600, 10, '.08em'),
+            }}
+          >
+            + ЕЩЁ
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+          <input
+            value={instruction}
+            onChange={e => setInstruction(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') send(instruction) }}
+            placeholder={busy ? 'Пишем новую версию…' : 'Что поправить?'}
+            disabled={locked}
+            style={{
+              flex: 1, minWidth: 0, minHeight: 48, padding: '0 14px', borderRadius: 16,
+              border: 'none', outline: 'none',
+              background: T.surface, color: T.text, font: `400 14px ${SANS}`,
+            }}
+          />
+          <button
+            onClick={() => send(instruction)}
+            disabled={locked || !instruction.trim()}
+            aria-label="Отправить правку"
+            style={{
+              width: 48, height: 48, borderRadius: 16, border: 'none', flex: 'none',
+              background: instruction.trim() && !locked ? T.accent : T.surface2,
+              color: instruction.trim() && !locked ? T.onAccent : T.muted,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              font: `600 17px ${SANS}`,
+            }}
+          >
+            ↑
+          </button>
+        </div>
+      </div>
+
+      {/* Полный список правок */}
+      <Sheet open={moreOpen} title="Правка" onClose={() => setMoreOpen(false)}>
+        {[...QUICK_FIXES, ...MORE_FIXES].map(f => (
+          <button
+            key={f}
+            onClick={() => send(f)}
+            style={{
+              minHeight: 48, borderRadius: 13, border: 'none', textAlign: 'left',
+              padding: '0 14px', background: 'transparent', color: T.text,
+              font: `600 14px ${SANS}`,
+            }}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </Sheet>
+
+      {/* Версии */}
+      <Sheet open={versionsOpen} title="Версии" onClose={() => setVersionsOpen(false)}>
+        {versions.map(v => (
+          <button
+            key={v.version}
+            onClick={() => { onPickVersion(v); setVersionsOpen(false) }}
+            style={{
+              minHeight: 48, borderRadius: 13,
+              border: `1px solid ${v.version === version ? T.accentText : 'transparent'}`,
+              background: v.version === version ? T.accentDim : 'transparent',
+              padding: '8px 14px', textAlign: 'left', color: T.text,
+              display: 'flex', flexDirection: 'column', gap: 3,
+            }}
+          >
+            <span style={{ font: `600 14px ${SANS}` }}>Версия {v.version}</span>
+            <span style={{ color: T.muted, ...mono(500, 9.5, '.1em') }}>
+              {v.instruction ? v.instruction.toUpperCase() : 'ПЕРВАЯ ВЕРСИЯ'}
+            </span>
+          </button>
+        ))}
+      </Sheet>
+
+      {/* Меню реплики */}
+      <Sheet open={menuLine !== null} title="Реплика" onClose={() => setMenuLine(null)}>
+        {[
+          ['rewrite', 'Переписать только её'],
+          ['up', 'Перенести выше'],
+          ['down', 'Перенести ниже'],
+          ['delete', 'Удалить'],
+        ].map(([id, label]) => (
+          <button
+            key={id}
+            onClick={() => { onLineAction(menuLine, id); setMenuLine(null) }}
+            style={{
+              minHeight: 48, borderRadius: 13, border: 'none', textAlign: 'left',
+              padding: '0 14px', background: 'transparent',
+              color: id === 'delete' ? T.hot : T.text,
+              font: `600 14px ${SANS}`,
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </Sheet>
+
+      {/* Уточнение */}
+      <Sheet open={gap !== null} title="Уточнение" onClose={() => setGap(null)}>
+        <div style={{ color: T.muted, marginBottom: 4, ...mono(600, 10, '.1em') }}>
+          {String(gap?.label || '').toUpperCase()}
+        </div>
+        <input
+          autoFocus
+          value={gapValue}
+          onChange={e => setGapValue(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') applyGap() }}
+          placeholder="Что подставить в текст"
+          style={{
+            width: '100%', minHeight: 48, padding: '0 14px', borderRadius: 14,
+            border: 'none', outline: 'none',
+            background: T.surface, color: T.text, font: `400 14px ${SANS}`,
+          }}
+        />
+        <button
+          onClick={applyGap}
+          disabled={!gapValue.trim()}
+          style={{
+            marginTop: 8, minHeight: 48, borderRadius: 13, border: 'none',
+            background: gapValue.trim() ? T.accent : T.surface2,
+            color: gapValue.trim() ? T.onAccent : T.muted,
+            ...mono(700, 12, '.06em'),
+          }}
+        >
+          ПОДСТАВИТЬ
+        </button>
+      </Sheet>
     </div>
   )
 }
 
-function Line({ line, onCopy }) {
+/* ──────────────────────────────── Части ───────────────────────────────── */
+
+function Line({ line, onCopy, onGap, onPressStart, onPressEnd }) {
   return (
-    <div style={{
-      padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 7,
-      borderTop: `1px solid ${T.hair}`,
-    }}>
+    <div
+      onTouchStart={onPressStart}
+      onTouchEnd={onPressEnd}
+      onTouchMove={onPressEnd}
+      onMouseDown={onPressStart}
+      onMouseUp={onPressEnd}
+      onMouseLeave={onPressEnd}
+      onContextMenu={e => e.preventDefault()}
+      style={{
+        padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 7,
+        borderTop: `1px solid ${T.hair}`,
+      }}
+    >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{
           minHeight: 20, padding: '0 7px', borderRadius: 6, flex: 'none',
@@ -175,11 +431,25 @@ function Line({ line, onCopy }) {
           part.gap ? (
             // Уточнение стоит прямо в тексте, а не сноской внизу: так видно,
             // какое именно слово придётся спросить у клиента.
-            <span key={i} style={{
-              padding: '1px 5px', borderRadius: 5,
-              background: 'rgba(255,138,107,.16)', border: '1px solid rgba(255,138,107,.4)',
-              color: T.hot, ...mono(600, 12.5, '0'),
-            }}>
+            <span
+              key={i}
+              onClick={e => { e.stopPropagation(); onGap(part.text) }}
+              style={{
+                padding: '1px 5px', borderRadius: 5, cursor: 'pointer',
+                background: 'rgba(255,138,107,.16)', border: '1px solid rgba(255,138,107,.4)',
+                color: T.hot,
+                // Метка переносится по словам вместе с текстом, и на разрыве
+                // строки рамка ломалась: начало без правого края, хвост без
+                // левого. box-decoration-break рисует рамку и скругление на
+                // каждом куске отдельно.
+                WebkitBoxDecorationBreak: 'clone',
+                boxDecorationBreak: 'clone',
+                // Размер и начертание по спеке, но line-height берём у абзаца:
+                // сокращённая запись font сбросила бы его в normal, и строка с
+                // меткой стала бы выше соседних.
+                fontFamily: MONO, fontSize: 12.5, fontWeight: 600, lineHeight: 'inherit',
+              }}
+            >
               {part.text}
             </span>
           ) : (
@@ -191,8 +461,8 @@ function Line({ line, onCopy }) {
   )
 }
 
-// Скелетон на четыре реплики: пока сценарий пишется, экран должен показывать
-// его будущую форму, а не пустоту со спиннером.
+// Скелетон на четыре реплики: пока сценарий пишется, экран показывает его
+// будущую форму, а не пустоту со спиннером.
 function Skeleton() {
   return (
     <>
@@ -209,6 +479,13 @@ function Skeleton() {
     </>
   )
 }
+
+const outButton = disabled => ({
+  flex: 1, minHeight: 44, borderRadius: 14, border: 'none',
+  background: T.surface2, color: disabled ? T.muted : T.text,
+  opacity: disabled ? 0.6 : 1,
+  fontFamily: MONO, fontSize: 10.5, fontWeight: 700, letterSpacing: '.08em',
+})
 
 function plural(n, one, few, many) {
   const m10 = n % 10

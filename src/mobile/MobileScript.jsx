@@ -8,7 +8,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import {
-  fetchScripts, fetchVersions, createScript, deleteScript, generateScript,
+  fetchScripts, fetchVersions, createScript, addVersion, deleteScript,
+  generateScript, reviseScript, toContentPlan, toShoots,
   FORMAT_LABEL, GOAL_LABEL,
 } from '../lib/aiScript'
 import { loadDraft, saveDraft } from './scriptDraft'
@@ -29,7 +30,9 @@ export default function MobileScript() {
   const [scriptId, setScriptId] = useState(null)
   const [script, setScript] = useState(null)     // { title, lines }
   const [version, setVersion] = useState(1)
+  const [versions, setVersions] = useState([])
   const [createdAt, setCreatedAt] = useState(null)
+  const [exporting, setExporting] = useState(false)
 
   const [recent, setRecent] = useState([])
   const [recentOpen, setRecentOpen] = useState(false)
@@ -80,6 +83,7 @@ export default function MobileScript() {
     setScript(null)
     setScriptId(null)
     setVersion(1)
+    setVersions([])
     setStep('script')
 
     const { script: result, error: err } = await generateScript(draft)
@@ -101,7 +105,99 @@ export default function MobileScript() {
 
     if (saveErr) { flash('СЦЕНАРИЙ НЕ СОХРАНЁН'); return }
     setScriptId(row.id)
+    setVersions([{ version: 1, title: result.title, lines: result.lines, instruction: null, created_at: new Date().toISOString() }])
     loadRecent()
+  }
+
+  // Правка это новая версия, а не замена текущей: к любой можно вернуться,
+  // и «было лучше» должно иметь куда откатиться.
+  async function revise(instruction) {
+    if (busy || !script) return
+    setBusy(true)
+    setError(null)
+
+    const next = version + 1
+    const { script: result, error: err } = await reviseScript(draft, script, instruction)
+
+    if (err) { setBusy(false); flash(err.toUpperCase().slice(0, 60)); return }
+
+    setScript(result)
+    setVersion(next)
+    setCreatedAt(new Date().toISOString())
+
+    if (scriptId) {
+      const { error: saveErr } = await addVersion(scriptId, next, result, instruction)
+      if (saveErr) flash('ВЕРСИЯ НЕ СОХРАНЕНА')
+      const { data } = await fetchVersions(scriptId)
+      setVersions(data)
+      loadRecent()
+    }
+    setBusy(false)
+  }
+
+  function pickVersion(v) {
+    setScript({ title: v.title, lines: v.lines })
+    setVersion(v.version)
+    setCreatedAt(v.created_at)
+  }
+
+  // Подстановка уточнения правится на месте и в базу не уходит: это не новая
+  // версия, а заполнение пропуска, и плодить ради него запись в истории значит
+  // засорять список версий.
+  function fillGap(lineIndex, label, value) {
+    setScript(s => {
+      const lines = s.lines.map((l, i) => {
+        if (i !== lineIndex) return l
+        return {
+          ...l,
+          text: l.text.split('[[' + label + ']]').join(value),
+          gaps: (l.gaps || []).filter(g => g !== label),
+        }
+      })
+      return { ...s, lines }
+    })
+    flash('ПОДСТАВЛЕНО')
+  }
+
+  // Порядок и состав реплик правятся на месте, кроме «переписать»: она уходит
+  // в модель и становится новой версией.
+  function lineAction(index, action) {
+    if (action === 'rewrite') {
+      const line = script?.lines?.[index]
+      if (line) revise(`Перепиши только реплику с ролью ${line.role}, которая начинается словами «${line.text.slice(0, 40)}». Остальные оставь дословно.`)
+      return
+    }
+
+    setScript(s => {
+      const lines = [...s.lines]
+      if (action === 'delete') lines.splice(index, 1)
+      if (action === 'up' && index > 0) lines.splice(index - 1, 0, lines.splice(index, 1)[0])
+      if (action === 'down' && index < lines.length - 1) lines.splice(index + 1, 0, lines.splice(index, 1)[0])
+
+      // Таймкоды пересобираем встык: после переноса или удаления прежние
+      // границы показывали бы разрыв или наложение.
+      let cursor = 0
+      for (const l of lines) {
+        const span = Math.max(1, l.to - l.from)
+        l.from = cursor
+        l.to = cursor + span
+        cursor = l.to
+      }
+      return { ...s, lines }
+    })
+  }
+
+  async function exportTo(where) {
+    if (!script || exporting) return
+    setExporting(true)
+    const { date, error: err } = where === 'plan'
+      ? await toContentPlan(draft, script)
+      : await toShoots(draft, script)
+    setExporting(false)
+
+    if (err) { flash('НЕ УДАЛОСЬ: ' + err.message.toUpperCase().slice(0, 40)); return }
+    const d = date.slice(8, 10) + '.' + date.slice(5, 7)
+    flash(where === 'plan' ? `В КОНТЕНТ-ПЛАН НА ${d}` : `СЪЁМКА ПОСТАВЛЕНА НА ${d}`)
   }
 
   async function openScript(item) {
@@ -109,8 +205,8 @@ export default function MobileScript() {
     setBusy(true)
     setError(null)
 
-    const { data: versions } = await fetchVersions(item.id)
-    const latest = versions[0]
+    const { data: list } = await fetchVersions(item.id)
+    const latest = list[0]
     setBusy(false)
     if (!latest) { flash('ВЕРСИИ НЕ НАЙДЕНЫ'); return }
 
@@ -122,6 +218,7 @@ export default function MobileScript() {
       topic: item.topic,
     })
     setScriptId(item.id)
+    setVersions(list)
     setScript({ title: latest.title, lines: latest.lines })
     setVersion(latest.version)
     setCreatedAt(latest.created_at)
@@ -158,8 +255,10 @@ export default function MobileScript() {
           busy={busy}
           error={error}
           savedCount={recent.length}
+          hasScript={Boolean(script)}
           onOpenRecent={() => setRecentOpen(true)}
           onGenerate={generate}
+          onBackToScript={() => setStep('script')}
         />
       ) : (
         <ScriptView
@@ -167,10 +266,19 @@ export default function MobileScript() {
           client={client}
           script={script}
           version={version}
+          versions={versions}
           createdAt={createdAt}
           busy={busy}
+          exporting={exporting}
           onBack={() => setStep('brief')}
           onCopy={copy}
+          onRevise={revise}
+          onPickVersion={pickVersion}
+          onEditBrief={() => setStep('brief')}
+          onFillGap={fillGap}
+          onLineAction={lineAction}
+          onToContentPlan={() => exportTo('plan')}
+          onToShoots={() => exportTo('shoots')}
         />
       )}
 

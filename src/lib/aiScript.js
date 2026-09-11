@@ -199,3 +199,66 @@ export function renderScriptText(title, lines) {
 export function gapCount(lines) {
   return (lines || []).reduce((n, l) => n + (l.gaps?.length || 0), 0)
 }
+
+/* ────────────────────────── Выгрузка в работу ─────────────────────────── */
+
+// Ближайший день, в который у клиента ещё ничего не стоит.
+//
+// Отсчёт с завтра: сценарий пишут заранее, и ставить его на сегодня значит
+// назначать съёмку и выкладку задним числом. Свободным считается день без
+// поста и без съёмки: два дела на одного клиента в один день это перегруз,
+// а не плотный график.
+async function nearestFreeDate(clientId) {
+  const start = new Date()
+  start.setDate(start.getDate() + 1)
+
+  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const horizon = new Date(start)
+  horizon.setDate(horizon.getDate() + 60)
+
+  const [posts, shoots] = await Promise.all([
+    supabase.from('posts').select('publish_date')
+      .eq('client_id', clientId).gte('publish_date', iso(start)).lte('publish_date', iso(horizon)),
+    supabase.from('shoots').select('shoot_date')
+      .eq('client_id', clientId).gte('shoot_date', iso(start)).lte('shoot_date', iso(horizon))
+      .neq('status', 'cancelled'),
+  ])
+
+  const taken = new Set([
+    ...(posts.data || []).map(p => p.publish_date),
+    ...(shoots.data || []).map(s => s.shoot_date),
+  ])
+
+  const d = new Date(start)
+  for (let i = 0; i < 60; i++) {
+    if (!taken.has(iso(d))) return iso(d)
+    d.setDate(d.getDate() + 1)
+  }
+  return iso(start)
+}
+
+export async function toContentPlan(brief, script) {
+  const date = await nearestFreeDate(brief.clientId)
+  const { error } = await supabase.from('posts').insert({
+    client_id: brief.clientId,
+    title: script.title || 'Сценарий',
+    post_type: brief.format,
+    publish_date: date,
+    status: 'idea',
+    // Сценарий целиком в заметку: за ним придут, когда дойдёт до съёмки,
+    // и искать его обратно в Сценаристе никто не станет.
+    notes: renderScriptText(script.title, script.lines),
+  })
+  return { date, error }
+}
+
+export async function toShoots(brief, script) {
+  const date = await nearestFreeDate(brief.clientId)
+  const { error } = await supabase.from('shoots').insert({
+    client_id: brief.clientId,
+    shoot_date: date,
+    status: 'planned',
+    notes: renderScriptText(script.title, script.lines),
+  })
+  return { date, error }
+}
