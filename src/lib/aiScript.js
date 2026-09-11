@@ -20,7 +20,9 @@ export const GOALS = [
   ['warmup', 'ПРОГРЕВ'],
 ]
 
-export const ROLE_LABEL = { hook: 'ХУК', core: 'СУТЬ', argument: 'АРГУМЕНТ', cta: 'ПРИЗЫВ' }
+const LEGACY_ROLE = { hook: 'ХУК', core: 'СУТЬ', argument: 'АРГУМЕНТ', cta: 'ПРИЗЫВ' }
+
+export const roleLabel = role => LEGACY_ROLE[role] || String(role || '').toUpperCase()
 
 export const FORMAT_LABEL = Object.fromEntries(FORMATS)
 export const GOAL_LABEL = Object.fromEntries(GOALS)
@@ -191,7 +193,7 @@ export const plainLine = text => String(text ?? '').replace(/\[\[(.+?)\]\]/g, '[
 export function renderScriptText(title, lines) {
   const head = String(title || 'Сценарий').toUpperCase()
   const body = (lines || []).map(l =>
-    `${ROLE_LABEL[l.role] || l.role} · ${mmss(l.from)}–${mmss(l.to)}\n${plainLine(l.text)}`,
+    `${roleLabel(l.role)} · ${mmss(l.from)}–${mmss(l.to)}\n${plainLine(l.text)}`,
   )
   return [head, '', ...body].join('\n\n')
 }

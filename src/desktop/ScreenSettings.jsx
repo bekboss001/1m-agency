@@ -130,21 +130,27 @@ export default function ScreenSettings() {
 
 /* ────────────────────────────── Сценарист ───────────────────────────── */
 
-// Правила письма меняются по ходу работы, а деплой занимает минуты и требует
-// программиста. Поэтому они лежат в настройках, а не в коде.
+// Блоки сценария и правила письма меняются по ходу работы, а деплой занимает
+// минуты и требует программиста. Поэтому они лежат в настройках, а не в коде.
 //
-// Структуру сценария отсюда не задать намеренно: роли и таймкоды держит схема
-// инструмента. Будь формат ещё и здесь, он жил бы в двух местах и однажды
-// разошёлся бы, а чинить пришлось бы вслепую.
+// Схема инструмента собирается под этот список на каждый запрос: названия
+// блоков в ней это набор допустимых значений, и модель обязана выбрать одно
+// из них дословно. Так формат живёт в одном месте, а не в двух.
 function ScriptPrompt({ settings, put, fail }) {
   const [text, setText] = useState('')
   const [base, setBase] = useState('')
+  const [blocks, setBlocks] = useState('')
+  const [baseBlocks, setBaseBlocks] = useState('')
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchAiPromptDefault().then(({ data, error }) => {
+    fetchAiPromptDefault().then(({ data, blocks: defBlocks, error }) => {
       setBase(data)
+      setBaseBlocks(defBlocks)
+      setBlocks(typeof settings.ai_script_blocks === 'string' && settings.ai_script_blocks.trim()
+        ? settings.ai_script_blocks
+        : defBlocks)
       // Пока владелец ничего не менял, в поле лежит встроенный шаблон: пустое
       // поле не объясняло бы, что вообще можно править.
       setText(typeof settings.ai_script_prompt === 'string' && settings.ai_script_prompt.trim()
@@ -153,13 +159,18 @@ function ScriptPrompt({ settings, put, fail }) {
       setLoading(false)
       if (error) fail(error.message)
     })
-  }, [settings.ai_script_prompt, fail])
+  }, [settings.ai_script_prompt, settings.ai_script_blocks, fail])
 
   const custom = typeof settings.ai_script_prompt === 'string' && settings.ai_script_prompt.trim()
   const dirty = text !== (custom ? settings.ai_script_prompt : base)
 
+  const blocksDirty = blocks !== (typeof settings.ai_script_blocks === 'string' && settings.ai_script_blocks.trim()
+    ? settings.ai_script_blocks
+    : baseBlocks)
+
   async function save() {
-    await put('ai_script_prompt', text.trim())
+    if (dirty) await put('ai_script_prompt', text.trim())
+    if (blocksDirty) await put('ai_script_blocks', blocks.trim())
     setSaved(true)
     setTimeout(() => setSaved(false), 2500)
   }
@@ -168,12 +179,45 @@ function ScriptPrompt({ settings, put, fail }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxWidth: 860 }}>
       <SectionCard
         title="Инструкция сценариста"
-        subtitle="Правила письма для вкладки «Сценарист»: язык, тон, запреты. Меняется здесь и действует со следующего сценария, без выкладки новой версии. Структуру сценария отсюда не задать: роли и таймкоды заданы схемой в коде, иначе один и тот же формат жил бы в двух местах и однажды разошёлся."
+        subtitle="Блоки сценария и правила письма для вкладки «Сценарист». Меняется здесь и действует со следующего сценария, без выкладки новой версии."
       >
         {loading ? (
           <div style={{ fontFamily: GROTESK, fontSize: 12.5, color: D.mut2 }}>Загружаем шаблон…</div>
         ) : (
           <>
+            <div style={{
+              fontFamily: GROTESK, fontSize: 10, letterSpacing: '0.14em',
+              color: D.mut2, marginBottom: 6,
+            }}>
+              БЛОКИ СЦЕНАРИЯ, ПО ОДНОМУ В СТРОКЕ
+            </div>
+            <textarea
+              value={blocks}
+              onChange={e => setBlocks(e.target.value)}
+              rows={6}
+              spellCheck={false}
+              style={{
+                ...fieldStyle, height: 'auto', padding: '12px 14px',
+                fontFamily: 'ui-monospace, monospace', fontSize: 12.5, lineHeight: 1.6,
+                resize: 'vertical', whiteSpace: 'pre-wrap',
+              }}
+            />
+            <div style={{
+              marginTop: 6, marginBottom: 16,
+              fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.6,
+            }}>
+              Модель выбирает блок для каждой реплики только из этого списка и пишет название
+              дословно. Сценарий начинается первым блоком и заканчивается последним, остальные
+              идут в любом порядке и могут повторяться. Меньше двух блоков не бывает: с одним
+              сценарий перестал бы делиться на части, поэтому такой список не примется.
+            </div>
+
+            <div style={{
+              fontFamily: GROTESK, fontSize: 10, letterSpacing: '0.14em',
+              color: D.mut2, marginBottom: 6,
+            }}>
+              ПРАВИЛА ПИСЬМА
+            </div>
             <textarea
               value={text}
               onChange={e => setText(e.target.value)}
@@ -187,29 +231,31 @@ function ScriptPrompt({ settings, put, fail }) {
             />
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 12 }}>
-              <LimeButton onClick={save} disabled={!dirty} height={38}>
+              <LimeButton onClick={save} disabled={!dirty && !blocksDirty} height={38}>
                 {saved ? 'Сохранено' : 'Сохранить'}
               </LimeButton>
               <button
-                onClick={() => setText(base)}
-                disabled={text === base}
+                onClick={() => { setText(base); setBlocks(baseBlocks) }}
+                disabled={text === base && blocks === baseBlocks}
                 style={{
                   height: 38, padding: '0 14px', borderRadius: 9, border: 'none',
                   background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13,
-                  opacity: text === base ? 0.4 : 1,
+                  opacity: text === base && blocks === baseBlocks ? 0.4 : 1,
                 }}
               >
                 Вернуть встроенный
               </button>
               <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2 }}>
-                {custom ? 'Действует ваш вариант' : 'Действует встроенный шаблон'}
+                {custom || (typeof settings.ai_script_blocks === 'string' && settings.ai_script_blocks.trim())
+                  ? 'Действует ваш вариант'
+                  : 'Действует встроенный шаблон'}
               </span>
             </div>
 
             <div style={{ marginTop: 10, fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.6 }}>
-              Если стереть всё и сохранить, вернётся встроенный шаблон: инструкция без формата
-              дала бы сценарии без формата. Правка не трогает уже написанные сценарии, она
-              действует со следующей реплики.
+              Если стереть всё и сохранить, вернётся встроенный набор: инструкция без правил
+              и без блоков дала бы сценарии без структуры. Правка не трогает уже написанные
+              сценарии, она действует со следующей генерации.
             </div>
           </>
         )}

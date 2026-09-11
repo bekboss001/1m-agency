@@ -229,9 +229,9 @@ export async function fetchAiPromptDefault() {
     body: JSON.stringify({ action: 'prompt' }),
   }).catch(() => null)
 
-  if (!res || !res.ok) return { data: '', error: { message: 'Не удалось получить шаблон по умолчанию' } }
+  if (!res || !res.ok) return { data: '', blocks: '', error: { message: 'Не удалось получить шаблон по умолчанию' } }
   const body = await res.json().catch(() => ({}))
-  return { data: body.default || '', error: null }
+  return { data: body.default || '', blocks: body.defaultBlocks || '', error: null }
 }
 
 /* ────────────────────────────── Настройки ────────────────────────────── */

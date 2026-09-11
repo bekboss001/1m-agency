@@ -3,9 +3,9 @@
 // Реплики отдельными блоками, а не стеной текста: копируют их поштучно, и
 // каждая уходит в свой чат или в описание съёмки сама по себе.
 
-import { useState, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
-  ROLE_LABEL, FORMAT_LABEL, GOAL_LABEL, mmss, splitGaps, plainLine,
+  roleLabel, FORMAT_LABEL, GOAL_LABEL, mmss, splitGaps, plainLine,
   estimateSec, countWords, gapCount, renderScriptText,
 } from '../lib/aiScript'
 import { useKeyboardInset } from '../lib/useKeyboardInset'
@@ -29,6 +29,37 @@ export default function ScriptView({
   const [gapValue, setGapValue] = useState('')
   const keyboard = useKeyboardInset()
   const pressTimer = useRef(null)
+
+  // Док прячется, когда листаешь вниз, и возвращается на движение вверх или
+  // у самого низа. Читать сценарий, из-под которого торчат чипы и поле ввода,
+  // невозможно, а убирать их совсем нельзя: правят тут же, не уходя с экрана.
+  const dockRef = useRef(null)
+  const [dockH, setDockH] = useState(112)
+  const [dockHidden, setDockHidden] = useState(false)
+  const lastY = useRef(0)
+
+  useEffect(() => {
+    const el = dockRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setDockH(el.offsetHeight))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const onScroll = () => {
+      const y = window.scrollY
+      const bottom = document.documentElement.scrollHeight - window.innerHeight - y
+      // Порог в восемь пикселей отсекает дрожание пальца: без него док мигал
+      // бы на каждом микродвижении.
+      if (bottom < 80) setDockHidden(false)
+      else if (y > lastY.current + 8) setDockHidden(true)
+      else if (y < lastY.current - 8) setDockHidden(false)
+      lastY.current = y
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const lines = script?.lines || []
   const words = countWords(lines)
@@ -69,7 +100,7 @@ export default function ScriptView({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100dvh' }}>
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
 
       {/* Хедер: возврат, заголовок, версия, свёрнутый бриф */}
       <div className="g-topbar" style={{
@@ -140,8 +171,10 @@ export default function ScriptView({
 
       {/* Скролл */}
       <div style={{
-        flex: 1, padding: '12px 16px',
-        paddingBottom: keyboard ? 140 : 210,
+        padding: '12px 16px',
+        // Оболочка уже держит отступ под панель вкладок, здесь добавляем
+        // только высоту дока, иначе он закрыл бы последние строки.
+        paddingBottom: dockH + 16,
         display: 'flex', flexDirection: 'column', gap: 12,
       }}>
 
@@ -183,6 +216,7 @@ export default function ScriptView({
                 <Line
                   key={i}
                   line={l}
+                  first={i === 0}
                   onCopy={onCopy}
                   onGap={label => { setGap({ lineIndex: i, label }); setGapValue('') }}
                   onPressStart={() => pressStart(i)}
@@ -221,13 +255,22 @@ export default function ScriptView({
       </div>
 
       {/* Док: быстрые правки и поле */}
-      <div style={{
-        position: 'fixed', zIndex: 30,
-        left: 'calc(14px + env(safe-area-inset-left))',
-        right: 'calc(14px + env(safe-area-inset-right))',
-        bottom: keyboard ? keyboard + 12 : 'calc(96px + env(safe-area-inset-bottom))',
-        display: 'flex', flexDirection: 'column', gap: 8,
-      }}>
+      <div
+        ref={dockRef}
+        style={{
+          position: 'fixed', zIndex: 30,
+          left: 'calc(14px + env(safe-area-inset-left))',
+          right: 'calc(14px + env(safe-area-inset-right))',
+          bottom: keyboard ? keyboard + 12 : 'calc(96px + env(safe-area-inset-bottom))',
+          display: 'flex', flexDirection: 'column', gap: 8,
+          // Пока открыта клавиатура, док не прячем: человек как раз печатает
+          // правку, и уезжающее из-под пальца поле это издевательство.
+          transform: dockHidden && !keyboard ? 'translateY(calc(100% + 28px))' : 'none',
+          opacity: dockHidden && !keyboard ? 0 : 1,
+          transition: 'transform 200ms ease, opacity 200ms ease',
+          pointerEvents: dockHidden && !keyboard ? 'none' : 'auto',
+        }}
+      >
         <div className="m-hscroll" style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
           {QUICK_FIXES.map(f => (
             <button
@@ -384,7 +427,7 @@ export default function ScriptView({
 
 /* ──────────────────────────────── Части ───────────────────────────────── */
 
-function Line({ line, onCopy, onGap, onPressStart, onPressEnd }) {
+function Line({ line, first, onCopy, onGap, onPressStart, onPressEnd }) {
   return (
     <div
       onTouchStart={onPressStart}
@@ -403,11 +446,11 @@ function Line({ line, onCopy, onGap, onPressStart, onPressEnd }) {
         <span style={{
           minHeight: 20, padding: '0 7px', borderRadius: 6, flex: 'none',
           display: 'flex', alignItems: 'center',
-          background: line.role === 'hook' ? T.accent : T.surface2,
-          color: line.role === 'hook' ? T.onAccent : T.text2,
+          background: first ? T.accent : T.surface2,
+          color: first ? T.onAccent : T.text2,
           ...mono(700, 9, '.06em'),
         }}>
-          {ROLE_LABEL[line.role] || line.role}
+          {roleLabel(line.role)}
         </span>
         <span style={{ flex: 1, color: T.muted, ...mono(600, 9.5, '.08em') }}>
           {mmss(line.from)}–{mmss(line.to)}

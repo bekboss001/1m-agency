@@ -13,7 +13,8 @@ import { ASK_TOOL, renderAsk, validAsk } from './askTool.js'
 import { renderBrief } from './briefFields.js'
 import { TARGET_SYSTEM, renderTargetData } from './targetPrompt.js'
 import {
-  SCRIPT_TOOL, SCRIPT_SYSTEM, validScript, FORMAT_LABEL, GOAL_LABEL,
+  buildScriptTool, buildScriptSystem, parseBlocks, validScript,
+  FORMAT_LABEL, GOAL_LABEL, DEFAULT_BLOCKS,
 } from './scriptTool.js'
 
 const MODEL = 'claude-opus-5'
@@ -237,7 +238,10 @@ export default async function handler(req, res) {
   const user = await userRes.json()
 
   if (req.body?.action === 'prompt') {
-    return res.status(200).json({ default: SYSTEM_STYLE_DEFAULT })
+    return res.status(200).json({
+      default: SYSTEM_STYLE_DEFAULT,
+      defaultBlocks: DEFAULT_BLOCKS.join('\n'),
+    })
   }
 
   // Ограничение по частоте общее для всех действий: оно про защиту от цикла,
@@ -328,11 +332,13 @@ export default async function handler(req, res) {
     // инструмента, поэтому приписка про это обязательна: в сохранённом тексте
     // может лежать старое описание формата, и без оговорки модель начнёт
     // выбирать между ним и схемой.
-    const styleRows = await sbGet(
-      `${supabaseUrl}/rest/v1/app_settings?select=value&key=eq.ai_script_prompt`,
+    const settingRows = await sbGet(
+      `${supabaseUrl}/rest/v1/app_settings?select=key,value&key=in.(ai_script_prompt,ai_script_blocks)`,
       sb,
     )
-    const customStyle = typeof styleRows?.[0]?.value === 'string' ? styleRows[0].value.trim() : ''
+    const settings = Object.fromEntries((settingRows || []).map(r => [r.key, r.value]))
+    const blocks = parseBlocks(settings.ai_script_blocks)
+    const customStyle = typeof settings.ai_script_prompt === 'string' ? settings.ai_script_prompt.trim() : ''
     const style = customStyle
       ? 'Ниже правила письма от владельца агентства. Они касаются только языка, тона и запретов. ' +
         'Форму ответа они не меняют: отвечать всё равно вызовом инструмента script, ролями hook, core, ' +
@@ -371,10 +377,10 @@ export default async function handler(req, res) {
         output_config: { effort: 'medium' },
         // Инструмент единственный, и отвечать модель обязана только им:
         // без принуждения она иногда пишет сценарий текстом рядом.
-        tools: [SCRIPT_TOOL],
+        tools: [buildScriptTool(blocks)],
         tool_choice: { type: 'tool', name: 'script' },
         system: [
-          { type: 'text', text: SCRIPT_SYSTEM + '\n\n' + style },
+          { type: 'text', text: buildScriptSystem(blocks) + '\n\n' + style },
           ...(context ? [{ type: 'text', text: context, cache_control: { type: 'ephemeral' } }] : []),
         ],
         messages: [{ role: 'user', content: task }],
@@ -383,7 +389,7 @@ export default async function handler(req, res) {
       const final = await stream.finalMessage()
 
       const block = (final.content || []).find(b => b.type === 'tool_use' && b.name === 'script')
-      const script = block ? validScript(block.input, seconds) : null
+      const script = block ? validScript(block.input, blocks) : null
 
       const cost = logUsage({
         supabaseUrl, sb, user, kind: 'script',
@@ -396,7 +402,7 @@ export default async function handler(req, res) {
         return
       }
 
-      send({ script, cost, done: true })
+      send({ script, blocks, cost, done: true })
       res.end()
     } catch (e) {
       console.error('ai script:', e)
