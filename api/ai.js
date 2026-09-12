@@ -373,7 +373,7 @@ export default async function handler(req, res) {
       const anthropic = new Anthropic({ apiKey })
       const stream = anthropic.messages.stream({
         model: MODEL,
-        max_tokens: 6000,
+        max_tokens: 16000,
         output_config: { effort: 'medium' },
         // Инструмент единственный, и отвечать модель обязана только им:
         // без принуждения она иногда пишет сценарий текстом рядом.
@@ -397,7 +397,17 @@ export default async function handler(req, res) {
       })
 
       if (!script) {
-        send({ error: 'Модель вернула сценарий не в том виде. Попробуйте ещё раз.' })
+        console.error('ai script: пустой разбор', {
+          stop: final.stop_reason,
+          types: (final.content || []).map(b => b.type),
+        })
+        send({
+          error: final.stop_reason === 'max_tokens'
+            ? 'Ответ модели не поместился в лимит и оборвался на середине. Попробуйте ещё раз или упростите правку.'
+            : final.stop_reason === 'refusal'
+              ? 'Модель отказалась отвечать на этот запрос.'
+              : `Модель вернула сценарий не в том виде (stop_reason: ${final.stop_reason}). Попробуйте ещё раз.`,
+        })
         res.end()
         return
       }

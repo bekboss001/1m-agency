@@ -19,6 +19,7 @@ const MORE_FIXES = ['жёстче', 'добавить цифры', 'убрать
 
 export default function ScriptView({
   brief, setBrief, clients, client, script, version, versions, createdAt, busy, exporting,
+  error, onDismissError,
   onBack, onCopy, onRevise, onPickVersion, onFillGap, onLineAction,
   onRegenerate, onToContentPlan, onToShoots,
 }) {
@@ -181,6 +182,39 @@ export default function ScriptView({
         paddingBottom: dockH + 16,
         display: 'flex', flexDirection: 'column', gap: 12,
       }}>
+
+        {error && (
+          <div style={{
+            padding: '13px 15px', borderRadius: 16,
+            background: T.surface, border: `1px solid ${T.hotDot}`,
+            display: 'flex', flexDirection: 'column', gap: 9,
+          }}>
+            <div style={{ color: T.hot, ...mono(600, 10, '.12em') }}>ПРАВКА НЕ ПРИМЕНЕНА</div>
+            <div style={{ font: `400 12.5px/1.55 ${SANS}`, color: T.text2, wordBreak: 'break-word' }}>
+              {error}
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                onClick={() => onCopy(error, 'ОШИБКА СКОПИРОВАНА')}
+                style={{
+                  minHeight: 36, padding: '0 12px', borderRadius: 10, border: 'none',
+                  background: T.surface2, color: T.text2, ...mono(600, 10, '.06em'),
+                }}
+              >
+                СКОПИРОВАТЬ
+              </button>
+              <button
+                onClick={onDismissError}
+                style={{
+                  minHeight: 36, padding: '0 12px', borderRadius: 10, border: 'none',
+                  background: 'transparent', color: T.muted, ...mono(600, 10, '.06em'),
+                }}
+              >
+                СКРЫТЬ
+              </button>
+            </div>
+          </div>
+        )}
 
         {briefOpen && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

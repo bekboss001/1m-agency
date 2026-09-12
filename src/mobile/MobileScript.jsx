@@ -119,7 +119,7 @@ export default function MobileScript() {
     const next = version + 1
     const { script: result, error: err } = await reviseScript(draft, script, instruction)
 
-    if (err) { setBusy(false); flash(err.toUpperCase().slice(0, 60)); return }
+    if (err) { setBusy(false); setError(err); return }
 
     setScript(result)
     setVersion(next)
@@ -272,6 +272,8 @@ export default function MobileScript() {
           createdAt={createdAt}
           busy={busy}
           exporting={exporting}
+          error={error}
+          onDismissError={() => setError(null)}
           onBack={() => setStep('brief')}
           onCopy={copy}
           onRevise={revise}
