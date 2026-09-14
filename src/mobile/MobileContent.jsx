@@ -32,6 +32,7 @@ export default function MobileContent() {
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState({ title: '', post_type: 'reels', publish_date: '', client_id: '' })
   const [saving, setSaving] = useState(false)
+  const [pdfBusy, setPdfBusy] = useState(false)
 
   const isClient = profile?.role === 'client'
   // Месяц, который смотрим: 0 — текущий, -1 — прошлый и так далее.
@@ -124,6 +125,22 @@ export default function MobileContent() {
     load()
   }
 
+  // Документ уходит клиенту, поэтому он всегда про одного клиента и один
+  // месяц: свод по всем пятнадцати согласовывать не с кем.
+  async function exportPdf() {
+    if (pdfBusy) return
+    if (client === 'all') { flash('СНАЧАЛА ВЫБЕРИТЕ КЛИЕНТА'); return }
+    setPdfBusy(true)
+    try {
+      const { exportContentPlanPdf } = await import('../lib/contentPlanPdf')
+      await exportContentPlanPdf({ clientId: client, year: now.getFullYear(), month: now.getMonth() })
+      flash('PDF СОБРАН')
+    } catch (e) {
+      flash('НЕ УДАЛОСЬ: ' + String(e?.message || e).toUpperCase().slice(0, 40))
+    }
+    setPdfBusy(false)
+  }
+
   const active = clients.find(c => c.id === client)
   // Считаем по сохранённому published_posts, как во вкладке «Клиенты»:
   // контент-план заполнен не для всех, и подсчёт записей давал бы 0 из 12
@@ -190,6 +207,21 @@ export default function MobileContent() {
             {monthShift !== 0 && ' · К ТЕКУЩЕМУ'}
           </button>
           <MonthArrow label="›" onClick={() => setMonthShift(m => m + 1)} title="Следующий месяц" />
+          <button
+            onClick={exportPdf}
+            aria-label="Экспорт плана в PDF"
+            style={{
+              flex: 'none', height: 36, padding: '0 12px', borderRadius: 11,
+              background: T.surface2, border: `1px solid ${T.hair}`,
+              // Кнопка остаётся на месте и при «всех клиентах»: спрятанную
+              // никто не найдёт, а приглушённая объясняет себя нажатием.
+              color: client === 'all' ? T.faint : T.text,
+              opacity: pdfBusy ? .6 : 1,
+              ...mono(700, 10, '.1em'),
+            }}
+          >
+            {pdfBusy ? '…' : 'PDF'}
+          </button>
         </div>
 
         <div className="m-hscroll" style={{ display: 'flex', flexWrap: 'nowrap', gap: 6, margin: '0 -20px', padding: '0 20px' }}>

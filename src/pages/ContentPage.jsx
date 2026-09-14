@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react'
+import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight, Trash2, FileDown } from 'lucide-react'
 import { logAction } from '../lib/auditLog'
 import { ymd, today as tzToday, nowAstana } from '../lib/tz'
 
@@ -27,6 +27,7 @@ export default function ContentPage() {
   const [view, setView] = useState('list')
   const [calYear, setCalYear] = useState(() => nowAstana().getFullYear())
   const [calMonth, setCalMonth] = useState(() => nowAstana().getMonth())
+  const [pdfBusy, setPdfBusy] = useState(false)
   const [draggedPostId, setDraggedPostId] = useState(null)
   const [dragOverDate, setDragOverDate] = useState(null)
   const dropJustHappened = useRef(false)
@@ -79,6 +80,20 @@ export default function ContentPage() {
     setShowForm(false)
     setForm({ title: '', post_type: 'reels', status: 'idea', publish_date: '', smm_id: '', operator_id: '', notes: '' })
     loadPosts(selectedClient)
+  }
+
+  // Месяц берём из календаря: даже в списке он задаёт период, за который
+  // документ уходит клиенту на согласование.
+  async function exportPdf() {
+    if (!selectedClient || pdfBusy) return
+    setPdfBusy(true)
+    try {
+      const { exportContentPlanPdf } = await import('../lib/contentPlanPdf')
+      await exportContentPlanPdf({ clientId: selectedClient, year: calYear, month: calMonth })
+    } catch (e) {
+      window.alert('Не удалось собрать PDF: ' + (e?.message || e))
+    }
+    setPdfBusy(false)
   }
 
   async function deletePost(id) {
@@ -176,6 +191,14 @@ export default function ContentPage() {
               onClick={() => setView('calendar')}
             >Календарь</button>
           </div>
+          <button
+            className="btn btn-ghost"
+            onClick={exportPdf}
+            disabled={!selectedClient || pdfBusy}
+            title="Контент-план клиента за выбранный месяц в PDF"
+          >
+            <FileDown size={16} /> {pdfBusy ? 'Собираем…' : `PDF · ${MONTHS[calMonth]}`}
+          </button>
           {!isClient && (
             <button className="btn btn-white" onClick={() => setShowForm(true)} disabled={!selectedClient}>
               <Plus size={16} /> Добавить пост

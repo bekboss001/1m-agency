@@ -72,41 +72,43 @@ export default function CalendarPage() {
 
   const dayPosts = getPostsForDay(selDay)
 
-  // ── PDF export (unchanged logic) ──────────────────────────
+  // ── Выгрузка календаря в PDF ──────────────────────────────
   async function generatePDF() {
     setExportingPDF(true)
     try {
-      const { jsPDF } = await import('jspdf')
+      const [{ jsPDF }, { embedArchivo }] = await Promise.all([
+        import('jspdf'),
+        import('../lib/pdfFont'),
+      ])
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+      // Шрифт с кириллицей: встроенные начертания jsPDF её не кодируют, и
+      // раньше имена клиентов уходили в документ латиницей.
+      await embedArchivo(doc)
       const W = 297, H = 210
       const clientObj  = clients.find(c => c.id === selClient)
-      const clientName = selClient === 'all' ? 'Vse klienty' : (clientObj?.name || 'Klient')
+      const clientName = selClient === 'all' ? 'Все клиенты' : (clientObj?.name || 'Клиент')
       const monthName  = MONTHS[month]
-      function cyr(str = '') {
-        const MAP = { 'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'h','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya' }
-        return str.split('').map(ch => { const lw = ch.toLowerCase(); const mp = MAP[lw]; if (mp === undefined) return ch; return ch === lw ? mp : mp.charAt(0).toUpperCase() + mp.slice(1) }).join('')
-      }
-      const clientLabel = cyr(clientName), monthLabel = cyr(monthName)
+      const clientLabel = clientName, monthLabel = monthName
       doc.setFillColor(15,15,26); doc.rect(0,0,W,H,'F')
       doc.setFillColor(214,248,74); doc.circle(14,14,4,'F'); doc.circle(W-14,H-14,4,'F')
       doc.setDrawColor(214,248,74); doc.setLineWidth(0.5)
       doc.line(36,H/2-22,W-36,H/2-22)
-      doc.setFont('helvetica','bold'); doc.setFontSize(54); doc.setTextColor(214,248,74)
-      doc.text('CONTENT PLAN',W/2,H/2-4,{align:'center'})
+      doc.setFont('A700','normal'); doc.setFontSize(54); doc.setTextColor(214,248,74)
+      doc.text('КОНТЕНТ-ПЛАН',W/2,H/2-4,{align:'center'})
       doc.setFontSize(26); doc.setTextColor(255,255,255); doc.text(clientLabel,W/2,H/2+16,{align:'center'})
-      doc.setFont('helvetica','normal'); doc.setFontSize(15); doc.setTextColor(155,155,165); doc.text(`${monthLabel}  ${year}`,W/2,H/2+30,{align:'center'})
+      doc.setFont('A400','normal'); doc.setFontSize(15); doc.setTextColor(155,155,165); doc.text(`${monthLabel}  ${year}`,W/2,H/2+30,{align:'center'})
       doc.setDrawColor(214,248,74); doc.line(36,H/2+42,W-36,H/2+42)
-      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(214,248,74); doc.text('1M Agency',W/2,H-10,{align:'center'})
+      doc.setFont('A700','normal'); doc.setFontSize(11); doc.setTextColor(214,248,74); doc.text('1M.AGENCY',W/2,H-10,{align:'center'})
       doc.addPage(); doc.setFillColor(255,255,255); doc.rect(0,0,W,H,'F')
       const MARGIN=8, TITLE_H=13, HEADER_H=8, GRID_TOP=TITLE_H+HEADER_H, COL_W=(W-2*MARGIN)/7
       const totalRows=Math.ceil(weeks.length); const ROW_H=(H-GRID_TOP-MARGIN)/weeks.length
       const TYPE_RGB={reels:[102,102,255],post:[61,220,132],carousel:[255,153,0],stories:[255,68,68]}
-      doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(15,15,26); doc.text(`${monthLabel} ${year}`,MARGIN,9)
-      const WD_LAT=['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-      for(let i=0;i<7;i++){const x=MARGIN+i*COL_W; doc.setFillColor(238,238,244); doc.rect(x,TITLE_H,COL_W,HEADER_H,'F'); doc.setDrawColor(210,210,222); doc.setLineWidth(0.2); doc.rect(x,TITLE_H,COL_W,HEADER_H); doc.setFont('helvetica','bold'); doc.setFontSize(6.5); doc.setTextColor(i>=5?200:80,i>=5?60:80,i>=5?60:95); doc.text(WD_LAT[i],x+COL_W/2,TITLE_H+5.4,{align:'center'})}
-      weeks.forEach((wk,ri)=>{wk.forEach((d,ci)=>{const x=MARGIN+ci*COL_W,y=GRID_TOP+ri*ROW_H; doc.setFillColor(d?255:250,d?255:250,d?255:252); doc.rect(x,y,COL_W,ROW_H,'F'); doc.setDrawColor(210,210,222); doc.setLineWidth(0.2); doc.rect(x,y,COL_W,ROW_H); if(d){doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(30,30,40); doc.text(String(d),x+2,y+5); const dp=getPostsForDay(d); const ms=Math.max(1,Math.floor((ROW_H-7)/4)); doc.setFont('helvetica','normal'); doc.setFontSize(5.5); dp.slice(0,ms).forEach((post,pi)=>{const py=y+6.5+pi*4; const [r,g,b]=TYPE_RGB[post.post_type]||[140,140,150]; doc.setFillColor(r,g,b); doc.rect(x+2,py-2,2,2,'F'); doc.setTextColor(40,40,50); const mc=Math.floor((COL_W-7)/1.5); const tt=cyr(post.title); const title=tt.length>mc?tt.slice(0,mc-1)+'…':tt; doc.text(title,x+5.5,py)}); if(dp.length>ms){doc.setFontSize(5); doc.setTextColor(140,140,155); doc.text(`+${dp.length-ms}`,x+2,y+6.5+ms*4)}}})})
-      const safeName=cyr(selClient==='all'?'All':clientObj?.name||'').replace(/[\s/\\:*?"<>|]/g,'-')
-      doc.save(`Content-Plan-${safeName}-${monthLabel}-${year}.pdf`)
+      doc.setFont('A700','normal'); doc.setFontSize(11); doc.setTextColor(15,15,26); doc.text(`${monthLabel} ${year}`,MARGIN,9)
+      const WD_LAT=['ПН','ВТ','СР','ЧТ','ПТ','СБ','ВС']
+      for(let i=0;i<7;i++){const x=MARGIN+i*COL_W; doc.setFillColor(238,238,244); doc.rect(x,TITLE_H,COL_W,HEADER_H,'F'); doc.setDrawColor(210,210,222); doc.setLineWidth(0.2); doc.rect(x,TITLE_H,COL_W,HEADER_H); doc.setFont('A700','normal'); doc.setFontSize(6.5); doc.setTextColor(i>=5?200:80,i>=5?60:80,i>=5?60:95); doc.text(WD_LAT[i],x+COL_W/2,TITLE_H+5.4,{align:'center'})}
+      weeks.forEach((wk,ri)=>{wk.forEach((d,ci)=>{const x=MARGIN+ci*COL_W,y=GRID_TOP+ri*ROW_H; doc.setFillColor(d?255:250,d?255:250,d?255:252); doc.rect(x,y,COL_W,ROW_H,'F'); doc.setDrawColor(210,210,222); doc.setLineWidth(0.2); doc.rect(x,y,COL_W,ROW_H); if(d){doc.setFont('A700','normal'); doc.setFontSize(8); doc.setTextColor(30,30,40); doc.text(String(d),x+2,y+5); const dp=getPostsForDay(d); const ms=Math.max(1,Math.floor((ROW_H-7)/4)); doc.setFont('A400','normal'); doc.setFontSize(5.5); dp.slice(0,ms).forEach((post,pi)=>{const py=y+6.5+pi*4; const [r,g,b]=TYPE_RGB[post.post_type]||[140,140,150]; doc.setFillColor(r,g,b); doc.rect(x+2,py-2,2,2,'F'); doc.setTextColor(40,40,50); const mc=Math.floor((COL_W-7)/1.5); const tt=post.title||''; const title=tt.length>mc?tt.slice(0,mc-1)+'…':tt; doc.text(title,x+5.5,py)}); if(dp.length>ms){doc.setFontSize(5); doc.setTextColor(140,140,155); doc.text(`+${dp.length-ms}`,x+2,y+6.5+ms*4)}}})})
+      const safeName=(selClient==='all'?'Все':clientObj?.name||'').replace(/[\s/\\:*?"<>|]/g,'-')
+      doc.save(`Календарь-${safeName}-${monthLabel}-${year}.pdf`)
     } finally { setExportingPDF(false) }
   }
 
