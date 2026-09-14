@@ -10,7 +10,7 @@
 // один в один, чтобы их можно было сверять глазами.
 
 import { supabase } from './supabase'
-import { embedArchivo } from './pdfFont'
+import { embedPdfFont } from './pdfFont'
 
 const PAGE_W = 794          // A4 портрет при 96dpi: 210×297мм
 const PAD_X = 46
@@ -471,7 +471,7 @@ export async function exportContentPlanPdf({ clientId, year, month }) {
 async function renderPdf({ client, year, month, posts, names, shoots }) {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
-  await embedArchivo(doc)
+  await embedPdfFont(doc)
 
   const pen = makePen(doc)
 

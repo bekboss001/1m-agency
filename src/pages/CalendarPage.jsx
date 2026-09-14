@@ -76,14 +76,14 @@ export default function CalendarPage() {
   async function generatePDF() {
     setExportingPDF(true)
     try {
-      const [{ jsPDF }, { embedArchivo }] = await Promise.all([
+      const [{ jsPDF }, { embedPdfFont }] = await Promise.all([
         import('jspdf'),
         import('../lib/pdfFont'),
       ])
       const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
       // Шрифт с кириллицей: встроенные начертания jsPDF её не кодируют, и
       // раньше имена клиентов уходили в документ латиницей.
-      await embedArchivo(doc)
+      await embedPdfFont(doc)
       const W = 297, H = 210
       const clientObj  = clients.find(c => c.id === selClient)
       const clientName = selClient === 'all' ? 'Все клиенты' : (clientObj?.name || 'Клиент')
