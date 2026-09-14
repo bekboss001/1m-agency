@@ -9,12 +9,15 @@
 //   /assets/*      — кэш вперёд. Имена этих файлов содержат хэш содержимого,
 //                    поэтому кэшировать их навсегда безопасно: изменился
 //                    файл — изменилось имя.
+//   /fonts/*       — тоже кэш вперёд. Хэша в имени нет, но шрифт для выгрузки
+//                    в PDF весит четыреста килобайт и не меняется; если он
+//                    когда-нибудь сменится, кэш снесёт смена VERSION.
 //   всё остальное  — мимо кэша. Запросы к Supabase и к нашим функциям должны
 //                    падать честно, а не отдавать вчерашние данные.
 //
 // Версия в имени кэша: при её смене старые кэши сносятся в activate.
 
-const VERSION = 'v3'
+const VERSION = 'v4'
 const SHELL = `1m-shell-${VERSION}`
 const ASSETS = `1m-assets-${VERSION}`
 
@@ -64,8 +67,8 @@ self.addEventListener('fetch', e => {
     return
   }
 
-  // Файлы сборки: имя содержит хэш, поэтому кэш вперёд без ревалидации.
-  if (url.pathname.startsWith('/assets/')) {
+  // Файлы сборки и шрифты: кэш вперёд без ревалидации.
+  if (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/fonts/')) {
     e.respondWith((async () => {
       const cached = await caches.match(req, { cacheName: ASSETS })
       if (cached) return cached
