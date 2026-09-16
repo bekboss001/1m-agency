@@ -97,6 +97,8 @@ export default function SyncCheck() {
 
   const done = clients.filter(c => reports[c.id] && !reports[c.id].loading).length
   const [writing, setWriting] = useState(false)
+  // Итог последней записи по клиентам: сколько связано и создано в КП и почему не вышло.
+  const [written, setWritten] = useState({})
 
   async function writeNow() {
     if (writing) return
@@ -105,14 +107,15 @@ export default function SyncCheck() {
     setWriting(false)
     if (error) { flash('НЕ ЗАПИСАНО: ' + error.message.toUpperCase().slice(0, 60)); return }
     const results = data.results || []
-    const changed = results.filter(x => x.changed?.length).length
-    const blocked = results.filter(x => x.issues?.length || x.error).length
-    flash(`ЗАПИСАНО ${changed}${blocked ? ` · НЕ ЗАПИСАНО ${blocked}` : ''}`)
+    setWritten(Object.fromEntries(results.map(x => [x.id, x])))
+    const blocked = results.filter(x => x.issues?.length || x.error || x.content?.error || x.content?.failed).length
+    const sum = k => results.reduce((n, x) => n + (x.content?.[k] || 0), 0)
+    flash(`КП: СВЯЗАНО ${sum('linked')} · СОЗДАНО ${sum('created')}${blocked ? ` · С ОШИБКАМИ ${blocked}` : ''}`)
     start(clients)
   }
 
   async function copyAll() {
-    const text = clients.map(c => reportText(c, reports[c.id])).join('\n\n')
+    const text = clients.map(c => reportText(c, reports[c.id], written[c.id])).join('\n\n')
     try {
       await navigator.clipboard.writeText(text)
       flash('ОТЧЁТ СКОПИРОВАН')
@@ -158,6 +161,7 @@ export default function SyncCheck() {
             key={c.id}
             client={c}
             state={reports[c.id]}
+            written={written[c.id]}
             open={open === c.id}
             onToggle={() => setOpen(o => (o === c.id ? null : c.id))}
           />
@@ -169,7 +173,7 @@ export default function SyncCheck() {
   )
 }
 
-function ClientRow({ client, state, open, onToggle }) {
+function ClientRow({ client, state, written, open, onToggle }) {
   const r = state?.data
   const cur = r?.current
   const warn = warnings(r)
@@ -223,7 +227,40 @@ function ClientRow({ client, state, open, onToggle }) {
         </div>
       )}
 
+      {written && <WrittenLine result={written} />}
+
       {open && cur && <Details report={r} />}
+    </div>
+  )
+}
+
+// Что сделала последняя запись: без этой строки неудачу в КП не отличить от
+// клиента, у которого разбирать было нечего.
+export function writtenText(w) {
+  if (!w) return ''
+  if (w.skipped === 'no_account') return 'Instagram не привязан, в КП ничего не пишется'
+  if (w.error) return `не записан: ${w.error}`
+  if (w.issues?.length) return `не записан: ${w.issues.map(i => ISSUE[i] || i).join(' ')}`
+  const c = w.content
+  if (!c) return 'счётчики записаны, КП не разбирался'
+  if (c.error) return `счётчики записаны, КП не разобран: ${c.error}`
+  const parts = [`связано ${c.linked}`, `создано вне плана ${c.created}`]
+  if (c.waiting) parts.push(`ждут 2 дня ${c.waiting}`)
+  if (c.skipped) parts.push(`пропущено ${c.skipped}`)
+  let text = 'КП: ' + parts.join(', ')
+  if (c.failed) text += `; ошибок ${c.failed}: ${(c.errors || []).join('; ')}`
+  return text
+}
+
+function WrittenLine({ result }) {
+  const bad = result.error || result.issues?.length || result.content?.error || result.content?.failed
+  return (
+    <div style={{
+      margin: '0 14px 12px', padding: '8px 10px', borderRadius: 10,
+      background: bad ? T.accentDim : T.surface2, color: bad ? T.accentText : T.text2,
+      font: `400 12px/1.45 ${SANS}`, userSelect: 'text',
+    }}>
+      {writtenText(result)}
     </div>
   )
 }
@@ -422,8 +459,8 @@ function Badge({ tone = 'plain', children }) {
 
 // Текст отчёта для копирования. Нужен, чтобы результат можно было переслать
 // целиком и разобрать спорные места без скриншотов по одному клиенту.
-function reportText(client, state) {
-  const head = `■ ${client.name}`
+function reportText(client, state, written) {
+  const head = `■ ${client.name}${written ? `\n  последняя запись: ${writtenText(written)}` : ''}`
   if (!state || state.loading) return `${head}\n  не досчитано`
   if (state.error) return `${head}\n  ошибка: ${state.error}`
   const r = state.data

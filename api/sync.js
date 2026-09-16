@@ -205,7 +205,13 @@ async function syncOne(row, today, metaToken, rest) {
 async function syncContent(row, media, anchor, today, rest) {
   const w = contentWindow(anchor, today)
   const windowMedia = media.filter(m => m.date >= w.mediaFrom)
-  const stats = { linked: 0, created: 0, skipped: 0, waiting: 0, failed: 0 }
+  const stats = { linked: 0, created: 0, skipped: 0, waiting: 0, failed: 0, errors: [] }
+  // Причину неудачи сохраняем, а не только считаем: без текста ошибку в КП
+  // не отличить от «так и задумано». Трёх разных причин хватает для разбора.
+  const fail = reason => {
+    stats.failed++
+    if (stats.errors.length < 3 && !stats.errors.includes(reason)) stats.errors.push(reason)
+  }
   if (!windowMedia.length) return stats
 
   await rest(
@@ -246,9 +252,16 @@ async function syncContent(row, media, anchor, today, rest) {
     try {
       const rows = await rest('PATCH', `instagram_media?id=eq.${encodeURIComponent(m.id)}&link=is.null`,
         { ...patch, linked_at: now() }, 'return=representation')
-      return Boolean(rows?.length)
-    } catch {
+      if (rows?.length) return true
+      // Ноль строк бывает в двух случаях: публикацию уже разобрал параллельный
+      // прогон, или права молча не дали записать. Во втором она так и осталась
+      // неразобранной, и это ошибка, которую нужно показать.
+      const [still] = await rest('GET', `instagram_media?select=link&id=eq.${encodeURIComponent(m.id)}`)
+      if (still && still.link === null) fail('база не разрешила записать публикацию')
+      return false
+    } catch (e) {
       // Например, пост уже занят другой публикацией: уникальный индекс отклонил.
+      fail('публикация не занята: ' + e.message)
       return false
     }
   }
@@ -256,7 +269,7 @@ async function syncContent(row, media, anchor, today, rest) {
     { link: null, post_id: null, linked_at: null }).catch(() => {})
 
   for (const l of plan.link) {
-    if (!await claim(l.media, { link: 'auto', post_id: l.post.id })) { stats.failed++; continue }
+    if (!await claim(l.media, { link: 'auto', post_id: l.post.id })) continue
     try {
       const updated = await rest('PATCH', `posts?id=eq.${l.post.id}`, {
         status: 'published',
@@ -264,16 +277,16 @@ async function syncContent(row, media, anchor, today, rest) {
         ig_permalink: l.media.permalink,
         off_plan: false,
       }, 'return=representation')
-      if (!updated?.length) throw new Error('пост не обновлён')
+      if (!updated?.length) throw new Error('база не разрешила изменить пост')
       stats.linked++
-    } catch {
+    } catch (e) {
       await release(l.media)
-      stats.failed++
+      fail('пост не отмечен: ' + e.message)
     }
   }
 
   for (const m of plan.create) {
-    if (!await claim(m, { link: 'created' })) { stats.failed++; continue }
+    if (!await claim(m, { link: 'created' })) continue
     try {
       const [post] = await rest('POST', 'posts', {
         client_id: row.id,
@@ -289,15 +302,14 @@ async function syncContent(row, media, anchor, today, rest) {
       }, 'return=representation')
       await rest('PATCH', `instagram_media?id=eq.${encodeURIComponent(m.id)}`, { post_id: post.id })
       stats.created++
-    } catch {
+    } catch (e) {
       await release(m)
-      stats.failed++
+      fail('пост вне плана не создан: ' + e.message)
     }
   }
 
   for (const m of plan.skip) {
     if (await claim(m, { link: 'none' })) stats.skipped++
-    else stats.failed++
   }
 
   return stats
