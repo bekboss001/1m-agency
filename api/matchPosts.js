@@ -13,7 +13,7 @@
 // публикаций в окне периода. Ошибиться сопоставление может только в том, какая
 // именно строка КП получит отметку, и такую пару перепривязывают руками.
 
-import { dayDiff } from './contractPeriod.js'
+import { dayDiff, periodOf, previousPeriod } from './contractPeriod.js'
 
 // Тип публикации в терминах КП. Сторис в сопоставлении не участвуют: Instagram
 // отдаёт их только сутки, и сверка по расписанию их всё равно не застанет.
@@ -74,8 +74,51 @@ export function matchPeriod(media, posts) {
  * вышло меньше, чем нужно, получается долг, больше получается аванс.
  */
 export function periodBalance({ planned, carryIn = 0, done }) {
+  // Аванс больше плана даёт ноль к выполнению, но остаток аванса не теряется:
+  // перенос на выходе считается от полного переноса на входе.
   const due = Math.max(0, planned - carryIn)
-  return { planned, carryIn, due, done, carryOut: done - due }
+  return { planned, carryIn, due, done, carryOut: carryIn + done - planned }
+}
+
+/**
+ * Сколько периодов от одного дедлайна до другого, со знаком. Оба дедлайна
+ * должны приходиться на день-якорь.
+ */
+export function periodsBetween(anchor, fromEnd, toEnd) {
+  let n = 0
+  let cur = fromEnd
+  while (cur !== toEnd) {
+    if (Math.abs(n) > 240) throw new Error(`дедлайны ${fromEnd} и ${toEnd} не лежат на дне ${anchor}`)
+    if (cur < toEnd) { cur = periodOf(anchor, cur).endsOn; n++ }
+    else { cur = previousPeriod(anchor, periodOf(anchor, cur)).startsOn; n-- }
+  }
+  return n
+}
+
+/**
+ * Перенос на входе в период по стартовой точке из таблицы агентства.
+ *
+ * Таблица ведёт очередь: период не закрывается, пока не выпущено всё по
+ * плану, и новые публикации идут в самый старый незакрытый период. В системе
+ * период закрывается в день дедлайна, а недобор переходит долгом. Итог один и
+ * тот же, поэтому таблицу можно перевести в перенос, не теряя ни поста.
+ *
+ * Остаток по таблице: недобор открытого периода и полные планы всех периодов
+ * от его дедлайна до конца текущего. Если открытый период в таблице впереди
+ * текущего, это аванс, и планы вычитаются.
+ *
+ *   остаток = (план − засчитано) + план × периодов_между
+ *   перенос = план − вышло_в_текущем − остаток
+ *
+ * @param asOf               по какой день включительно таблица учла публикации
+ * @param periodEndsOn       дедлайн открытого периода в таблице
+ * @param publishedInPeriod  публикации Instagram с начала текущего периода по asOf
+ */
+export function baselineCarry({ anchor, asOf, periodEndsOn, planned, counted, publishedInPeriod }) {
+  const period = periodOf(anchor, asOf)
+  const between = periodsBetween(anchor, periodEndsOn, period.endsOn)
+  const remaining = (planned - counted) + planned * between
+  return { period, remaining, carryIn: planned - publishedInPeriod - remaining }
 }
 
 /**

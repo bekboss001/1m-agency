@@ -1,7 +1,7 @@
 // Проверка сверки с Instagram.
 //
-// Показывает, как публикации связались бы с контент-планом, какие оказались бы
-// вне плана и какой получился бы долг или аванс. В базу ничего не пишет: это
+// Показывает долг или аванс клиента от стартовой точки, историю за год и то, как
+// публикации текущего периода связались бы с контент-планом. В базу ничего не пишет: это
 // шаг перед включением автоматической сверки, отчёт проверяют глазами.
 //
 // Экран один на телефон и десктоп: он служебный и открывается редко, а цвета
@@ -32,15 +32,23 @@ const PARALLEL = 3
 const dm = d => (d ? d.slice(8, 10) + '.' + d.slice(5, 7) : '')
 const carryText = n => (n < 0 ? `долг ${-n}` : n > 0 ? `аванс ${n}` : 'без переноса')
 
+const SKIPPED = {
+  stopped: 'НЕ ВЕДЁМ',
+  tiktok: 'TIKTOK · В СВЕРКЕ НЕ УЧАСТВУЕТ',
+  no_account: 'INSTAGRAM НЕ ПРИВЯЗАН',
+}
+
 function warnings(report) {
-  if (!report?.periods) return 0
+  const cur = report?.current
+  if (!cur) return 0
   let n = 0
-  for (const p of report.periods) {
-    for (const l of p.links) {
-      if (l.tie || (l.post && !l.sameType) || l.reason === 'not_in_kp') n++
-    }
-    for (const u of p.unmatched) if (u.state !== 'upcoming') n++
+  for (const l of cur.links) {
+    if (l.tie || (l.post && !l.sameType) || l.reason === 'not_in_kp') n++
   }
+  for (const u of cur.unmatched) if (u.state !== 'upcoming') n++
+  if (!report.baseline) n++
+  if (report.baseline && report.baseline.planned !== report.cardPlanned) n++
+  if (report.startGap) n++
   return n
 }
 
@@ -137,14 +145,20 @@ export default function SyncCheck() {
 
 function ClientRow({ client, state, open, onToggle }) {
   const r = state?.data
-  const cur = r?.periods?.[1]
+  const cur = r?.current
   const warn = warnings(r)
 
   let meta
   if (!state || state.loading) meta = 'СЧИТАЕМ…'
   else if (state.error) meta = 'ОШИБКА'
-  else if (r.skipped === 'no_account') meta = 'INSTAGRAM НЕ ПРИВЯЗАН'
-  else meta = `ВЫШЛО ${cur.done} ИЗ ${cur.due} · ${carryText(cur.carryIn).toUpperCase()} НА ВХОДЕ`
+  else if (r.skipped) meta = SKIPPED[r.skipped]
+  else if (cur.due === null) meta = `НЕТ СТАРТОВОЙ ТОЧКИ · ВЫШЛО ${cur.done}`
+  else {
+    const left = Math.max(0, -cur.carryOut)
+    meta = left > 0
+      ? `ОСТАЛОСЬ ${left} ДО ${dm(cur.endsOn)} · ВЫШЛО ${cur.done} ИЗ ${cur.due}`
+      : `ПЛАН ЗАКРЫТ · ${carryText(cur.carryOut).toUpperCase()}`
+  }
 
   const expandable = Boolean(cur)
 
@@ -155,6 +169,7 @@ function ClientRow({ client, state, open, onToggle }) {
         style={{
           width: '100%', textAlign: 'left', background: 'none', border: 'none', color: T.text,
           padding: 14, display: 'flex', alignItems: 'center', gap: 10, cursor: expandable ? 'pointer' : 'default',
+          opacity: r?.skipped ? 0.6 : 1,
         }}
       >
         <span style={{ width: 9, height: 9, borderRadius: 3, flex: 'none', background: client.color || T.muted }} />
@@ -187,21 +202,56 @@ function ClientRow({ client, state, open, onToggle }) {
   )
 }
 
-function Details({ report }) {
-  const [prev, cur] = report.periods
-  const t = report.table
+function Details({ report: r }) {
+  const b = r.baseline
+  const cur = r.current
 
   return (
     <div style={{ borderTop: `1px solid ${T.hair}`, padding: 14, display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        <Fact label="В ТАБЛИЦЕ ВЫПУЩЕНО" value={t.done} alert={t.done !== cur.done} />
-        <Fact label="ПО INSTAGRAM" value={cur.done} />
-        <Fact label="ПОСЛЕДНЯЯ В ТАБЛИЦЕ" value={dm(t.lastPost) || 'нет'} alert={t.lastPost !== report.lastPost} />
-        <Fact label="ПОСЛЕДНЯЯ В INSTAGRAM" value={dm(report.lastPost) || 'нет'} />
+        {b ? (
+          <Fact label={`ТАБЛИЦА НА ${dm(b.asOf)}`} value={`${b.counted} из ${b.planned} до ${dm(b.periodEndsOn)}`} />
+        ) : (
+          <Fact label="СТАРТОВАЯ ТОЧКА" value="нет" alert />
+        )}
+        {cur.due !== null && (
+          <Fact label="СЕЙЧАС ОСТАЛОСЬ" value={`${Math.max(0, -cur.carryOut)} до ${dm(cur.endsOn)}`} />
+        )}
+        <Fact label="ПОСЛЕДНЯЯ В INSTAGRAM" value={dm(r.lastPost) || 'нет'} />
       </div>
 
-      <Period period={cur} title="ТЕКУЩИЙ ПЕРИОД" />
-      <Period period={prev} title="ПРОШЛЫЙ ПЕРИОД" note="Перенос на входе считается нулевым: что было раньше, в эту выборку не входит." />
+      {!b && (
+        <Note>
+          Клиента нет в таблице, по которой задавалась стартовая точка, поэтому долг и аванс неизвестны.
+          Показано только, сколько вышло.
+        </Note>
+      )}
+      {b && b.planned !== r.cardPlanned && (
+        <Note>
+          В таблице план {b.planned}, а в карточке клиента {r.cardPlanned}. Расчёт идёт по таблице.
+        </Note>
+      )}
+      {r.startGap ? (
+        <Note>
+          Если считать по ленте от начала работы ({dm(b.servedSince)}), к {dm(r.baselinePeriod.startsOn)} выходит
+          {' '}{carryText(r.baselinePeriod.carryIn + r.startGap)}, а по таблице {carryText(r.baselinePeriod.carryIn)}.
+          Расхождение значит, что план менялся или в ленту выходили посты не по договору.
+        </Note>
+      ) : null}
+
+      <Period period={cur} planned={r.planned} />
+      <History rows={r.history} />
+    </div>
+  )
+}
+
+function Note({ children }) {
+  return (
+    <div style={{
+      padding: '9px 11px', borderRadius: 12, background: T.accentDim, color: T.accentText,
+      font: `400 12.5px/1.45 ${SANS}`,
+    }}>
+      {children}
     </div>
   )
 }
@@ -218,22 +268,27 @@ function Fact({ label, value, alert }) {
   )
 }
 
-function Period({ period: p, title, note }) {
-  const short = p.planned - p.kpCount
+function Period({ period: p, planned }) {
+  const short = planned - p.kpCount
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ color: T.muted, ...mono(600, 10.5, '.12em') }}>
-        {title} · С {dm(p.startsOn)} ПО {dm(p.endsOn)}
+        ТЕКУЩИЙ ПЕРИОД · С {dm(p.startsOn)} ДО {dm(p.endsOn)}
       </div>
 
       <div style={{ color: T.text, font: `400 13px/1.5 ${SANS}` }}>
-        План {p.planned}, {carryText(p.carryIn)} на входе, к выполнению <b>{p.due}</b>.
-        Вышло <b>{p.done}</b>. {p.isCurrent ? 'Если закрыть сегодня' : 'Итог'}: <b>{carryText(p.carryOut)}</b>.
-        {' '}В КП постов {p.kpCount}{p.kpStories ? ` и сторис ${p.kpStories}` : ''}
+        {p.due === null ? (
+          <>План {planned}. Вышло <b>{p.done}</b>. </>
+        ) : (
+          <>
+            План {planned}, {carryText(p.carryIn)} с прошлого периода, к выполнению <b>{p.due}</b>.
+            {' '}Вышло <b>{p.done}</b>, {-p.carryOut > 0 ? <>осталось <b>{-p.carryOut}</b>. </> : <>план закрыт, {carryText(p.carryOut)}. </>}
+          </>
+        )}
+        В КП постов {p.kpCount}{p.kpStories ? ` и сторис ${p.kpStories}` : ''}
         {short > 0 ? `, до плана договора не хватает ${short}` : ''}.
       </div>
-      {note && <div style={{ color: T.faint, font: `400 11.5px/1.45 ${SANS}` }}>{note}</div>}
 
       {p.links.length === 0 && p.unmatched.length === 0 && (
         <div style={{ color: T.muted, font: `400 12.5px ${SANS}` }}>Ни публикаций, ни постов в КП.</div>
@@ -254,6 +309,40 @@ function Period({ period: p, title, note }) {
           <Badge tone={u.state === 'upcoming' ? 'plain' : 'warn'}>{STATE[u.state]}</Badge>
         </div>
       ))}
+    </div>
+  )
+}
+
+const resultText = n => (n < 0 ? `недобор ${-n}` : n > 0 ? `сверх плана ${n}` : 'ровно по плану')
+
+function History({ rows }) {
+  if (!rows.length) return null
+  const isolated = rows.some(h => h.beforeBaseline && h.carryOut === null)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ color: T.muted, ...mono(600, 10.5, '.12em') }}>ИСТОРИЯ</div>
+      {isolated && (
+        <div style={{ color: T.faint, font: `400 11.5px/1.45 ${SANS}` }}>
+          До стартовой точки долг из месяца в месяц не переносится: без даты начала работы его не с чего начать.
+          Показан итог каждого месяца по отдельности, при плане как сейчас.
+        </div>
+      )}
+      {rows.map(h => {
+        const carried = h.carryOut !== null
+        const missed = carried ? h.carryOut < 0 : h.result < 0
+        return (
+          <div key={h.startsOn} style={{ ...row, alignItems: 'center' }}>
+            <span style={{ width: 96, flex: 'none', color: T.text, ...mono(600, 11, '.02em') }}>
+              {dm(h.startsOn)} ДО {dm(h.endsOn)}
+            </span>
+            <span style={{ flex: 1, minWidth: 0, color: T.text2 }}>
+              вышло <b style={{ color: T.text }}>{h.done}</b> из {h.due ?? h.planned}
+            </span>
+            <Badge tone={missed ? 'warn' : 'plain'}>{carried ? carryText(h.carryOut) : resultText(h.result)}</Badge>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -310,37 +399,54 @@ function Badge({ tone = 'plain', children }) {
 }
 
 // Текст отчёта для копирования. Нужен, чтобы результат можно было переслать
-// целиком и разобрать спорные пары без скриншотов по одному клиенту.
+// целиком и разобрать спорные места без скриншотов по одному клиенту.
 function reportText(client, state) {
   const head = `■ ${client.name}`
   if (!state || state.loading) return `${head}\n  не досчитано`
   if (state.error) return `${head}\n  ошибка: ${state.error}`
   const r = state.data
-  if (r.skipped === 'no_account') return `${head}\n  Instagram не привязан`
+  if (r.skipped) return `${head}\n  ${SKIPPED[r.skipped].toLowerCase()}`
 
-  const lines = [
-    `${head} (@${r.account})`,
-    `  таблица: выпущено ${r.table.done}, последняя ${dm(r.table.lastPost) || 'нет'}; Instagram: последняя ${dm(r.lastPost) || 'нет'}`,
-  ]
-  for (const p of [...r.periods].reverse()) {
-    lines.push(
-      `  ${p.isCurrent ? 'ТЕКУЩИЙ' : 'ПРОШЛЫЙ'} с ${dm(p.startsOn)} по ${dm(p.endsOn)}: план ${p.planned}, `
-      + `${carryText(p.carryIn)} на входе, к выполнению ${p.due}, вышло ${p.done}, `
-      + `${p.isCurrent ? 'на сегодня' : 'итог'} ${carryText(p.carryOut)}; в КП ${p.kpCount}`,
-    )
-    for (const l of p.links) {
-      const marks = [
-        l.post && !l.sameType ? 'другой тип' : '',
-        l.tie ? 'спорно' : '',
-        l.reason ? `вне плана: ${REASON[l.reason]}` : '',
-      ].filter(Boolean).join(', ')
-      const target = l.post
-        ? `${dm(l.post.date)} «${l.post.title}» ${KIND[l.post.type] || l.post.type} (сдвиг ${l.shift})`
-        : 'нет пары'
-      lines.push(`    ${dm(l.date)} ${l.time} ${KIND[l.kind]} → ${target}${marks ? ' [' + marks + ']' : ''}`)
-    }
-    for (const u of p.unmatched) {
-      lines.push(`    КП ${dm(u.date)} «${u.title}» ${KIND[u.type] || u.type}: ${STATE[u.state]}`)
+  const b = r.baseline
+  const c = r.current
+  const lines = [`${head} (@${r.account})`]
+
+  lines.push(b
+    ? `  таблица на ${dm(b.asOf)}: ${b.counted} из ${b.planned} до ${dm(b.periodEndsOn)}`
+      + (b.planned !== r.cardPlanned ? `; в карточке план ${r.cardPlanned}` : '')
+    : '  стартовой точки нет')
+  if (r.startGap) {
+    lines.push(`  по ленте от начала работы ${dm(b.servedSince)} к ${dm(r.baselinePeriod.startsOn)} выходит `
+      + `${carryText(r.baselinePeriod.carryIn + r.startGap)}, по таблице ${carryText(r.baselinePeriod.carryIn)}`)
+  }
+
+  lines.push(c.due === null
+    ? `  ТЕКУЩИЙ с ${dm(c.startsOn)} до ${dm(c.endsOn)}: план ${r.planned}, вышло ${c.done}; в КП ${c.kpCount}`
+    : `  ТЕКУЩИЙ с ${dm(c.startsOn)} до ${dm(c.endsOn)}: план ${r.planned}, ${carryText(c.carryIn)} на входе, `
+      + `к выполнению ${c.due}, вышло ${c.done}, `
+      + (-c.carryOut > 0 ? `осталось ${-c.carryOut}` : `план закрыт, ${carryText(c.carryOut)}`)
+      + `; в КП ${c.kpCount}; последняя в Instagram ${dm(r.lastPost) || 'нет'}`)
+
+  for (const l of c.links) {
+    const marks = [
+      l.post && !l.sameType ? 'другой тип' : '',
+      l.tie ? 'спорно' : '',
+      l.reason ? `вне плана: ${REASON[l.reason]}` : '',
+    ].filter(Boolean).join(', ')
+    const target = l.post
+      ? `${dm(l.post.date)} «${l.post.title}» ${KIND[l.post.type] || l.post.type} (сдвиг ${l.shift})`
+      : 'нет пары'
+    lines.push(`    ${dm(l.date)} ${l.time} ${KIND[l.kind]} → ${target}${marks ? ' [' + marks + ']' : ''}`)
+  }
+  for (const u of c.unmatched) {
+    lines.push(`    КП ${dm(u.date)} «${u.title}» ${KIND[u.type] || u.type}: ${STATE[u.state]}`)
+  }
+
+  if (r.history.length) {
+    lines.push('  ИСТОРИЯ:')
+    for (const h of r.history) {
+      lines.push(`    ${dm(h.startsOn)} до ${dm(h.endsOn)}: вышло ${h.done} из ${h.due ?? h.planned}, `
+        + (h.carryOut !== null ? carryText(h.carryOut) : `${resultText(h.result)} (без переноса)`))
     }
   }
   return lines.join('\n')
