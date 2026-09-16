@@ -100,9 +100,10 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
               }}
             />
             <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.mut2, marginTop: 4 }}>
-              №{client.number} · {client.done} из {plan.due}
+              №{client.number} · {plan.planDone} из {plan.plan} постов
+              {plan.debt > 0 ? ` · долг ${plan.debtDone}/${plan.debt}` : ''}
+              {plan.extra > 0 ? ` · +${plan.extra}` : ''}
               {plan.left > 0 ? `, не хватает ${plan.left}` : ', план закрыт'}
-              {plan.debt > 0 ? ` · долг ${plan.debt}` : plan.advance > 0 ? ` · аванс ${plan.advance}` : ''}
             </div>
             {/* Границы периода видны прямо в шапке: план считается от дня
                 договора, а не от первого числа, и без этой строки непонятно,
@@ -150,7 +151,7 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
             </Row>
             <Row label="ДОЛГ">
               <div style={{ ...field, display: 'flex', alignItems: 'center', color: plan.debt > 0 ? D.alert : plan.advance > 0 ? D.lime : D.mut2 }}>
-                {client.carry === null ? 'появится после первой сверки' : plan.debt > 0 ? plan.debt : plan.advance > 0 ? `аванс ${plan.advance}` : 'нет'}
+                {client.carry === null ? 'появится после первой сверки' : plan.debt > 0 ? `погашено ${plan.debtDone} из ${plan.debt}` : plan.advance > 0 ? `аванс ${plan.advance}` : 'нет'}
               </div>
             </Row>
             <Row label="ДАТА ПОСЛЕДНЕЙ ВЫКЛАДКИ">

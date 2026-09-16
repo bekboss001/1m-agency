@@ -13,6 +13,7 @@ import {
 } from './ui'
 import ClientStats from './ClientStats'
 import { planStateRow } from '../lib/postPlan'
+import DebtRow from './DebtRow'
 
 const MONTHS = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
 
@@ -109,9 +110,10 @@ export default function MobileClientCard() {
 
   // Тот же источник, что во вкладке «Клиенты» и в блоке «требуют внимания»:
   // сохранённое число, а не подсчёт записей в контент-плане.
+  // План месяца и долг раздельно: «0 из 12 постов» и отдельно «3/4 долг».
   const plan = planStateRow(client)
-  const total = plan.due
-  const done = plan.done
+  const total = plan.plan
+  const done = plan.planDone
   const pct = total ? Math.min(Math.round((done / total) * 100), 100) : 0
   const remaining = plan.left
   const nextShoot = shoots[0]
@@ -143,13 +145,14 @@ export default function MobileClientCard() {
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ opacity: .7, ...mono(500, 10.5, '.12em') }}>
               {done} ИЗ {total} ПОСТОВ · {monthName}
-              {plan.debt > 0 ? ` · ДОЛГ ${plan.debt}` : plan.advance > 0 ? ` · АВАНС ${plan.advance}` : ''}
+              {plan.extra > 0 ? ` · +${plan.extra}` : ''}
             </span>
             <span style={{ font: `700 20px ${OSW}` }}>{pct}%</span>
           </div>
           <div style={{ marginTop: 8, height: 8, borderRadius: 4, background: 'rgba(10,10,11,.2)', overflow: 'hidden' }}>
             <div style={{ width: `${pct}%`, height: '100%', borderRadius: 4, background: T.onAccent }} />
           </div>
+          <DebtRow done={plan.debtDone} total={plan.debt} onColor />
         </div>
       </div>
 

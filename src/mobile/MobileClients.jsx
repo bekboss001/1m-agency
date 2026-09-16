@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
 import { planStateRow } from '../lib/postPlan'
+import DebtRow from './DebtRow'
 import { SYNC_EVENT } from '../lib/instagram'
 import { parseYmd, today } from '../lib/tz'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, Fab, EmptyState } from './ui'
@@ -189,9 +190,10 @@ export default function MobileClients() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {visible.map(c => {
+              // План месяца и долг показываются раздельно: «0 из 12» и «3/4 долг».
               const plan = planStateRow(c)
-              const total = plan.due
-              const done = plan.done
+              const total = plan.plan
+              const done = plan.planDone
               const left = plan.left
               const pct = total ? Math.min(Math.round((done / total) * 100), 100) : 0
               const contractIn = dayDiff(c.contract_end)
@@ -221,9 +223,8 @@ export default function MobileClients() {
                   <div>
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
                       <span style={{ color: T.muted, ...mono(500, 10, '.1em') }}>
-                        {done} ИЗ {total} · ОСТАЛОСЬ {left}
-                        {plan.debt > 0 && <span style={{ color: T.hot }}> · ДОЛГ {plan.debt}</span>}
-                        {plan.advance > 0 && <span style={{ color: T.accentText }}> · АВАНС {plan.advance}</span>}
+                        {done} ИЗ {total} ПОСТОВ · ОСТАЛОСЬ {left}
+                        {plan.extra > 0 && <span style={{ color: T.accentText }}> · +{plan.extra}</span>}
                       </span>
                       <span style={{ font: `700 15px ${OSW}`, color: pct >= 100 ? T.accentText : pct < 40 ? T.hot : T.text }}>
                         {pct}%
@@ -235,6 +236,7 @@ export default function MobileClients() {
                         background: pct >= 100 ? T.accent : pct < 40 ? T.hot : T.warn,
                       }} />
                     </div>
+                    <DebtRow done={plan.debtDone} total={plan.debt} />
                   </div>
 
                   {/* Даты */}

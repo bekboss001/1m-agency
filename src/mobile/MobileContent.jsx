@@ -148,7 +148,7 @@ export default function MobileContent() {
   // там, где план на деле закрыт.
   const selMeta = client === 'all'
     ? `${clients.length} КЛИЕНТОВ · ${MONTHS[now.getMonth()]}`
-    : `${planStateRow(active).done} ИЗ ${planStateRow(active).due} ПОСТОВ · ${MONTHS[now.getMonth()]}`
+    : `${planStateRow(active).planDone} ИЗ ${planStateRow(active).plan} ПОСТОВ${planStateRow(active).debt ? ` · ДОЛГ ${planStateRow(active).debtDone}/${planStateRow(active).debt}` : ''} · ${MONTHS[now.getMonth()]}`
 
   function dayTitle(dateStr) {
     const d = parseYmd(dateStr)
@@ -321,7 +321,7 @@ export default function MobileContent() {
               key={c.id}
               color={c.color}
               name={c.name}
-              count={`${planStateRow(c).done}/${planStateRow(c).due}`}
+              count={`${planStateRow(c).planDone}/${planStateRow(c).plan}`}
               selected={client === c.id}
               onClick={() => { setClient(c.id); setPicker(false); flash('КЛИЕНТ: ' + c.name.toUpperCase()) }}
             />

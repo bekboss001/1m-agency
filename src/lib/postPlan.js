@@ -11,27 +11,42 @@
 // считается по-старому.
 
 /**
- * @returns { plan, due, done, left, debt, advance, closed }
- *   plan    план текущего периода
- *   due     к выполнению с учётом переноса
- *   left    сколько ещё выпустить
- *   debt    долг на входе, 0 если нет
- *   advance аванс на входе, 0 если нет
- *   closed  план периода выполнен
+ * @returns { plan, due, done, left, debt, advance, closed, debtDone, planDone, extra }
+ *   plan     план текущего периода
+ *   due      к выполнению с учётом переноса
+ *   left     сколько ещё выпустить
+ *   debt     долг на входе, 0 если нет
+ *   advance  аванс на входе, 0 если нет
+ *   closed   план периода выполнен
+ *
+ * Для показа план и долг разделены: план месяца всегда тот же («0/12
+ * постов»), а долг отдельной строкой («3/4 долг»). Публикации периода сначала
+ * гасят долг, остальное идёт в план месяца; аванс засчитан в план заранее.
+ *   debtDone  сколько долга уже погашено
+ *   planDone  сколько засчитано в план месяца
+ *   extra     сверх плана: уйдёт авансом в следующий период
  */
 export function planState({ total = 0, done = 0, carry = null, periodPlan = null }) {
   const plan = periodPlan ?? total ?? 0
   const c = carry ?? 0
+  const posted = done || 0
   const due = Math.max(0, plan - c)
-  const left = Math.max(0, due - (done || 0))
+  const left = Math.max(0, due - posted)
+  const debt = c < 0 ? -c : 0
+  const advance = c > 0 ? c : 0
+  const debtDone = Math.min(posted, debt)
+  const towardPlan = posted - debtDone + advance
   return {
     plan,
     due,
-    done: done || 0,
+    done: posted,
     left,
-    debt: c < 0 ? -c : 0,
-    advance: c > 0 ? c : 0,
+    debt,
+    advance,
     closed: due > 0 ? left === 0 : false,
+    debtDone,
+    planDone: Math.min(plan, towardPlan),
+    extra: Math.max(0, towardPlan - plan),
   }
 }
 

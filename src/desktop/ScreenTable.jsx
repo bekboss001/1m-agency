@@ -268,42 +268,39 @@ function ClientCard({ c, smms, ops, onPatch, onOpen }) {
         {badge && <Badge color={badge.color} bg={badge.bg}>{badge.text}</Badge>}
       </div>
 
-      {/* Счёт */}
+      {/* План месяца. Число постов в месяц не меняется от долга: долг идёт
+          отдельной строкой ниже, и публикации сначала гасят его. */}
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flex: 'none' }}>
           <span style={{
             fontFamily: ARCHIVO, fontWeight: 900, fontSize: 34, lineHeight: 0.9,
             letterSpacing: '-0.03em', color: plan.closed ? D.lime : D.white, ...NUM,
           }}>
-            {c.done}
+            {plan.planDone}
           </span>
           <span style={{ fontFamily: ARCHIVO, fontWeight: 700, fontSize: 15, color: D.quiet2, ...NUM }}>
-            /{plan.due}
+            /{plan.plan}
           </span>
+          {plan.extra > 0 && (
+            <span
+              title={`Сверх плана: ${plan.extra} уйдёт авансом в следующий период`}
+              style={{ marginLeft: 4, fontFamily: GROTESK, fontSize: 11, fontWeight: 700, color: D.okLime, ...NUM }}
+            >
+              +{plan.extra}
+            </span>
+          )}
         </div>
 
-        {(plan.debt > 0 || plan.advance > 0) && (
-          <span
-            title={plan.debt > 0 ? `Долг с прошлого периода: ${plan.debt}` : `Аванс с прошлого периода: ${plan.advance}`}
-            style={{
-              flex: 'none', fontFamily: GROTESK, fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
-              color: plan.debt > 0 ? D.alert : D.okLime, ...NUM,
-            }}
-          >
-            {plan.debt > 0 ? `ДОЛГ ${plan.debt}` : `+${plan.advance}`}
-          </span>
-        )}
-
         <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 3, alignContent: 'flex-end' }}>
-          {Array.from({ length: plan.due }, (_, i) => i + 1).map(j => (
+          {Array.from({ length: plan.plan }, (_, i) => i + 1).map(j => (
             <button
               key={j}
-              title={auto ? 'Считается автоматически по Instagram' : `Поставить ${j} из ${plan.due}`}
+              title={auto ? 'Считается автоматически по Instagram' : `Поставить ${j} из ${plan.plan}`}
               disabled={auto}
               onClick={() => onPatch(c.id, { done: j === c.done ? j - 1 : j, out: today() })}
               style={{
                 width: 9, height: 9, borderRadius: 3, border: 'none', padding: 0,
-                background: j <= c.done ? '#e8e8e8' : '#242424',
+                background: j <= plan.planDone ? '#e8e8e8' : '#242424',
                 cursor: auto ? 'default' : 'pointer',
               }}
             />
@@ -317,6 +314,10 @@ function ClientCard({ c, smms, ops, onPatch, onOpen }) {
           />
         )}
       </div>
+
+      {plan.debt > 0 && (
+        <DebtRow done={plan.debtDone} total={plan.debt} />
+      )}
 
       {/* Дата выкладки */}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -365,6 +366,41 @@ function ClientCard({ c, smms, ops, onPatch, onOpen }) {
             {endText}
           </span>
         )}
+      </div>
+    </div>
+  )
+}
+
+// Долг прошлого периода: отдельная строка красных квадратиков. Закрашенный
+// квадратик это уже погашенный пост долга.
+function DebtRow({ done, total }) {
+  return (
+    <div
+      title={`Долг с прошлого периода: погашено ${done} из ${total}`}
+      style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: -4 }}
+    >
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flex: 'none', minWidth: 52 }}>
+        <span style={{ fontFamily: ARCHIVO, fontWeight: 800, fontSize: 15, color: done >= total ? D.lime : D.err, ...NUM }}>
+          {done}
+        </span>
+        <span style={{ fontFamily: ARCHIVO, fontWeight: 700, fontSize: 12, color: D.quiet2, ...NUM }}>
+          /{total}
+        </span>
+        <span style={{ marginLeft: 4, fontFamily: GROTESK, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: D.err }}>
+          ДОЛГ
+        </span>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+        {Array.from({ length: total }, (_, i) => (
+          <span
+            key={i}
+            style={{
+              width: 9, height: 9, borderRadius: 3,
+              background: i < done ? D.err : D.errBg,
+              boxShadow: i < done ? 'none' : `inset 0 0 0 1px ${D.err}66`,
+            }}
+          />
+        ))}
       </div>
     </div>
   )
