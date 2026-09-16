@@ -42,7 +42,8 @@ create policy sync_baselines_write on public.sync_baselines
 
 -- ─── Данные таблицы на 16.09.2026 ─────────────────────────────────────────
 -- Публикации учтены по 15.09 включительно. Имена даны с вариантами: в базе
--- часть клиентов записана иначе, чем в таблице.
+-- часть клиентов записана иначе, чем в таблице. Диханкол, GEC и Lig Ai больше
+-- не ведём, они убраны в архив отдельно (clients_archive_2026_09.sql).
 
 drop table if exists sheet_rows;
 create temp table sheet_rows (
@@ -52,7 +53,6 @@ create temp table sheet_rows (
 insert into sheet_rows values
   (array['Арнур Кредит'],                 '2026-10-01', 12,  3, 'instagram', true),
   (array['Бэйби Рум'],                    '2026-09-03', 12, 11, 'instagram', true),
-  (array['Диханколь', 'Диханкол'],        '2026-09-09', 12,  6, 'instagram', false),
   (array['Craft'],                        '2026-09-13', 12,  8, 'instagram', true),
   (array['Асыл Фасад', 'Asyl Fasad'],     '2026-09-15', 15, 10, 'instagram', true),
   (array['NEW COLOR'],                    '2026-09-17', 12,  9, 'instagram', true),
@@ -64,7 +64,6 @@ insert into sheet_rows values
   (array['КТБ ТТ', 'КТВ ТТ'],             '2026-09-24', 26,  3, 'tiktok',    true),
   (array['Аквафор'],                      '2026-09-25', 12,  4, 'instagram', true),
   (array['Перспектива'],                  '2026-09-28', 12,  7, 'instagram', true),
-  (array['Lig Ai', 'Lig AI', 'LigAi'],    '2026-09-28',  9,  9, 'instagram', true),
   (array['KazLog'],                       '2026-09-28', 15,  3, 'instagram', true);
 
 insert into public.sync_baselines (client_id, as_of, period_ends_on, planned, counted, platform, active)
