@@ -428,7 +428,7 @@ function reportText(client, state) {
   const lines = [`${head} (@${r.account})`]
 
   lines.push(`  таблица (${r.state === 'queue' ? 'ведётся руками' : 'ведёт сверка'}): выпущено ${t.counted}, план ${t.planned}, `
-    + `договор до ${dm(t.deadline) || 'пусто'}, долг ${t.carry === null ? 'ещё не считался' : carryText(t.carry)}, `
+    + `договор до ${dm(t.deadline) || 'пусто'}, ${t.carry === null ? 'долг ещё не считался' : carryText(t.carry)}, `
     + `последняя выкладка ${dm(t.lastPost) || 'пусто'}`)
   if (r.state === 'queue' && r.patch) {
     lines.push(`  первая сверка запишет: выпущено ${r.patch.published_posts}, ${carryText(r.patch.carry_posts)}, договор до ${dm(r.patch.contract_end)}`)

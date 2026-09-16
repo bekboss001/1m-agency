@@ -1,19 +1,41 @@
 // Сопоставление публикаций Instagram с постами контент-плана.
 //
 // Instagram ничего не знает о КП, поэтому пара определяется по косвенным
-// признакам. Каждая публикация по порядку выхода занимает свободный пост КП
-// того же периода:
-//   1. пост того же типа с ближайшей датой;
-//   2. такого нет: пост любого типа с ближайшей датой;
-//   3. свободных постов нет: публикация вне плана.
-// При равном расстоянии берётся пост с более ранней плановой датой: опоздание
-// случается чаще, чем выход раньше срока.
+// признакам: дате и типу. Все публикации периода и все его посты КП
+// сопоставляются разом, а не по очереди:
+//   1. пара возможна, только если публикация вышла не раньше чем за EARLY дней
+//      и не позже чем через LATE дней после даты в КП. Опоздание случается
+//      чаще, чем выход раньше срока, поэтому окно несимметричное;
+//   2. у пары есть цена: дни опоздания, дни раннего выхода вдвое, плюс штраф за
+//      другой тип. Оставить публикацию или пост без пары тоже стоит;
+//   3. выбирается набор пар с наименьшей общей ценой. Пара берётся, только
+//      если она объясняет публикацию лучше, чем «вне плана» плюс «пост впереди».
+//
+// Первая версия этого правила брала как можно больше пар, и ради лишней пары
+// сдвигала всю цепочку: публикация от 15.09 занимала пост КП на 18.09, а
+// совпадения день в день рушились.
+//
+// Раньше каждая публикация по порядку выхода брала ближайший свободный пост.
+// На реальных данных это ломалось: у клиента, чей КП заполнен только с
+// середины периода, публикации начала месяца забирали сентябрьские посты
+// со сдвигом в три недели, а вышедшие точно в срок оставались без пары.
 //
 // Счётчики от сопоставления не зависят. «Вышло», долг и аванс это количество
 // публикаций в окне периода. Ошибиться сопоставление может только в том, какая
 // именно строка КП получит отметку, и такую пару перепривязывают руками.
 
 import { dayDiff, periodOf, previousPeriod } from './contractPeriod.js'
+
+export const MATCH_EARLY_DAYS = 3
+export const MATCH_LATE_DAYS = 7
+const TYPE_PENALTY = 2
+// Выход раньше срока подозрительнее опоздания: за три дня до плана это чаще
+// другой пост, чем тот же, выложенный заранее.
+const EARLY_WEIGHT = 2
+// Цена оставить без пары публикацию или пост. Пара дешевле двух пропусков
+// (8): опоздание до 7 дней того же типа, ранний выход до 3 дней того же типа.
+const SKIP = 4
+const FORBIDDEN = 1e6
 
 // Тип публикации в терминах КП. Сторис в сопоставлении не участвуют: Instagram
 // отдаёт их только сутки, и сверка по расписанию их всё равно не застанет.
@@ -26,44 +48,121 @@ export function mediaKind(m) {
   return 'post'
 }
 
+// Задача о назначениях, венгерский алгоритм. Матрица квадратная, n до сотни:
+// в периоде десятки публикаций и постов, O(n³) здесь мгновенно.
+// Возвращает для каждой строки номер выбранного столбца.
+function assign(cost) {
+  const n = cost.length
+  const u = new Array(n + 1).fill(0)
+  const v = new Array(n + 1).fill(0)
+  const p = new Array(n + 1).fill(0)
+  const way = new Array(n + 1).fill(0)
+
+  for (let i = 1; i <= n; i++) {
+    p[0] = i
+    let j0 = 0
+    const minv = new Array(n + 1).fill(Infinity)
+    const used = new Array(n + 1).fill(false)
+    do {
+      used[j0] = true
+      const i0 = p[j0]
+      let delta = Infinity
+      let j1 = 0
+      for (let j = 1; j <= n; j++) {
+        if (used[j]) continue
+        const cur = cost[i0 - 1][j - 1] - u[i0] - v[j]
+        if (cur < minv[j]) { minv[j] = cur; way[j] = j0 }
+        if (minv[j] < delta) { delta = minv[j]; j1 = j }
+      }
+      for (let j = 0; j <= n; j++) {
+        if (used[j]) { u[p[j]] += delta; v[j] -= delta } else minv[j] -= delta
+      }
+      j0 = j1
+    } while (p[j0] !== 0)
+    do {
+      const j1 = way[j0]
+      p[j0] = p[j1]
+      j0 = j1
+    } while (j0)
+  }
+
+  const rowToCol = new Array(n)
+  for (let j = 1; j <= n; j++) if (p[j]) rowToCol[p[j] - 1] = j - 1
+  return rowToCol
+}
+
+function allowedShift(shift) {
+  return shift >= -MATCH_EARLY_DAYS && shift <= MATCH_LATE_DAYS
+}
+
 /**
  * @param media  публикации периода по возрастанию времени: { id, date, kind, ... }
  * @param posts  посты КП периода без сторис: { id, publish_date, post_type, ... }
  * @returns { links: [{ media, post, sameType, shift, tie }], unmatched: posts[] }
+ *          links идут в порядке публикаций;
  *          post = null означает публикацию вне плана;
  *          shift > 0: вышла позже плана на столько дней;
- *          tie: был второй кандидат на том же расстоянии, пара спорная.
+ *          tie: у публикации был другой свободный пост с той же ценой, пара спорная.
  */
+// Цена пары без добавки за порядок дат.
+function plainCost(md, p) {
+  const shift = dayDiff(md.date, p.publish_date)
+  return (shift < 0 ? -shift * EARLY_WEIGHT : shift) + (md.kind === p.post_type ? 0 : TYPE_PENALTY)
+}
+
 export function matchPeriod(media, posts) {
-  const free = new Set(posts.map(p => p.id))
-  const links = []
+  const n = media.length
+  const m = posts.length
 
-  for (const m of media) {
-    const candidates = posts.filter(p => free.has(p.id))
-    const same = candidates.filter(p => p.post_type === m.kind)
-    const pool = same.length ? same : candidates
+  // При равной цене предпочитаем пост с более ранней датой: очень малая
+  // добавка по порядку дат не перевешивает ни одного дня сдвига.
+  const order = [...posts].sort((a, b) => a.publish_date.localeCompare(b.publish_date))
+  const rank = new Map(order.map((p, i) => [p.id, i]))
 
-    if (!pool.length) {
-      links.push({ media: m, post: null, sameType: false, shift: null, tie: false })
-      continue
-    }
-
-    const dist = p => Math.abs(dayDiff(m.date, p.publish_date))
-    const ranked = [...pool].sort((a, b) =>
-      dist(a) - dist(b) || a.publish_date.localeCompare(b.publish_date))
-
-    const best = ranked[0]
-    free.delete(best.id)
-    links.push({
-      media: m,
-      post: best,
-      sameType: same.length > 0,
-      shift: dayDiff(m.date, best.publish_date),
-      tie: ranked.length > 1 && dist(ranked[1]) === dist(best),
-    })
+  const pairCost = (md, p) => {
+    const shift = dayDiff(md.date, p.publish_date)
+    if (!allowedShift(shift)) return FORBIDDEN
+    const cost = plainCost(md, p)
+    // Пара не дешевле двух пропусков ничего не объясняет: оставляем обе стороны.
+    if (cost >= 2 * SKIP) return FORBIDDEN
+    return cost + rank.get(p.id) * 1e-4
   }
 
-  return { links, unmatched: posts.filter(p => free.has(p.id)) }
+  // Строки: публикации и m строк-заглушек «пост без публикации».
+  // Столбцы: посты и n столбцов-заглушек «публикация без поста».
+  const size = n + m
+  const cost = Array.from({ length: size }, (_, i) =>
+    Array.from({ length: size }, (_, j) => {
+      if (i < n && j < m) return pairCost(media[i], posts[j])
+      if (i < n || j < m) return SKIP
+      return 0
+    }))
+
+  const rowToCol = size ? assign(cost) : []
+  const taken = new Set()
+
+  const links = media.map((md, i) => {
+    const j = rowToCol[i]
+    if (j === undefined || j >= m || cost[i][j] >= FORBIDDEN) {
+      return { media: md, post: null, sameType: false, shift: null, tie: false }
+    }
+    const post = posts[j]
+    taken.add(post.id)
+    return { media: md, post, sameType: md.kind === post.post_type, shift: dayDiff(md.date, post.publish_date), tie: false }
+  })
+
+  // Спорная пара: другой пост, оставшийся без публикации, подошёл бы этой
+  // публикации так же хорошо. Сравниваем без добавки за порядок дат.
+  for (const l of links) {
+    if (!l.post) continue
+    const mine = plainCost(l.media, l.post)
+    l.tie = posts.some(p => !taken.has(p.id)
+      && allowedShift(dayDiff(l.media.date, p.publish_date))
+      && plainCost(l.media, p) < 2 * SKIP
+      && plainCost(l.media, p) === mine)
+  }
+
+  return { links, unmatched: posts.filter(p => !taken.has(p.id)) }
 }
 
 /**
