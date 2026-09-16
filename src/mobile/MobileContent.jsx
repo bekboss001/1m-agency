@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
 import { planStateRow, PLAN_COLUMNS } from '../lib/postPlan'
+import { planPeriod } from '../lib/instagram'
 import { ymd, parseYmd, today } from '../lib/tz'
 import {
   T, SANS, OSW, mono, useToast, Toast, Sheet, SheetRow, ClientSelector,
@@ -51,8 +52,8 @@ export default function MobileContent() {
   const load = useCallback(async () => {
     setLoading(true)
     const [cRes, pRes, sRes] = await Promise.all([
-      supabase.from('clients').select(`id, name, color, ${PLAN_COLUMNS}`).eq('is_active', true).order('number'),
-      supabase.from('posts').select('id, client_id, title, status, post_type, publish_date')
+      supabase.from('clients').select(`id, name, color, contract_end, instagram_account_id, ${PLAN_COLUMNS}`).eq('is_active', true).order('number'),
+      supabase.from('posts').select('id, client_id, title, status, post_type, publish_date, ig_permalink, off_plan')
         .gte('publish_date', first).lte('publish_date', last)
         .order('publish_date'),
       supabase.from('shoots').select('id, client_id, shoot_date')
@@ -291,6 +292,7 @@ export default function MobileContent() {
                           <span style={{ color: T.muted, ...mono(500, 10.5, '.1em') }}>
                             {[c?.name?.toUpperCase(), (p.post_type || '').toUpperCase()].filter(Boolean).join(' · ')}
                           </span>
+                          <InstagramMarks post={p} client={c} />
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                             <StatusChip status={p.status} onAdvance={() => advance(p)} />
                             <span style={{ color: T.faint, ...mono(500, 10, '.06em') }}>ТАП — ДАЛЬШЕ</span>
@@ -397,6 +399,31 @@ export default function MobileContent() {
 
       <Toast text={toast} />
     </div>
+  )
+}
+
+// Отметки сверки с Instagram под постом: ссылка на публикацию, «вне плана»,
+// а если пост отмечен опубликованным, но в ленте его нет, «нет в Instagram».
+function InstagramMarks({ post, client }) {
+  const synced = Boolean(client?.instagram_account_id) && client?.carry_posts !== null && client?.carry_posts !== undefined
+  let missing = false
+  if (synced && !post.ig_permalink && post.status === 'published' && post.post_type !== 'stories' && client.contract_end) {
+    const { since } = planPeriod(client.contract_end, today())
+    const age = Math.round((parseYmd(today()) - parseYmd(post.publish_date)) / 86400000)
+    missing = post.publish_date >= since && age >= 2
+  }
+  if (!post.ig_permalink && !missing) return null
+
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+      {post.ig_permalink && (
+        <a href={post.ig_permalink} target="_blank" rel="noreferrer" style={{ color: T.accentText, textDecoration: 'none', ...mono(700, 10, '.08em') }}>
+          INSTAGRAM ↗
+        </a>
+      )}
+      {post.off_plan && <span style={{ color: T.warn, ...mono(700, 10, '.08em') }}>ВНЕ ПЛАНА</span>}
+      {missing && <span style={{ color: T.hot, ...mono(700, 10, '.08em') }}>НЕТ В INSTAGRAM</span>}
+    </span>
   )
 }
 

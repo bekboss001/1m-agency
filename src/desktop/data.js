@@ -134,7 +134,7 @@ export async function fetchEmployees() {
 export async function fetchPosts(clientId, from, to) {
   let q = supabase
     .from('posts')
-    .select('id, client_id, title, post_type, publish_date, status')
+    .select('id, client_id, title, post_type, publish_date, status, ig_permalink, off_plan')
     .order('publish_date')
   if (clientId) q = q.eq('client_id', clientId)
   if (from) q = q.gte('publish_date', from)
@@ -173,6 +173,27 @@ export async function createPost(payload) {
     .single()
   if (error) return { data: null, error }
   return { data, error: null }
+}
+
+// Отвязать пост от публикации Instagram, если сверка связала их неверно.
+// Публикация помечается пропущенной, чтобы следующая сверка не связала её с
+// этим же постом снова. Статус поста не трогаем: какой он на самом деле,
+// знает только человек.
+export async function unlinkPostFromInstagram(postId) {
+  const { error: mediaError } = await supabase
+    .from('instagram_media')
+    .update({ post_id: null, link: 'none', linked_at: new Date().toISOString() })
+    .eq('post_id', postId)
+  if (mediaError) return { error: mediaError }
+
+  const { data, error } = await supabase
+    .from('posts')
+    .update({ ig_permalink: null, off_plan: false })
+    .eq('id', postId)
+    .select('id')
+  if (error) return { error }
+  if (!data || data.length === 0) return { error: { message: 'База не разрешила изменение' } }
+  return { error: null }
 }
 
 export async function deletePost(id) {

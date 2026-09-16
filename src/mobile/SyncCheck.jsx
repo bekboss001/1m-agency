@@ -16,10 +16,16 @@ import { SYNC_ISSUE as ISSUE } from '../lib/syncIssues'
 import { T, SANS, OSW, mono, useToast, Toast } from './ui'
 
 const KIND = { reels: 'Reels', carousel: 'Карусель', post: 'Пост', stories: 'Stories' }
-const REASON = {
-  not_in_kp: 'в КП не заведён',
-  debt: 'в счёт долга',
-  advance: 'аванс на следующий период',
+// Что сверка сделала или сделает с публикацией в контент-плане.
+const LINK_STATE = {
+  auto: { text: 'связан', tone: 'plain' },
+  manual: { text: 'связан вручную', tone: 'plain' },
+  created: { text: 'в КП создан пост вне плана', tone: 'plain' },
+  none: { text: 'пропущен', tone: 'plain' },
+  link: { text: 'свяжется при сверке', tone: 'plain' },
+  create: { text: 'при сверке создастся пост вне плана', tone: 'plain' },
+  skip: { text: 'до начала периода, будет пропущен', tone: 'plain' },
+  wait: { text: 'ждёт 2 дня: вдруг пост заведут в КП', tone: 'plain' },
 }
 const STATE = {
   upcoming: 'впереди',
@@ -44,7 +50,7 @@ function warnings(report) {
   if (!cur) return 0
   let n = 0
   for (const l of cur.links) {
-    if (l.tie || (l.post && !l.sameType) || l.reason === 'not_in_kp') n++
+    if (l.tie || (l.post && !l.sameType)) n++
   }
   for (const u of cur.unmatched) if (u.state !== 'upcoming') n++
   n += report.issues.length
@@ -388,7 +394,7 @@ function LinkRow({ link: l }) {
           {l.post && <Badge>{shift}</Badge>}
           {l.post && !l.sameType && <Badge tone="warn">другой тип</Badge>}
           {l.tie && <Badge tone="warn">спорно: две равные пары</Badge>}
-          {l.reason && <Badge tone={l.reason === 'not_in_kp' ? 'warn' : 'plain'}>вне плана: {REASON[l.reason]}</Badge>}
+          {LINK_STATE[l.state] && <Badge tone={LINK_STATE[l.state].tone}>{LINK_STATE[l.state].text}</Badge>}
           {l.permalink && (
             <a href={l.permalink} target="_blank" rel="noreferrer" style={{ color: T.accentText, ...mono(600, 10, '.06em') }}>
               ОТКРЫТЬ
@@ -449,7 +455,7 @@ function reportText(client, state) {
     const marks = [
       l.post && !l.sameType ? 'другой тип' : '',
       l.tie ? 'спорно' : '',
-      l.reason ? `вне плана: ${REASON[l.reason]}` : '',
+      LINK_STATE[l.state] ? LINK_STATE[l.state].text : '',
     ].filter(Boolean).join(', ')
     const target = l.post
       ? `${dm(l.post.date)} «${l.post.title}» ${KIND[l.post.type] || l.post.type} (сдвиг ${l.shift})`

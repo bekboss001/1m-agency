@@ -11,10 +11,10 @@ import { D, ARCHIVO, GROTESK, NUM, POST_STATUS, POST_TYPES } from './tokens'
 import { Icon, LimeButton } from './ui'
 import {
   fetchClients, fetchEmployees, fetchPosts, fetchPostCounts,
-  patchPost, createPost, deletePost,
+  patchPost, createPost, deletePost, unlinkPostFromInstagram,
 } from './data'
 
-const COLS = '34px minmax(0,1fr) 148px 150px 152px 36px'
+const COLS = '34px minmax(0,1fr) 148px 150px 152px 132px 36px'
 const dayDiff = iso => (iso ? Math.round((parseYmd(iso) - parseYmd(today())) / 86400000) : null)
 
 const MON_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
@@ -111,6 +111,22 @@ export default function ScreenPlan() {
       setCounts(c => ({ ...c, [activeId]: (c[activeId] || 0) + 1 }))
       fail(error.message)
     }
+  }
+
+  // Клиента ведёт сверка с Instagram: только у таких имеет смысл отметка
+  // «нет в Instagram».
+  const synced = Boolean(active?.igId) && active?.carry !== null
+
+  async function unlink(post) {
+    const ok = window.confirm(
+      `Отвязать «${post.title || 'пост'}» от публикации в Instagram?\n\n` +
+      'Сверка больше не свяжет эту публикацию с постом. Статус поста останется как есть, поменяйте его сами, если нужно.',
+    )
+    if (!ok) return
+    const snapshot = posts
+    setPosts(ps => ps.map(p => (p.id === post.id ? { ...p, ig_permalink: null, off_plan: false } : p)))
+    const { error } = await unlinkPostFromInstagram(post.id)
+    if (error) { setPosts(snapshot); fail(error.message) }
   }
 
   const metrics = useMemo(() => ({
@@ -232,6 +248,7 @@ export default function ScreenPlan() {
           <span>ТИП</span>
           <span>ДАТА ПУБЛИКАЦИИ</span>
           <span>СТАТУС</span>
+          <span>INSTAGRAM</span>
           <span />
         </div>
 
@@ -260,7 +277,12 @@ export default function ScreenPlan() {
                         key={p.id}
                         n={i + 1}
                         post={p}
+                        // Пост отмечен опубликованным, а сверка его в ленте не нашла.
+                        // Только текущий период: старые посты сверка не разбирала.
+                        missing={synced && current && p.status === 'published' && !p.ig_permalink
+                          && p.post_type !== 'stories' && dayDiff(p.publish_date) !== null && dayDiff(p.publish_date) <= -2}
                         onPatch={apply}
+                        onUnlink={() => unlink(p)}
                         onDelete={() => removeRow(p.id)}
                       />
                     ))}
@@ -340,7 +362,7 @@ function PlanMetric({ value, label, color = D.white }) {
   )
 }
 
-function PostRow({ n, post, onPatch, onDelete }) {
+function PostRow({ n, post, missing, onPatch, onUnlink, onDelete }) {
   const [hover, setHover] = useState(false)
   const st = POST_STATUS[post.status] || POST_STATUS.idea
 
@@ -409,9 +431,56 @@ function PostRow({ n, post, onPatch, onDelete }) {
         {Object.entries(POST_STATUS).map(([v, s]) => <option key={v} value={v}>{s.label}</option>)}
       </select>
 
+      <InstagramCell post={post} missing={missing} onUnlink={onUnlink} />
+
       <DeleteButton onClick={onDelete} />
     </div>
   )
+}
+
+// Связь поста с публикацией Instagram, которую поставила сверка.
+function InstagramCell({ post, missing, onUnlink }) {
+  if (post.ig_permalink) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+        <a
+          href={post.ig_permalink}
+          target="_blank"
+          rel="noreferrer"
+          title="Открыть публикацию"
+          style={{ fontFamily: GROTESK, fontSize: 12, fontWeight: 700, color: D.lime, textDecoration: 'none', whiteSpace: 'nowrap' }}
+        >
+          пост ↗
+        </a>
+        {post.off_plan && (
+          <span
+            title="Публикация вышла, а в контент-плане её не было: пост создан сверкой"
+            style={{ fontFamily: GROTESK, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', color: D.warn, whiteSpace: 'nowrap' }}
+          >
+            ВНЕ ПЛАНА
+          </span>
+        )}
+        <button
+          onClick={onUnlink}
+          title="Отвязать от публикации"
+          style={{ marginLeft: 'auto', border: 'none', background: 'none', padding: 2, color: D.mut, cursor: 'pointer', fontSize: 13, lineHeight: 1 }}
+        >
+          ×
+        </button>
+      </div>
+    )
+  }
+  if (missing) {
+    return (
+      <span
+        title="Пост отмечен опубликованным, но в ленте Instagram сверка его не нашла"
+        style={{ fontFamily: GROTESK, fontSize: 11, fontWeight: 700, color: D.err, whiteSpace: 'nowrap' }}
+      >
+        нет в Instagram
+      </span>
+    )
+  }
+  return <span />
 }
 
 // Локальное значение + запись с задержкой: иначе каждая буква уходила бы

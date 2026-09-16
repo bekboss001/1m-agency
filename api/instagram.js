@@ -9,10 +9,10 @@
 // всё равно не поймал бы. По решению заказчика сторис в план не входят.
 
 import { anchorDay, periodOf, previousPeriod, astanaToday } from '../server/contractPeriod.js'
-import { matchPeriod, offPlanReason } from '../server/matchPosts.js'
 import { buildLedger } from '../server/ledger.js'
 import { GRAPH, collect, fetchFeed } from '../server/igMedia.js'
 import { computeSync, rowIssues, feedStart } from '../server/syncEngine.js'
+import { contentWindow, planContentSync } from '../server/contentSync.js'
 
 async function getJson(url) {
   const res = await fetch(url)
@@ -295,8 +295,9 @@ export default async function handler(req, res) {
   /* ─────────────── Сверка с контент-планом: проверка без записи ─────────────── */
 
   // Показывает то же, что запишет сверка (api/sync.js), но ничего не пишет:
-  // расчёт один, server/syncEngine.js. Сверх записи отчёт показывает связь
-  // публикаций с контент-планом и историю месяцев за год.
+  // расчёт счётчиков один, server/syncEngine.js, решения по контент-плану
+  // тоже одни, server/contentSync.js. Для уже разобранных публикаций отчёт
+  // показывает записанное решение, для остальных то, что сверка сделает.
   if (action === 'preview') {
     const clientId = String(req.body?.clientId ?? '')
     if (!/^[0-9a-f-]{36}$/i.test(clientId)) {
@@ -346,12 +347,15 @@ export default async function handler(req, res) {
         ? oldest.startsOn
         : [oldest.startsOn, feedStart(client, today)].sort()[0]
 
-      const [{ media, error: feedError }, posts] = await Promise.all([
-        fetchFeed(client.instagram_account_id, since, metaToken),
+      const w = contentWindow(anchor, today)
+      const [{ media, error: feedError }, posts, mediaState, linkedRows] = await Promise.all([
+        fetchFeed(client.instagram_account_id, [since, w.mediaFrom].sort()[0], metaToken),
         sb(
           `posts?select=id,title,publish_date,post_type,status&client_id=eq.${clientId}`
-          + `&publish_date=gte.${monthNow.startsOn}&publish_date=lt.${monthNow.endsOn}&order=publish_date`,
+          + `&publish_date=gte.${w.postsFrom}&publish_date=lte.${w.postsTo}&order=publish_date`,
         ),
+        sb(`instagram_media?select=id,link,post_id&client_id=eq.${clientId}&published_on=gte.${w.mediaFrom}`),
+        sb(`instagram_media?select=post_id&client_id=eq.${clientId}&post_id=not.is.null`),
       ])
       if (feedError) return res.status(502).json({ error: feedError })
 
@@ -368,13 +372,51 @@ export default async function handler(req, res) {
         planned: client.total_posts || 0, anchor, today, pubs: media.map(m => m.date), baseline: null, depth: HISTORY,
       }).history
 
-      const inCurrent = media.filter(m => m.date >= current.startsOn && m.date < current.endsOn)
-      const plan = posts.filter(p => p.post_type !== 'stories')
-      const { links, unmatched } = matchPeriod(inCurrent, plan)
+      // Контент-план: записанные решения и то, что сверка сделает с остальным.
+      const stateById = new Map(mediaState.map(r => [r.id, r]))
+      const linkedPosts = new Set(linkedRows.map(r => String(r.post_id)))
+      const postsById = new Map(posts.map(p => [String(p.id), p]))
+      const windowMedia = media.filter(m => m.date >= w.mediaFrom)
+      const openMedia = windowMedia.filter(m => !stateById.get(m.id)?.link)
+      const candidates = posts.filter(p => p.post_type !== 'stories' && !linkedPosts.has(String(p.id)))
+      const plan = planContentSync({ media: openMedia, posts: candidates, period: w.current, today })
+
+      const decided = new Map()
+      for (const l of plan.link) decided.set(l.media.id, { state: 'link', post: l.post, shift: l.shift, sameType: l.sameType, tie: l.tie })
+      for (const m of plan.create) decided.set(m.id, { state: 'create' })
+      for (const m of plan.skip) decided.set(m.id, { state: 'skip' })
+      for (const m of plan.wait) decided.set(m.id, { state: 'wait' })
 
       const clock = ms => new Date(ms + 5 * 3600 * 1000).toISOString().slice(11, 16)
       const brief = p => ({ id: p.id, title: p.title, date: p.publish_date, type: p.post_type, status: p.status })
-      const reasonBase = current.due === null ? { planned: current.planned, due: current.planned } : current
+      const shiftOf = (m, post) => post ? Math.round((Date.parse(m.date) - Date.parse(post.publish_date)) / 86400000) : null
+
+      const links = windowMedia.map(m => {
+        const saved = stateById.get(m.id)
+        const d = saved?.link
+          ? (() => {
+              const post = saved.post_id ? postsById.get(String(saved.post_id)) || null : null
+              return { state: saved.link, post, shift: shiftOf(m, post), sameType: post ? post.post_type === m.kind : false, tie: false }
+            })()
+          : decided.get(m.id) || { state: 'wait' }
+        return {
+          date: m.date,
+          time: clock(m.ms),
+          kind: m.kind,
+          permalink: m.permalink,
+          caption: m.caption,
+          state: d.state,
+          post: d.post ? brief(d.post) : null,
+          sameType: d.sameType ?? false,
+          shift: d.shift ?? null,
+          tie: d.tie ?? false,
+        }
+      })
+
+      const willLink = new Set(plan.link.map(l => String(l.post.id)))
+      const periodPosts = posts.filter(p => p.publish_date >= current.startsOn && p.publish_date < current.endsOn)
+      const periodPlan = periodPosts.filter(p => p.post_type !== 'stories')
+      const unmatched = periodPlan.filter(p => !linkedPosts.has(String(p.id)) && !willLink.has(String(p.id)))
 
       return res.status(200).json({
         ...head,
@@ -387,20 +429,9 @@ export default async function handler(req, res) {
         lastPost: media.length ? media[media.length - 1].date : null,
         current: {
           ...current,
-          kpCount: plan.length,
-          kpStories: posts.length - plan.length,
-          links: links.map((l, i) => ({
-            date: l.media.date,
-            time: clock(l.media.ms),
-            kind: l.media.kind,
-            permalink: l.media.permalink,
-            caption: l.media.caption,
-            post: l.post ? brief(l.post) : null,
-            sameType: l.sameType,
-            shift: l.shift,
-            tie: l.tie,
-            reason: l.post ? null : offPlanReason(i + 1, reasonBase),
-          })),
+          kpCount: periodPlan.length,
+          kpStories: periodPosts.length - periodPlan.length,
+          links,
           unmatched: unmatched.map(p => ({
             ...brief(p),
             // Отмечен руками, но в Instagram пары нет; не вышел в срок; ещё впереди.

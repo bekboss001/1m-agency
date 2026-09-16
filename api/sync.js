@@ -9,15 +9,19 @@
 //          передать clientId, чтобы пересчитать одного клиента.
 //
 // Сам расчёт в server/syncEngine.js, он же показывается в отчёте проверки.
+// После счётчиков сверка разносит публикации по контент-плану
+// (server/contentSync.js): связывает с постами, создаёт посты «вне плана».
 // Повторный запуск безопасен: окно периода каждый раз пересчитывается заново.
 
 import { astanaToday } from '../server/contractPeriod.js'
 import { fetchFeed } from '../server/igMedia.js'
 import { computeSync, rowIssues, feedStart } from '../server/syncEngine.js'
+import { contentWindow, planContentSync, createdPostTitle } from '../server/contentSync.js'
 
 const CLIENT_COLUMNS = [
   'id', 'name', 'total_posts', 'published_posts', 'carry_posts', 'period_plan', 'period_day',
   'contract_end', 'last_post_date', 'instagram_synced_at', 'instagram_account_id',
+  'smm_id', 'operator_id',
 ].join(',')
 
 // Какие колонки сверка может менять. Всё прочее в строке клиента не трогается.
@@ -123,7 +127,10 @@ async function syncOne(row, today, metaToken, rest) {
   if (issues.length) return { ...base, issues }
 
   try {
-    const { media, error } = await fetchFeed(row.instagram_account_id, feedStart(row, today), metaToken)
+    // Ленте нужен запас назад: контент-план разбирает и последние дни прошлого периода.
+    const anchor = row.period_day || Number(row.contract_end.slice(8, 10))
+    const since = [feedStart(row, today), contentWindow(anchor, today).mediaFrom].sort()[0]
+    const { media, error } = await fetchFeed(row.instagram_account_id, since, metaToken)
     if (error) return { ...base, error }
 
     const result = computeSync({ row, media, today })
@@ -167,15 +174,133 @@ async function syncOne(row, today, metaToken, rest) {
       if (!updated?.length) return { ...base, error: 'База не разрешила запись' }
     }
 
+    // Контент-план разбирается после счётчиков и на них не влияет: его ошибка
+    // не отменяет уже записанные цифры.
+    let content
+    try {
+      content = await syncContent(row, media, result.patch.period_day, today, rest)
+    } catch (e) {
+      content = { error: e.message }
+    }
+
     return {
       ...base,
       changed: Object.keys(changes),
       closed: result.closed,
       current: result.current,
+      content,
     }
   } catch (e) {
     return { ...base, error: e.message }
   }
+}
+
+// ─── Контент-план ────────────────────────────────────────────────────────────
+//
+// Публикации записываются в instagram_media, неразобранные раскладываются по
+// решению server/contentSync.js. Каждое действие сначала «занимает» публикацию
+// условной записью (link IS NULL): если два прогона идут одновременно, второй
+// получит ноль строк и ничего не сделает. Если после этого запись в posts не
+// прошла, занятие откатывается, и публикация разберётся в следующий раз.
+async function syncContent(row, media, anchor, today, rest) {
+  const w = contentWindow(anchor, today)
+  const windowMedia = media.filter(m => m.date >= w.mediaFrom)
+  const stats = { linked: 0, created: 0, skipped: 0, waiting: 0, failed: 0 }
+  if (!windowMedia.length) return stats
+
+  await rest(
+    'POST',
+    'instagram_media?on_conflict=id',
+    windowMedia.map(m => ({
+      id: m.id,
+      client_id: row.id,
+      published_at: new Date(m.ms).toISOString(),
+      published_on: m.date,
+      kind: m.kind,
+      permalink: m.permalink,
+      caption: m.caption || null,
+    })),
+    'resolution=ignore-duplicates,return=minimal',
+  )
+
+  const [state, linkedRows, posts] = await Promise.all([
+    rest('GET', `instagram_media?select=id,link&client_id=eq.${row.id}&published_on=gte.${w.mediaFrom}`),
+    rest('GET', `instagram_media?select=post_id&client_id=eq.${row.id}&post_id=not.is.null`),
+    rest('GET', `posts?select=id,title,post_type,publish_date,status&client_id=eq.${row.id}`
+      + `&publish_date=gte.${w.postsFrom}&publish_date=lte.${w.postsTo}&post_type=neq.stories&order=publish_date`),
+  ])
+
+  const open = new Set(state.filter(s => s.link === null).map(s => s.id))
+  const linkedPosts = new Set(linkedRows.map(r => String(r.post_id)))
+
+  const plan = planContentSync({
+    media: windowMedia.filter(m => open.has(m.id)),
+    posts: posts.filter(p => !linkedPosts.has(String(p.id))),
+    period: w.current,
+    today,
+  })
+  stats.waiting = plan.wait.length
+
+  const now = () => new Date().toISOString()
+  const claim = async (m, patch) => {
+    try {
+      const rows = await rest('PATCH', `instagram_media?id=eq.${encodeURIComponent(m.id)}&link=is.null`,
+        { ...patch, linked_at: now() }, 'return=representation')
+      return Boolean(rows?.length)
+    } catch {
+      // Например, пост уже занят другой публикацией: уникальный индекс отклонил.
+      return false
+    }
+  }
+  const release = m => rest('PATCH', `instagram_media?id=eq.${encodeURIComponent(m.id)}`,
+    { link: null, post_id: null, linked_at: null }).catch(() => {})
+
+  for (const l of plan.link) {
+    if (!await claim(l.media, { link: 'auto', post_id: l.post.id })) { stats.failed++; continue }
+    try {
+      const updated = await rest('PATCH', `posts?id=eq.${l.post.id}`, {
+        status: 'published',
+        published_at: new Date(l.media.ms).toISOString(),
+        ig_permalink: l.media.permalink,
+        off_plan: false,
+      }, 'return=representation')
+      if (!updated?.length) throw new Error('пост не обновлён')
+      stats.linked++
+    } catch {
+      await release(l.media)
+      stats.failed++
+    }
+  }
+
+  for (const m of plan.create) {
+    if (!await claim(m, { link: 'created' })) { stats.failed++; continue }
+    try {
+      const [post] = await rest('POST', 'posts', {
+        client_id: row.id,
+        title: createdPostTitle(m),
+        post_type: m.kind,
+        publish_date: m.date,
+        status: 'published',
+        published_at: new Date(m.ms).toISOString(),
+        ig_permalink: m.permalink,
+        off_plan: true,
+        ...(row.smm_id ? { smm_id: row.smm_id } : {}),
+        ...(row.operator_id ? { operator_id: row.operator_id } : {}),
+      }, 'return=representation')
+      await rest('PATCH', `instagram_media?id=eq.${encodeURIComponent(m.id)}`, { post_id: post.id })
+      stats.created++
+    } catch {
+      await release(m)
+      stats.failed++
+    }
+  }
+
+  for (const m of plan.skip) {
+    if (await claim(m, { link: 'none' })) stats.skipped++
+    else stats.failed++
+  }
+
+  return stats
 }
 
 // Даты и время из базы приходят в другом виде, чем их пишет расчёт:
