@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { ymd } from '../lib/tz'
+import { planStateRow, PLAN_COLUMNS } from '../lib/postPlan'
 import { weekDays, todayDate } from './todayTasks'
 import { useTheme } from '../lib/ThemeContext'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, SectionTitle } from './ui'
@@ -66,7 +67,7 @@ export default function MobileProfile() {
 
     const [empRes, cRes, pRes, sRes, tRes, teamRes] = await Promise.all([
       empId ? supabase.from('employees').select('*').eq('id', empId).single() : Promise.resolve({ data: null }),
-      supabase.from('clients').select('id, name, color, total_posts, published_posts, smm_id, operator_id').eq('is_active', true).order('number'),
+      supabase.from('clients').select(`id, name, color, ${PLAN_COLUMNS}, smm_id, operator_id`).eq('is_active', true).order('number'),
       empId
         ? supabase.from('posts').select('id, publish_date, status').eq('smm_id', empId)
             .eq('status', 'published').gte('publish_date', weekFrom).lte('publish_date', weekTo)
@@ -124,8 +125,7 @@ export default function MobileProfile() {
       : empId ? clients.filter(c => c.smm_id === empId || c.operator_id === empId) : []
     return mine
       .map(c => {
-        const total = c.total_posts || 0
-        const done = c.published_posts || 0
+        const { due: total, done } = planStateRow(c)
         return { ...c, total, done, pct: total ? Math.min(Math.round((done / total) * 100), 100) : 0 }
       })
       .sort((a, b) => a.pct - b.pct)

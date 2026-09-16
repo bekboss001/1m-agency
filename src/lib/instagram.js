@@ -56,59 +56,44 @@ export function planPeriod(endIso, todayIso) {
   return { since: startsOn, until: todayIso, endsOn }
 }
 
-/**
- * Доборный пересчёт выпущенных постов.
- *
- * Считает не «сколько постов в этом месяце», а «сколько вышло с прошлой
- * сверки», и прибавляет к сохранённому числу. Это принципиально: договор на
- * 12 постов с 08.08 по 09.09, из которых вышло 10, оставляет долг в 2 поста, и
- * пересчёт по окну месяца стирал бы этот долг на границе периода — 10 сентября
- * счётчик просто начинался бы заново. При доборе он продолжает расти, и недобор
- * виден до тех пор, пока его не закроют.
- *
- * Точка отсчёта — instagram_synced_at, точный момент последней учтённой
- * публикации. Пока её нет, откатываемся на дату последней выкладки из таблицы,
- * а если нет и её — считаем текущий период плана и берём число как есть.
- *
- * Повторное нажатие безопасно: точка отсчёта сдвигается, второй раз находится
- * ноль новых.
- *
- * @returns { data: { added, done, mode, since, lastPost, byType }, error }
- */
-export async function pullInstagram(client) {
-  const from = client.syncedAt
-    ? { after: client.syncedAt, mode: 'sync', since: client.syncedAt.slice(0, 10) }
-    : client.out
-      // Дату понимаем по Астане: полночь UTC отрезала бы вечерние публикации
-      // предыдущего дня и посчитала бы их заново.
-      ? { after: `${client.out}T23:59:59+05:00`, mode: 'date', since: client.out }
-      : null
+// Сверка с записью: пересчитывает клиентов по Instagram и пишет в таблицу.
+// Без clientId пересчитывает всех. Экраны со счётчиками слушают SYNC_EVENT и
+// перечитывают данные, когда сверка что-то поменяла.
+export const SYNC_EVENT = 'clients:synced'
 
-  const period = from ? null : planPeriod(client.end, today())
+export async function runSync(clientId) {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session) return { data: null, error: { message: 'Сессия истекла — войдите заново' } }
 
-  const { data, error } = await callInstagram({
-    action: 'stats',
-    accountId: client.igId,
-    ...(from ? { after: from.after } : { since: period.since, until: period.until }),
+  const res = await fetch('/api/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+    body: JSON.stringify(clientId ? { clientId } : {}),
   })
-  if (error) return { data: null, error }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) return { data: null, error: { message: data.error || 'Сверка не выполнена' } }
 
-  // Без точки отсчёта прибавлять не к чему: сохранённое число могло быть
-  // посчитано как угодно, поэтому первая сверка его заменяет.
-  const done = from ? (client.done || 0) + data.count : data.count
-
-  return {
-    data: {
-      added: data.count,
-      done,
-      byType: data.byType,
-      lastPost: data.lastPost,
-      lastAt: data.lastAt,
-      mode: from ? from.mode : 'period',
-      since: from ? from.since : period.since,
-    },
-    error: null,
+  if ((data.results || []).some(r => r.changed?.length)) {
+    window.dispatchEvent(new CustomEvent(SYNC_EVENT, { detail: data }))
   }
+  return { data, error: null }
+}
+
+// Сверка при открытии приложения, не чаще раза в 15 минут с одного устройства.
+// Отметка времени в localStorage: это удобство устройства, а не данные,
+// и если хранилище недоступно, сверка просто запустится ещё раз.
+const AUTO_KEY = 'sync:last-run'
+const AUTO_EVERY_MS = 15 * 60 * 1000
+
+export async function autoSync() {
+  try {
+    const last = Number(localStorage.getItem(AUTO_KEY) || 0)
+    if (Date.now() - last < AUTO_EVERY_MS) return null
+    localStorage.setItem(AUTO_KEY, String(Date.now()))
+  } catch {
+    // хранилище недоступно: запускаем без отметки
+  }
+  return runSync()
 }
 
 // Проверка сверки с контент-планом: что с чем связалось бы. В базу не пишет.

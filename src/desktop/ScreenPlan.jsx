@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { today, parseYmd } from '../lib/tz'
+import { planState } from '../lib/postPlan'
 import { D, ARCHIVO, GROTESK, NUM, POST_STATUS, POST_TYPES } from './tokens'
 import { Icon, LimeButton } from './ui'
 import {
@@ -197,7 +198,7 @@ export default function ScreenPlan() {
             </h1>
             {active && (
               <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.mut2, marginTop: 5 }}>
-                Выпущено {active.done} из {active.total} · СММ {empName(active.smmId)} · оператор {empName(active.operatorId)}
+                Выпущено {active.done} из {planState(active).due}{planState(active).debt > 0 ? ` · долг ${planState(active).debt}` : ''} · СММ {empName(active.smmId)} · оператор {empName(active.operatorId)}
               </div>
             )}
           </div>

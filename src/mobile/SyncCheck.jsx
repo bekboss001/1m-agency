@@ -1,8 +1,9 @@
 // Проверка сверки с Instagram.
 //
-// Показывает долг или аванс клиента по таблице клиентов, историю за год и то, как
-// публикации текущего периода связались бы с контент-планом. В базу ничего не пишет: это
-// шаг перед включением автоматической сверки, отчёт проверяют глазами.
+// Показывает, что сверка запишет в таблицу клиентов (долг, аванс, закрытые
+// периоды), историю месяцев за год и то, как публикации текущего периода
+// связались бы с контент-планом. Сам отчёт ничего не пишет; запись делает
+// кнопка «Записать сейчас» или сверка при открытии приложения и по расписанию.
 //
 // Экран один на телефон и десктоп: он служебный и открывается редко, а цвета
 // темы подключены глобально и работают на обоих.
@@ -10,7 +11,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { fetchSyncPreview } from '../lib/instagram'
+import { fetchSyncPreview, runSync } from '../lib/instagram'
+import { SYNC_ISSUE as ISSUE } from '../lib/syncIssues'
 import { T, SANS, OSW, mono, useToast, Toast } from './ui'
 
 const KIND = { reels: 'Reels', carousel: 'Карусель', post: 'Пост', stories: 'Stories' }
@@ -35,13 +37,6 @@ const carryText = n => (n < 0 ? `долг ${-n}` : n > 0 ? `аванс ${n}` : '
 const SKIPPED = {
   stopped: 'НЕ ВЕДЁМ',
   no_account: 'INSTAGRAM НЕ ПРИВЯЗАН',
-}
-
-const ISSUE = {
-  no_deadline: 'В таблице не заполнено «Договор до». Без дедлайна текущего периода долг не посчитать.',
-  no_last_post: 'Выпущено больше нуля, но нет даты последней выкладки. Непонятно, какие публикации таблица уже учла.',
-  future_last_post: 'Дата последней выкладки стоит в будущем.',
-  far_deadline: '«Договор до» дальше текущего периода, а план не выполнен. Похоже, там конец договора, а для расчёта нужен дедлайн текущего периода.',
 }
 
 function warnings(report) {
@@ -95,6 +90,20 @@ export default function SyncCheck() {
   }, [start])
 
   const done = clients.filter(c => reports[c.id] && !reports[c.id].loading).length
+  const [writing, setWriting] = useState(false)
+
+  async function writeNow() {
+    if (writing) return
+    setWriting(true)
+    const { data, error } = await runSync()
+    setWriting(false)
+    if (error) { flash('НЕ ЗАПИСАНО: ' + error.message.toUpperCase().slice(0, 60)); return }
+    const results = data.results || []
+    const changed = results.filter(x => x.changed?.length).length
+    const blocked = results.filter(x => x.issues?.length || x.error).length
+    flash(`ЗАПИСАНО ${changed}${blocked ? ` · НЕ ЗАПИСАНО ${blocked}` : ''}`)
+    start(clients)
+  }
 
   async function copyAll() {
     const text = clients.map(c => reportText(c, reports[c.id])).join('\n\n')
@@ -117,10 +126,17 @@ export default function SyncCheck() {
           <span style={{ font: `700 24px ${OSW}`, color: T.text }}>СВЕРКА С INSTAGRAM</span>
         </div>
         <div style={{ color: T.muted, font: `400 12.5px/1.45 ${SANS}` }}>
-          Проверка: так публикации связались бы с контент-планом. В базе ничего не меняется.
+          Что сверка запишет в таблицу клиентов и как публикации связались бы с контент-планом.
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={() => start(clients)} style={chipBtn}>ЗАПУСТИТЬ ЗАНОВО</button>
+          <button
+            onClick={writeNow}
+            disabled={writing}
+            style={{ ...chipBtn, background: T.accent, color: T.onAccent, border: 'none', opacity: writing ? 0.6 : 1 }}
+          >
+            {writing ? 'ЗАПИСЫВАЕМ…' : 'ЗАПИСАТЬ СЕЙЧАС'}
+          </button>
+          <button onClick={() => start(clients)} style={chipBtn}>ОБНОВИТЬ ОТЧЁТ</button>
           <button onClick={copyAll} disabled={done < clients.length} style={{ ...chipBtn, opacity: done < clients.length ? 0.5 : 1 }}>
             КОПИРОВАТЬ ОТЧЁТ
           </button>
@@ -214,8 +230,8 @@ function Details({ report: r }) {
     <div style={{ borderTop: `1px solid ${T.hair}`, padding: 14, display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         <Fact
-          label={t.lastPost ? `ТАБЛИЦА · УЧТЕНО ПО ${dm(t.lastPost)}` : 'ТАБЛИЦА'}
-          value={`${t.counted} из ${t.planned}${t.deadline ? ` до ${dm(t.deadline)}` : ''}`}
+          label={r.state === 'queue' ? 'ТАБЛИЦА ВЕДЁТСЯ РУКАМИ' : 'ТАБЛИЦУ ВЕДЁТ СВЕРКА'}
+          value={`${t.counted} до ${dm(t.deadline) || '—'}${t.carry < 0 ? `, долг ${-t.carry}` : t.carry > 0 ? `, аванс ${t.carry}` : ''}`}
         />
         {cur.due !== null && (
           <Fact label="СЕЙЧАС ОСТАЛОСЬ" value={`${Math.max(0, -cur.carryOut)} до ${dm(cur.endsOn)}`} />
@@ -223,7 +239,19 @@ function Details({ report: r }) {
         <Fact label="ПОСЛЕДНЯЯ В INSTAGRAM" value={dm(r.lastPost) || 'нет'} />
       </div>
 
-      {r.issues.map(i => <Note key={i}>{ISSUE[i]}</Note>)}
+      {r.issues.map(i => <Note key={i}>{ISSUE[i]} Сверка этого клиента не запишет, пока ячейку не поправят.</Note>)}
+
+      {r.state === 'queue' && r.patch && (
+        <Note tone="plain">
+          Первая сверка переведёт строку в периоды: выпущено {r.patch.published_posts},
+          {' '}{carryText(r.patch.carry_posts)}, «Договор до» {dm(r.patch.contract_end)}.
+        </Note>
+      )}
+      {r.closed.length > 0 && (
+        <Note tone="plain">
+          Закроется {r.closed.map(c => `период до ${dm(c.endsOn)}: вышло ${c.done} из ${Math.max(0, c.planned - c.carryIn)}, ${carryText(c.carryOut)}`).join('; ')}.
+        </Note>
+      )}
 
       <Period period={cur} planned={r.planned} />
       <History rows={r.history} />
@@ -231,10 +259,12 @@ function Details({ report: r }) {
   )
 }
 
-function Note({ children }) {
+function Note({ children, tone = 'warn' }) {
+  const warn = tone === 'warn'
   return (
     <div style={{
-      padding: '9px 11px', borderRadius: 12, background: T.accentDim, color: T.accentText,
+      padding: '9px 11px', borderRadius: 12,
+      background: warn ? T.accentDim : T.surface2, color: warn ? T.accentText : T.text2,
       font: `400 12.5px/1.45 ${SANS}`,
     }}>
       {children}
@@ -397,8 +427,15 @@ function reportText(client, state) {
   const c = r.current
   const lines = [`${head} (@${r.account})`]
 
-  lines.push(`  таблица: выпущено ${t.counted} из ${t.planned}, договор до ${dm(t.deadline) || 'пусто'}, `
+  lines.push(`  таблица (${r.state === 'queue' ? 'ведётся руками' : 'ведёт сверка'}): выпущено ${t.counted}, план ${t.planned}, `
+    + `договор до ${dm(t.deadline) || 'пусто'}, долг ${t.carry === null ? 'ещё не считался' : carryText(t.carry)}, `
     + `последняя выкладка ${dm(t.lastPost) || 'пусто'}`)
+  if (r.state === 'queue' && r.patch) {
+    lines.push(`  первая сверка запишет: выпущено ${r.patch.published_posts}, ${carryText(r.patch.carry_posts)}, договор до ${dm(r.patch.contract_end)}`)
+  }
+  for (const c of r.closed) {
+    lines.push(`  закроется период до ${dm(c.endsOn)}: вышло ${c.done}, ${carryText(c.carryOut)}`)
+  }
   for (const i of r.issues) lines.push(`  ! ${ISSUE[i]}`)
 
   lines.push(c.due === null

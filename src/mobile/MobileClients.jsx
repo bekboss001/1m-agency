@@ -12,6 +12,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
+import { planStateRow } from '../lib/postPlan'
+import { SYNC_EVENT } from '../lib/instagram'
 import { parseYmd, today } from '../lib/tz'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, Fab, EmptyState } from './ui'
 
@@ -69,6 +71,12 @@ export default function MobileClients() {
 
   useEffect(() => { load() }, [load])
 
+  // Сверка при открытии приложения могла закончиться уже после загрузки.
+  useEffect(() => {
+    window.addEventListener(SYNC_EVENT, load)
+    return () => window.removeEventListener(SYNC_EVENT, load)
+  }, [load])
+
   const smmList = useMemo(() => employees.filter(e => e.role === 'smm'), [employees])
   const opList = useMemo(() => employees.filter(e => e.role === 'operator'), [employees])
 
@@ -89,12 +97,16 @@ export default function MobileClients() {
     setEditing(c)
   }
 
+  const editAuto = Boolean(editing?.instagram_account_id) && editing?.carry_posts !== null && editing?.carry_posts !== undefined
+
   async function saveEdit(e) {
     e.preventDefault()
     setSaving(true)
     const payload = {
       total_posts: parseInt(edit.total_posts) || 0,
-      published_posts: parseInt(edit.published_posts) || 0,
+      // Выпущенное у клиента, которого ведёт сверка, не отправляем: она
+      // пересчитает его по Instagram, и ручное число всё равно пропадёт.
+      ...(editAuto ? {} : { published_posts: parseInt(edit.published_posts) || 0 }),
       // Пустую дату шлём как null, иначе Postgres не примет пустую строку.
       last_post_date: edit.last_post_date || null,
       contract_end: edit.contract_end || null,
@@ -177,9 +189,10 @@ export default function MobileClients() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {visible.map(c => {
-              const total = c.total_posts || 0
-              const done = c.published_posts || 0
-              const left = Math.max(total - done, 0)
+              const plan = planStateRow(c)
+              const total = plan.due
+              const done = plan.done
+              const left = plan.left
               const pct = total ? Math.min(Math.round((done / total) * 100), 100) : 0
               const contractIn = dayDiff(c.contract_end)
               const postAgo = dayDiff(c.last_post_date)
@@ -209,6 +222,8 @@ export default function MobileClients() {
                     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 6 }}>
                       <span style={{ color: T.muted, ...mono(500, 10, '.1em') }}>
                         {done} ИЗ {total} · ОСТАЛОСЬ {left}
+                        {plan.debt > 0 && <span style={{ color: T.hot }}> · ДОЛГ {plan.debt}</span>}
+                        {plan.advance > 0 && <span style={{ color: T.accentText }}> · АВАНС {plan.advance}</span>}
                       </span>
                       <span style={{ font: `700 15px ${OSW}`, color: pct >= 100 ? T.accentText : pct < 40 ? T.hot : T.text }}>
                         {pct}%
@@ -282,15 +297,23 @@ export default function MobileClients() {
                 <input
                   type="number" min="0" inputMode="numeric"
                   value={edit.published_posts}
+                  disabled={editAuto}
                   onChange={e => setEdit({ ...edit, published_posts: e.target.value })}
-                  style={inputStyle}
+                  style={{ ...inputStyle, opacity: editAuto ? 0.55 : 1 }}
                 />
               </Field>
             </div>
 
             <div style={{ color: T.muted, ...mono(500, 10, '.08em') }}>
-              ОСТАНЕТСЯ: {Math.max((parseInt(edit.total_posts) || 0) - (parseInt(edit.published_posts) || 0), 0)}
+              {editAuto
+                ? `ОСТАЛОСЬ: ${planStateRow(editing).left} · ВЫПУЩЕНО, ДОЛГ И ДЕДЛАЙН ВЕДЁТ СВЕРКА С INSTAGRAM`
+                : `ОСТАНЕТСЯ: ${Math.max((parseInt(edit.total_posts) || 0) - (parseInt(edit.published_posts) || 0), 0)}`}
             </div>
+            {editAuto && editing.period_plan !== null && (parseInt(edit.total_posts) || 0) !== editing.period_plan && (
+              <div style={{ color: T.muted, font: `400 12px/1.45 ${SANS}` }}>
+                Текущий период считается по плану {editing.period_plan}, новый план начнёт действовать со следующего периода.
+              </div>
+            )}
 
             <Field label="ДАТА ПОСЛЕДНЕГО ПОСТА">
               <input

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useProfile } from '../lib/useProfile'
+import { autoSync } from '../lib/instagram'
 import DesktopShell from '../desktop/DesktopShell'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
@@ -51,6 +52,15 @@ export default function DashboardLayout({ session }) {
     const iv = setInterval(loadPending, 30000)
     return () => clearInterval(iv)
   }, [])
+
+  // Сверка с Instagram при открытии приложения администратором. Идёт в фоне:
+  // экраны со счётчиками перечитают данные, когда она что-то поменяет. Ошибку
+  // здесь не показываем: её видно в отчёте сверки, а открытие приложения ради
+  // неё прерывать незачем.
+  const isAdmin = profile?.role === 'admin'
+  useEffect(() => {
+    if (isAdmin) autoSync().catch(() => {})
+  }, [isAdmin])
 
   async function handleLogout() {
     await supabase.auth.signOut()

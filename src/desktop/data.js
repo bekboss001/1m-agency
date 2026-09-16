@@ -16,7 +16,7 @@ import { logAction } from '../lib/auditLog'
 export async function fetchClients() {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, number, name, color, total_posts, published_posts, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief, brief_data')
+    .select('id, number, name, color, total_posts, published_posts, carry_posts, period_plan, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief, brief_data')
     .eq('is_active', true)
     .order('number')
 
@@ -29,6 +29,9 @@ export async function fetchClients() {
       color: c.color || '#3a3a3a',
       total: c.total_posts || 0,
       done: c.published_posts || 0,
+      // Долг или аванс на входе в период и план периода ведёт сверка.
+      carry: c.carry_posts ?? null,
+      periodPlan: c.period_plan ?? null,
       out: c.last_post_date || '',
       end: c.contract_end || '',
       smmId: c.smm_id || '',
@@ -109,39 +112,10 @@ export async function archiveClient(id, name) {
   return { error: null }
 }
 
-// Переход на новый месяц: результат закрываемого месяца уходит в историю,
-// счётчик выпущенных обнуляется, план остаётся. Дату последней выкладки не
-// трогаем — она факт, а не счётчик.
-export async function rollClientMonth(client) {
-  const now = new Date()
-  const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-
-  // upsert, а не insert: если месяц уже закрывали, перезаписываем итог,
-  // иначе повторное нажатие упёрлось бы в уникальный индекс.
-  const { error: histError } = await supabase
-    .from('client_months')
-    .upsert(
-      { client_id: client.id, period, planned: client.total, done: client.done },
-      { onConflict: 'client_id,period' },
-    )
-  if (histError) return { error: histError }
-
-  const { data, error } = await supabase
-    .from('clients')
-    .update({ published_posts: 0 })
-    .eq('id', client.id)
-    .select('id')
-  if (error) return { error }
-  if (!data || data.length === 0) return { error: { message: 'База не разрешила изменение' } }
-
-  await logAction(supabase, 'updated', 'client', client.name, { month_closed: period, done: client.done })
-  return { error: null }
-}
-
 export async function fetchClientMonths(clientId) {
   const { data, error } = await supabase
     .from('client_months')
-    .select('period, planned, done')
+    .select('period, planned, done, starts_on, ends_on, carry_in, carry_out')
     .eq('client_id', clientId)
     .order('period', { ascending: false })
     .limit(12)
@@ -211,7 +185,7 @@ export async function deletePost(id) {
 // Переехало в lib/instagram.js — теми же вызовами пользуется мобильная
 // карточка клиента. Реэкспорт оставлен, чтобы экраны десктопа не правились.
 export {
-  fetchInstagramAccounts, refreshInstagramAccounts, fetchInstagramStats, pullInstagram,
+  fetchInstagramAccounts, refreshInstagramAccounts, fetchInstagramStats, runSync,
   fetchInstagramAnalytics, saveInstagramSnapshot, fetchInstagramSnapshots,
 } from '../lib/instagram'
 

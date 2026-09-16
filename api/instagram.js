@@ -8,33 +8,15 @@
 // не входят: у них отдельная точка и время жизни сутки, суточный пересчёт их
 // всё равно не поймал бы. По решению заказчика сторис в план не входят.
 
-import {
-  anchorDay, periodOf, previousPeriod, astanaDate, astanaToday, parseIgTime,
-} from './contractPeriod.js'
-import { matchPeriod, offPlanReason, mediaKind } from './matchPosts.js'
+import { anchorDay, periodOf, previousPeriod, astanaToday } from './contractPeriod.js'
+import { matchPeriod, offPlanReason } from './matchPosts.js'
 import { buildLedger } from './ledger.js'
-
-const GRAPH = 'https://graph.facebook.com/v19.0'
+import { GRAPH, collect, fetchFeed } from './igMedia.js'
+import { computeSync, rowIssues, feedStart } from './syncEngine.js'
 
 async function getJson(url) {
   const res = await fetch(url)
   return res.json()
-}
-
-// Постраничный обход с ограничением: у некоторых клиентов лента на тысячи
-// записей, и выкачивать её целиком незачем.
-async function collect(url, stopAt) {
-  const out = []
-  let next = url
-  while (next) {
-    const page = await getJson(next)
-    if (page.error) return { out, error: page.error }
-    out.push(...(page.data || []))
-    if (stopAt && stopAt(out)) break
-    next = page.paging?.next
-    if (out.length > 2000) break
-  }
-  return { out }
 }
 
 export default async function handler(req, res) {
@@ -312,16 +294,9 @@ export default async function handler(req, res) {
 
   /* ─────────────── Сверка с контент-планом: проверка без записи ─────────────── */
 
-  // Шаг перед автоматической сверкой. Считает, что с чем связалось бы, и ничего
-  // не пишет в базу: отчёт сначала проверяют глазами на реальных данных.
-  //
-  // Стартовая точка это сама таблица клиентов, отдельно она нигде не хранится:
-  //   План                     : план на период;
-  //   Выпущено                 : сколько засчитано в текущий период;
-  //   Договор до               : дедлайн текущего периода;
-  //   Дата последней выкладки  : по какой день публикации уже учтены.
-  // Таблица ведёт очередь (период открыт, пока не выпущено всё), расчёт
-  // переводит её в долг и аванс и доводит до сегодня по ленте Instagram.
+  // Показывает то же, что запишет сверка (api/sync.js), но ничего не пишет:
+  // расчёт один, api/syncEngine.js. Сверх записи отчёт показывает связь
+  // публикаций с контент-планом и историю месяцев за год.
   if (action === 'preview') {
     const clientId = String(req.body?.clientId ?? '')
     if (!/^[0-9a-f-]{36}$/i.test(clientId)) {
@@ -336,133 +311,82 @@ export default async function handler(req, res) {
 
     try {
       const [client] = await sb(
-        `clients?select=id,name,is_active,total_posts,published_posts,last_post_date,contract_end,instagram_account_id,instagram_username&id=eq.${clientId}`,
+        `clients?select=id,name,is_active,total_posts,published_posts,carry_posts,period_plan,period_day,last_post_date,contract_end,instagram_synced_at,instagram_account_id,instagram_username&id=eq.${clientId}`,
       )
       if (!client) return res.status(404).json({ error: 'Клиент не найден' })
 
-      const table = {
-        planned: client.total_posts || 0,
-        counted: client.published_posts || 0,
-        deadline: client.contract_end || null,
-        lastPost: client.last_post_date || null,
-      }
       const head = {
         clientId,
         name: client.name,
         account: client.instagram_username || null,
-        table,
+        // Очередь: таблицу ещё ведут руками; периоды: её уже ведёт сверка.
+        state: client.carry_posts === null ? 'queue' : 'periods',
+        table: {
+          planned: client.total_posts || 0,
+          counted: client.published_posts || 0,
+          carry: client.carry_posts,
+          deadline: client.contract_end || null,
+          lastPost: client.last_post_date || null,
+        },
       }
 
       if (!client.is_active) return res.status(200).json({ ...head, skipped: 'stopped' })
       if (!client.instagram_account_id) return res.status(200).json({ ...head, skipped: 'no_account' })
 
       const today = astanaToday()
-      const planned = table.planned
       const HISTORY = 12
+      const issues = rowIssues(client, today)
 
-      // Дни дедлайнов задаёт «Договор до». Без него периоды считаем по
-      // календарю, но долг посчитать уже нельзя.
-      const anchor = anchorDay(table.deadline)
-      const current = periodOf(anchor, today)
-
-      // Проблемы таблицы, из-за которых долг посчитать нельзя или он выйдет
-      // неверным. Проверяются здесь, а не угадываются: отчёт должен сказать,
-      // какую ячейку поправить.
-      const issues = []
-      let baseline = null
-
-      if (!table.deadline) {
-        issues.push('no_deadline')
-      } else if (table.counted > 0 && !table.lastPost) {
-        issues.push('no_last_post')
-      } else if (table.lastPost && table.lastPost > today) {
-        issues.push('future_last_post')
-      } else {
-        // Без последней выкладки ничего ещё не учтено: считаем учтённым всё до
-        // начала текущего периода по таблице.
-        const openStart = previousPeriod(anchor, periodOf(anchor, table.deadline)).startsOn
-        const dayBefore = new Date(Date.parse(openStart + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10)
-        baseline = { asOf: table.lastPost || dayBefore, periodEndsOn: table.deadline, counted: table.counted }
-
-        // Дедлайн позже текущего периода бывает только при авансе. Если план
-        // не выполнен, в «Договор до» скорее всего стоит конец договора.
-        if (table.deadline > current.endsOn && table.counted < planned) issues.push('far_deadline')
-      }
-
-      let oldest = current
+      // Дни периодов: из сохранённого дня, иначе из «Договор до», иначе календарь.
+      const anchor = client.period_day || anchorDay(client.contract_end)
+      const monthNow = periodOf(anchor, today)
+      let oldest = monthNow
       for (let i = 0; i < HISTORY; i++) oldest = previousPeriod(anchor, oldest)
-      // Лента нужна и до даты, по которую учла таблица, если та старше года.
-      const since = baseline && baseline.asOf < oldest.startsOn
-        ? periodOf(anchor, baseline.asOf).startsOn
-        : oldest.startsOn
+      const since = issues.length
+        ? oldest.startsOn
+        : [oldest.startsOn, feedStart(client, today)].sort()[0]
 
-      const [posts, feed] = await Promise.all([
+      const [{ media, error: feedError }, posts] = await Promise.all([
+        fetchFeed(client.instagram_account_id, since, metaToken),
         sb(
           `posts?select=id,title,publish_date,post_type,status&client_id=eq.${clientId}`
-          + `&publish_date=gte.${current.startsOn}&publish_date=lt.${current.endsOn}&order=publish_date`,
-        ),
-        // Лента идёт от свежих к старым: обход прерывается, как только записи
-        // ушли раньше нужного начала.
-        collect(
-          `${GRAPH}/${client.instagram_account_id}/media?fields=id,timestamp,media_type,media_product_type,permalink,caption&limit=100&access_token=${metaToken}`,
-          items => {
-            const last = items[items.length - 1]
-            return last && astanaDate(last.timestamp) < since
-          },
+          + `&publish_date=gte.${monthNow.startsOn}&publish_date=lt.${monthNow.endsOn}&order=publish_date`,
         ),
       ])
+      if (feedError) return res.status(502).json({ error: feedError })
 
-      if (feed.error) {
-        return res.status(502).json({
-          error: feed.error.code === 190
-            ? 'Токен Meta не принят. Проверьте META_ACCESS_TOKEN в настройках Vercel.'
-            : feed.error.message,
-        })
-      }
+      const sync = issues.length ? null : computeSync({ row: client, media, today })
 
-      const media = feed.out
-        .map(m => ({
-          id: m.id,
-          ms: parseIgTime(m.timestamp),
-          date: astanaDate(m.timestamp),
-          kind: mediaKind(m),
-          permalink: m.permalink || null,
-          caption: String(m.caption || '').split('\n')[0].trim().slice(0, 90),
-        }))
-        .filter(m => m.kind)
-        // Порядок считаем сами: закреплённые посты лента отдаёт вне хронологии.
-        .sort((a, b) => a.ms - b.ms)
+      // Текущий период: из расчёта записи, а если писать нельзя, только факт.
+      const current = sync
+        ? sync.current
+        : { ...monthNow, planned: client.total_posts || 0, carryIn: null, due: null, done: media.filter(m => m.date >= monthNow.startsOn && m.date < monthNow.endsOn).length, carryOut: null }
 
-      const ledger = buildLedger({
-        planned,
-        anchor,
-        today,
-        pubs: media.map(m => m.date),
-        baseline,
-        depth: HISTORY,
-      })
+      // История: итог каждого месяца отдельно. Перенос между прошлыми месяцами
+      // хранится в client_months и показывается в карточке клиента.
+      const history = buildLedger({
+        planned: client.total_posts || 0, anchor, today, pubs: media.map(m => m.date), baseline: null, depth: HISTORY,
+      }).history
 
-      // Сопоставление с КП только для текущего периода: прошлые уже закрыты,
-      // и перепривязывать в них нечего.
       const inCurrent = media.filter(m => m.date >= current.startsOn && m.date < current.endsOn)
       const plan = posts.filter(p => p.post_type !== 'stories')
       const { links, unmatched } = matchPeriod(inCurrent, plan)
 
       const clock = ms => new Date(ms + 5 * 3600 * 1000).toISOString().slice(11, 16)
       const brief = p => ({ id: p.id, title: p.title, date: p.publish_date, type: p.post_type, status: p.status })
-      // Причина «вне плана» зависит от переноса; без стартовой точки его нет.
-      const cur = ledger.current
-      const reasonBase = cur.due === null ? { planned, due: planned } : cur
+      const reasonBase = current.due === null ? { planned: current.planned, due: current.planned } : current
 
       return res.status(200).json({
         ...head,
         today,
         anchor,
-        planned,
-        lastPost: media.length ? media[media.length - 1].date : null,
+        planned: current.planned,
         issues,
+        patch: sync?.patch || null,
+        closed: sync?.closed || [],
+        lastPost: media.length ? media[media.length - 1].date : null,
         current: {
-          ...cur,
+          ...current,
           kpCount: plan.length,
           kpStories: posts.length - plan.length,
           links: links.map((l, i) => ({
@@ -483,7 +407,7 @@ export default async function handler(req, res) {
             state: p.status === 'published' ? 'manual' : p.publish_date < today ? 'overdue' : 'upcoming',
           })),
         },
-        history: ledger.history,
+        history,
       })
     } catch (e) {
       console.error('instagram preview:', e)

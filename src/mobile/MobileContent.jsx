@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
+import { planStateRow, PLAN_COLUMNS } from '../lib/postPlan'
 import { ymd, parseYmd, today } from '../lib/tz'
 import {
   T, SANS, OSW, mono, useToast, Toast, Sheet, SheetRow, ClientSelector,
@@ -50,7 +51,7 @@ export default function MobileContent() {
   const load = useCallback(async () => {
     setLoading(true)
     const [cRes, pRes, sRes] = await Promise.all([
-      supabase.from('clients').select('id, name, color, total_posts, published_posts').eq('is_active', true).order('number'),
+      supabase.from('clients').select(`id, name, color, ${PLAN_COLUMNS}`).eq('is_active', true).order('number'),
       supabase.from('posts').select('id, client_id, title, status, post_type, publish_date')
         .gte('publish_date', first).lte('publish_date', last)
         .order('publish_date'),
@@ -147,7 +148,7 @@ export default function MobileContent() {
   // там, где план на деле закрыт.
   const selMeta = client === 'all'
     ? `${clients.length} КЛИЕНТОВ · ${MONTHS[now.getMonth()]}`
-    : `${active?.published_posts || 0} ИЗ ${active?.total_posts || 0} ПОСТОВ · ${MONTHS[now.getMonth()]}`
+    : `${planStateRow(active).done} ИЗ ${planStateRow(active).due} ПОСТОВ · ${MONTHS[now.getMonth()]}`
 
   function dayTitle(dateStr) {
     const d = parseYmd(dateStr)
@@ -320,7 +321,7 @@ export default function MobileContent() {
               key={c.id}
               color={c.color}
               name={c.name}
-              count={`${c.published_posts || 0}/${c.total_posts || 0}`}
+              count={`${planStateRow(c).done}/${planStateRow(c).due}`}
               selected={client === c.id}
               onClick={() => { setClient(c.id); setPicker(false); flash('КЛИЕНТ: ' + c.name.toUpperCase()) }}
             />

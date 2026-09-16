@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { ymd } from '../lib/tz'
+import { planStateRow, PLAN_COLUMNS } from '../lib/postPlan'
 import { useTheme } from '../lib/ThemeContext'
 import { T, MONO, SANS, OSW, mono, useToast, Toast, SectionTitle, WeekStrip, GLASS, GLASS_SM } from './ui'
 import { loadTodayTasks, toggleTask, todayLabel, todayDayMonth, weekDays } from './todayTasks'
@@ -45,7 +46,7 @@ export default function MobileHome() {
 
     const [tasksRes, clientsRes, postsRes, shootsRes] = await Promise.all([
       loadTodayTasks(supabase, profile, uid),
-      supabase.from('clients').select('id, name, color, total_posts, published_posts, smm_id, operator_id').eq('is_active', true).order('number'),
+      supabase.from('clients').select(`id, name, color, ${PLAN_COLUMNS}, smm_id, operator_id`).eq('is_active', true).order('number'),
       supabase.from('posts').select('id, client_id, status, publish_date').gte('publish_date', first).lte('publish_date', last),
       supabase.from('shoots').select('id, shoot_date').gte('shoot_date', weekFrom).lte('shoot_date', weekTo).neq('status', 'cancelled'),
     ])
@@ -115,8 +116,8 @@ export default function MobileHome() {
   // по posts значило бы показывать 0% там, где на деле план закрыт.
   const risk = myClients
     .map(c => {
-      const total = c.total_posts || 0
-      const done = c.published_posts || 0
+      // К выполнению с учётом долга: клиент с долгом не должен выглядеть лучше, чем есть.
+      const { due: total, done } = planStateRow(c)
       return { ...c, total, done, pct: total ? Math.min(Math.round((done / total) * 100), 100) : 0 }
     })
     .filter(c => c.total > 0)

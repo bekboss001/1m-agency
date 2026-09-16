@@ -10,6 +10,8 @@ import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, Pill, LimeButton, Badge, Divider } from './ui'
 import { fetchClients, fetchEmployees, patchClient, createClient } from './data'
 import ClientDrawer from './ClientDrawer'
+import { planState } from '../lib/postPlan'
+import { SYNC_EVENT } from '../lib/instagram'
 
 const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 
@@ -41,6 +43,10 @@ export default function ScreenTable() {
       setEmployees(e.data)
       setLoading(false)
     })
+    // Сверка при открытии приложения могла закончиться уже после загрузки.
+    const reload = () => fetchClients().then(c => { if (!c.error) setClients(c.data) })
+    window.addEventListener(SYNC_EVENT, reload)
+    return () => window.removeEventListener(SYNC_EVENT, reload)
   }, [])
 
   const smms = useMemo(() => employees.filter(e => e.role === 'smm'), [employees])
@@ -75,18 +81,18 @@ export default function ScreenTable() {
 
   const counts = useMemo(() => ({
     all: base.length,
-    open: base.filter(c => c.total - c.done > 0).length,
+    open: base.filter(c => planState(c).left > 0).length,
     soon: base.filter(c => c.end && dayDiff(c.end) <= 14).length,
   }), [base])
 
   const visible = useMemo(() => {
-    if (rowsMode === 'open') return base.filter(c => c.total - c.done > 0)
+    if (rowsMode === 'open') return base.filter(c => planState(c).left > 0)
     if (rowsMode === 'soon') return base.filter(c => c.end && dayDiff(c.end) <= 14)
     return base
   }, [base, rowsMode])
 
   const sumDone = visible.reduce((s, c) => s + c.done, 0)
-  const sumLeft = visible.reduce((s, c) => s + Math.max(c.total - c.done, 0), 0)
+  const sumLeft = visible.reduce((s, c) => s + planState(c).left, 0)
   const expiring = clients.filter(c => c.end && dayDiff(c.end) <= 14).length
 
   const t = parseYmd(today())
@@ -168,7 +174,6 @@ export default function ScreenTable() {
         onPatch={apply}
         onClose={() => setOpenId(null)}
         onArchived={id => { setClients(cs => cs.filter(x => x.id !== id)); setOpenId(null) }}
-        onRolled={id => setClients(cs => cs.map(x => (x.id === id ? { ...x, done: 0 } : x)))}
       />
     </div>
   )
@@ -208,14 +213,18 @@ function PersonSelect({ value, onChange, people, label }) {
 
 function ClientCard({ c, smms, ops, onPatch, onOpen }) {
   const [hover, setHover] = useState(false)
-  const left = Math.max(c.total - c.done, 0)
+  const plan = planState(c)
+  const left = plan.left
+  // Клиента, которого ведёт сверка, счётчиком руками не правят: следующий
+  // прогон пересчитает окно периода по Instagram и правка молча пропадёт.
+  const auto = Boolean(c.igId) && c.carry !== null
   const endDays = dayDiff(c.end)
   const outDays = c.out ? -dayDiff(c.out) : null   // сколько дней назад выкладывали
 
   // Приоритет бейджа сверху вниз, как в хендоффе.
   let badge = null
   if (endDays !== null && endDays < 0) badge = { text: 'ДОГОВОР ИСТЁК', color: D.err, bg: D.errBg }
-  else if (left === 0 && c.total > 0) badge = { text: 'ПЛАН ЗАКРЫТ', color: D.okLime, bg: D.okBgLime }
+  else if (plan.closed) badge = { text: 'ПЛАН ЗАКРЫТ', color: D.okLime, bg: D.okBgLime }
   else if (endDays !== null && endDays <= 14) badge = { text: `ДО ${dm(c.end)}`, color: D.warn, bg: D.warnBg }
   else if (outDays !== null && outDays >= 4) badge = { text: `НЕ ВЫКЛАДЫВАЛИ ${outDays} ДН.`, color: D.alert, bg: D.alertBg }
 
@@ -264,33 +273,49 @@ function ClientCard({ c, smms, ops, onPatch, onOpen }) {
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flex: 'none' }}>
           <span style={{
             fontFamily: ARCHIVO, fontWeight: 900, fontSize: 34, lineHeight: 0.9,
-            letterSpacing: '-0.03em', color: left === 0 && c.total > 0 ? D.lime : D.white, ...NUM,
+            letterSpacing: '-0.03em', color: plan.closed ? D.lime : D.white, ...NUM,
           }}>
             {c.done}
           </span>
           <span style={{ fontFamily: ARCHIVO, fontWeight: 700, fontSize: 15, color: D.quiet2, ...NUM }}>
-            /{c.total}
+            /{plan.due}
           </span>
         </div>
 
+        {(plan.debt > 0 || plan.advance > 0) && (
+          <span
+            title={plan.debt > 0 ? `Долг с прошлого периода: ${plan.debt}` : `Аванс с прошлого периода: ${plan.advance}`}
+            style={{
+              flex: 'none', fontFamily: GROTESK, fontSize: 11, fontWeight: 700, letterSpacing: '0.04em',
+              color: plan.debt > 0 ? D.alert : D.okLime, ...NUM,
+            }}
+          >
+            {plan.debt > 0 ? `ДОЛГ ${plan.debt}` : `+${plan.advance}`}
+          </span>
+        )}
+
         <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 3, alignContent: 'flex-end' }}>
-          {Array.from({ length: c.total }, (_, i) => i + 1).map(j => (
+          {Array.from({ length: plan.due }, (_, i) => i + 1).map(j => (
             <button
               key={j}
-              title={`Поставить ${j} из ${c.total}`}
+              title={auto ? 'Считается автоматически по Instagram' : `Поставить ${j} из ${plan.due}`}
+              disabled={auto}
               onClick={() => onPatch(c.id, { done: j === c.done ? j - 1 : j, out: today() })}
               style={{
                 width: 9, height: 9, borderRadius: 3, border: 'none', padding: 0,
                 background: j <= c.done ? '#e8e8e8' : '#242424',
+                cursor: auto ? 'default' : 'pointer',
               }}
             />
           ))}
         </div>
 
-        <PlusButton
-          onClick={() => onPatch(c.id, { done: Math.min(c.total, c.done + 1), out: today() })}
-          disabled={c.done >= c.total}
-        />
+        {!auto && (
+          <PlusButton
+            onClick={() => onPatch(c.id, { done: Math.min(plan.due, c.done + 1), out: today() })}
+            disabled={c.done >= plan.due}
+          />
+        )}
       </div>
 
       {/* Дата выкладки */}

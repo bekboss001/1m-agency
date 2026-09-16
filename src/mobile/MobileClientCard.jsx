@@ -12,6 +12,7 @@ import {
   StatusChip, nextStatus, STATUS_LABEL, TYPE_MARK,
 } from './ui'
 import ClientStats from './ClientStats'
+import { planStateRow } from '../lib/postPlan'
 
 const MONTHS = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
 
@@ -108,10 +109,11 @@ export default function MobileClientCard() {
 
   // Тот же источник, что во вкладке «Клиенты» и в блоке «требуют внимания»:
   // сохранённое число, а не подсчёт записей в контент-плане.
-  const total = client.total_posts || 0
-  const done = client.published_posts || 0
+  const plan = planStateRow(client)
+  const total = plan.due
+  const done = plan.done
   const pct = total ? Math.min(Math.round((done / total) * 100), 100) : 0
-  const remaining = Math.max(total - done, 0)
+  const remaining = plan.left
   const nextShoot = shoots[0]
   const color = client.color || T.accent
 
@@ -141,6 +143,7 @@ export default function MobileClientCard() {
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ opacity: .7, ...mono(500, 10.5, '.12em') }}>
               {done} ИЗ {total} ПОСТОВ · {monthName}
+              {plan.debt > 0 ? ` · ДОЛГ ${plan.debt}` : plan.advance > 0 ? ` · АВАНС ${plan.advance}` : ''}
             </span>
             <span style={{ font: `700 20px ${OSW}` }}>{pct}%</span>
           </div>

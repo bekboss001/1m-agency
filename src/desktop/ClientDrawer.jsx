@@ -10,10 +10,12 @@ import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, LimeButton } from './ui'
 import OrganicBlock from './OrganicBlock'
 import {
-  fetchClientMonths, rollClientMonth, archiveClient,
+  fetchClientMonths, archiveClient,
   fetchInstagramAccounts, refreshInstagramAccounts,
 } from './data'
-import { pullInstagram, planPeriod } from '../lib/instagram'
+import { runSync, planPeriod, SYNC_EVENT } from '../lib/instagram'
+import { planState } from '../lib/postPlan'
+import { issueText } from '../lib/syncIssues'
 import { BRIEF_GROUPS, BRIEF_KEYS } from '../../api/briefFields.js'
 
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
@@ -28,7 +30,7 @@ function plural(n, one, few, many) {
   return many
 }
 
-export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onArchived, onRolled }) {
+export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onArchived }) {
   const [months, setMonths] = useState([])
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState(null)
@@ -37,6 +39,10 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
     if (!client) return
     setErr(null)
     fetchClientMonths(client.id).then(({ data }) => setMonths(data))
+    // Сверка закрывает периоды сама: история должна появиться без перезахода.
+    const reload = () => fetchClientMonths(client.id).then(({ data }) => setMonths(data))
+    window.addEventListener(SYNC_EVENT, reload)
+    return () => window.removeEventListener(SYNC_EVENT, reload)
   }, [client?.id])
 
   useEffect(() => {
@@ -47,25 +53,10 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
 
   if (!client) return null
 
-  const left = Math.max(client.total - client.done, 0)
-  const now = new Date()
-  const monthName = MONTHS[now.getMonth()]
+  const plan = planState(client)
   const period = planPeriod(client.end, today())
-
-  async function roll() {
-    const ok = window.confirm(
-      `Закрыть ${monthName} для «${client.name}»?\n\n` +
-      `В историю запишется ${client.done} из ${client.total}, счётчик выпущенных обнулится. ` +
-      `План, дата последней выкладки и договор останутся как есть.`
-    )
-    if (!ok) return
-    setBusy(true)
-    const { error } = await rollClientMonth(client)
-    setBusy(false)
-    if (error) { setErr(error.message); return }
-    onRolled(client.id)
-    fetchClientMonths(client.id).then(({ data }) => setMonths(data))
-  }
+  // Клиента ведёт сверка: выпущено, долг и дедлайн она пересчитывает сама.
+  const auto = Boolean(client.igId) && client.carry !== null
 
   async function remove() {
     const ok = window.confirm(
@@ -109,8 +100,9 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
               }}
             />
             <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.mut2, marginTop: 4 }}>
-              №{client.number} · {client.done} из {client.total}
-              {left > 0 ? `, не хватает ${left}` : ', план закрыт'}
+              №{client.number} · {client.done} из {plan.due}
+              {plan.left > 0 ? `, не хватает ${plan.left}` : ', план закрыт'}
+              {plan.debt > 0 ? ` · долг ${plan.debt}` : plan.advance > 0 ? ` · аванс ${plan.advance}` : ''}
             </div>
             {/* Границы периода видны прямо в шапке: план считается от дня
                 договора, а не от первого числа, и без этой строки непонятно,
@@ -142,13 +134,24 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
                 style={field}
               />
             </Row>
+            {client.periodPlan !== null && client.periodPlan !== client.total && (
+              <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.5, marginTop: -4 }}>
+                Текущий период считается по плану {client.periodPlan}, новый план {client.total} начнёт действовать с {dm(client.end)}.
+              </div>
+            )}
             <Row label="ВЫПУЩЕНО">
               <input
                 type="number" min="0"
                 value={client.done}
+                disabled={auto}
                 onChange={e => onPatch(client.id, { done: parseInt(e.target.value) || 0 })}
-                style={field}
+                style={{ ...field, opacity: auto ? 0.6 : 1 }}
               />
+            </Row>
+            <Row label="ДОЛГ">
+              <div style={{ ...field, display: 'flex', alignItems: 'center', color: plan.debt > 0 ? D.alert : plan.advance > 0 ? D.lime : D.mut2 }}>
+                {client.carry === null ? 'появится после первой сверки' : plan.debt > 0 ? plan.debt : plan.advance > 0 ? `аванс ${plan.advance}` : 'нет'}
+              </div>
             </Row>
             <Row label="ДАТА ПОСЛЕДНЕЙ ВЫКЛАДКИ">
               <input
@@ -166,6 +169,12 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
                 style={{ ...field, colorScheme: 'dark' }}
               />
             </Row>
+            {auto && (
+              <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.5 }}>
+                Выпущено, долг и «Договор до» ведёт сверка с Instagram: в дедлайн период закрывается сам,
+                недобор уходит в долг.
+              </div>
+            )}
             <Row label="ЦВЕТОВАЯ МЕТКА">
               <input
                 type="color"
@@ -211,31 +220,38 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
 
           <StatsSection client={client} />
 
-          {/* История месяцев */}
-          <Section title="История месяцев">
+          {/* История периодов */}
+          <Section title="История периодов">
             {months.length === 0 ? (
               <div style={{ fontFamily: GROTESK, fontSize: 12.5, color: D.mut2 }}>
-                Закрытых месяцев пока нет. Первый появится, когда нажмёте «Начать новый месяц».
+                Закрытых периодов пока нет. Сверка запишет период сюда в день его дедлайна.
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column' }}>
                 {months.map((m, i) => {
                   const d = parseYmd(m.period)
-                  const full = m.done >= m.planned && m.planned > 0
+                  const due = m.carry_in === null || m.carry_in === undefined ? m.planned : Math.max(0, m.planned - m.carry_in)
+                  const full = m.done >= due && due > 0
+                  const out = m.carry_out
                   return (
                     <div key={m.period} style={{
                       display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0',
                       boxShadow: i === 0 ? 'none' : `inset 0 1px 0 ${D.b2}`,
                     }}>
                       <span style={{ flex: 1, fontFamily: GROTESK, fontSize: 13, color: D.t3 }}>
-                        {MONTHS[d.getMonth()]} {d.getFullYear()}
+                        {m.starts_on ? `${dm(m.starts_on)} — ${dm(m.ends_on)}` : `${MONTHS[d.getMonth()]} ${d.getFullYear()}`}
                       </span>
                       <span style={{ fontFamily: ARCHIVO, fontWeight: 800, fontSize: 14, color: full ? D.lime : D.t2, ...NUM }}>
                         {m.done}
                       </span>
                       <span style={{ fontFamily: GROTESK, fontSize: 12, color: D.quiet2, ...NUM }}>
-                        / {m.planned}
+                        / {due}
                       </span>
+                      {out !== null && out !== undefined && out !== 0 && (
+                        <span style={{ fontFamily: GROTESK, fontSize: 11, fontWeight: 700, color: out < 0 ? D.alert : D.lime, ...NUM }}>
+                          {out < 0 ? `долг ${-out}` : `+${out}`}
+                        </span>
+                      )}
                     </div>
                   )
                 })}
@@ -247,16 +263,6 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
           <Section title="Действия">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div>
-                <LimeButton onClick={roll} disabled={busy} height={38} style={{ width: '100%' }}>
-                  Начать новый месяц
-                </LimeButton>
-                <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, marginTop: 6, lineHeight: 1.5 }}>
-                  Запишет {client.done} из {client.total} в историю за {monthName} и обнулит счётчик выпущенных.
-                  План и договор останутся.
-                </div>
-              </div>
-
-              <div style={{ marginTop: 6 }}>
                 <DangerButton onClick={remove} disabled={busy}>Удалить проект</DangerButton>
                 <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, marginTop: 6, lineHeight: 1.5 }}>
                   Клиент пропадёт из списков. Посты, съёмки и история месяцев сохранятся —
@@ -382,22 +388,16 @@ function InstagramBlock({ client, onPatch, onError }) {
     setAccounts(data)
   }
 
-  // Добор, а не пересчёт: прибавляем то, что вышло с прошлой сверки. Из-за
-  // этого недобор прошлого периода не стирается на границе месяца.
-  async function pull() {
+  // Та же сверка, что идёт по расписанию, только для одного клиента. Цифры в
+  // таблице обновятся по событию сверки, здесь показываем только итог.
+  async function sync() {
     if (!client.igId) return
     setBusy('stats')
     setResult(null)
-    const { data, error } = await pullInstagram(client)
+    const { data, error } = await runSync(client.id)
     setBusy(null)
     if (error) { onError(error.message); return }
-
-    onPatch(client.id, {
-      done: data.done,
-      ...(data.lastPost ? { out: data.lastPost } : {}),
-      ...(data.lastAt ? { syncedAt: data.lastAt } : {}),
-    })
-    setResult(data)
+    setResult(data.results?.[0] || null)
   }
 
   const picked = accounts.find(a => a.id === client.igId)
@@ -405,7 +405,7 @@ function InstagramBlock({ client, onPatch, onError }) {
   return (
     <Section
       title="Instagram"
-      subtitle="Прибавляет к счётчику публикации, вышедшие с прошлой сверки, и обновляет дату последней выкладки. Считается лента: посты, карусели и reels — сторис в неё не входят. Нажимать можно сколько угодно: второй раз найдётся ноль новых."
+      subtitle="Сверка раз в сутки и при открытии приложения пересчитывает выпущенное за текущий период по ленте: посты, карусели и reels, без сторис. Кнопка запускает её сейчас. Нажимать можно сколько угодно: результат не задвоится."
     >
       <Row label="АККАУНТ">
         <select
@@ -445,8 +445,8 @@ function InstagramBlock({ client, onPatch, onError }) {
         >
           {busy === 'list' ? 'Обходим портфолио…' : 'Обновить список'}
         </button>
-        <LimeButton onClick={pull} disabled={!client.igId || busy !== null} height={38} style={{ flex: 1 }}>
-          {busy === 'stats' ? 'Считаем…' : 'Подтянуть из Instagram'}
+        <LimeButton onClick={sync} disabled={!client.igId || busy !== null} height={38} style={{ flex: 1 }}>
+          {busy === 'stats' ? 'Считаем…' : 'Обновить сейчас'}
         </LimeButton>
       </div>
 
@@ -457,30 +457,32 @@ function InstagramBlock({ client, onPatch, onError }) {
         </div>
       )}
 
-      {result && (
-        <div style={{
-          borderRadius: 9, background: D.limeBg, padding: '10px 12px',
-          fontFamily: GROTESK, fontSize: 12, color: D.lime, lineHeight: 1.6,
-        }}>
-          {result.mode === 'period' ? (
-            <>
-              Сверки раньше не было, поэтому посчитали текущий период с {dm(result.since)}:{' '}
-              <b>{result.added}</b> {plural(result.added, 'публикация', 'публикации', 'публикаций')}.
-            </>
-          ) : result.added === 0 ? (
-            <>Новых публикаций с {dm(result.since)} нет — счётчик не изменился.</>
-          ) : (
-            <>
-              С {dm(result.since)} вышло <b>{result.added}</b>{' '}
-              {plural(result.added, 'публикация', 'публикации', 'публикаций')}
-              {' '}({result.byType.image} фото, {result.byType.video} видео, {result.byType.carousel} каруселей).
-              {' '}Стало {result.done} из {client.total}.
-            </>
-          )}
-          {result.lastPost ? ` Последняя — ${dm(result.lastPost)}.` : ''}
-        </div>
-      )}
+      {result && <SyncResult result={result} />}
     </Section>
+  )
+}
+
+function SyncResult({ result: r }) {
+  const bad = r.error || r.issues?.length
+  const c = r.current
+  return (
+    <div style={{
+      borderRadius: 9, background: bad ? D.errBg : D.limeBg, padding: '10px 12px',
+      fontFamily: GROTESK, fontSize: 12, color: bad ? D.err : D.lime, lineHeight: 1.6,
+    }}>
+      {r.error ? (
+        <>Сверка не выполнена: {r.error}</>
+      ) : r.issues?.length ? (
+        <>Не записано. {r.issues.map(issueText).join(' ')}</>
+      ) : (
+        <>
+          Период {dm(c.startsOn)} — {dm(c.endsOn)}: вышло <b>{c.done}</b> из {c.due}
+          {c.carryIn < 0 ? ` (с долгом ${-c.carryIn})` : c.carryIn > 0 ? ` (с авансом ${c.carryIn})` : ''}.
+          {r.closed?.length ? ` Закрыто ${r.closed.length} ${plural(r.closed.length, 'период', 'периода', 'периодов')}.` : ''}
+          {r.changed?.length ? '' : ' Всё уже было актуально.'}
+        </>
+      )}
+    </div>
   )
 }
 
