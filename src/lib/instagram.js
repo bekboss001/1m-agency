@@ -6,6 +6,7 @@
 
 import { supabase } from './supabase'
 import { today } from './tz'
+import { periodOf, anchorDay } from '../../api/contractPeriod.js'
 
 async function callInstagram(body) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -49,18 +50,10 @@ export async function fetchInstagramStats(accountId, since, until) {
 
 // Период плана привязан ко дню окончания договора: договор до 9 числа означает
 // месяц с 9-го по 9-е, а не календарный.
+// Само определение общее с сервером, см. api/contractPeriod.js.
 export function planPeriod(endIso, todayIso) {
-  const anchor = endIso ? Number(endIso.slice(8, 10)) : 1
-  const [ty, tm, td] = todayIso.split('-').map(Number)
-  const t = new Date(ty, tm - 1, td)
-  const at = (y, m, d) => new Date(y, m, Math.min(d, new Date(y, m + 1, 0).getDate()))
-
-  let end = at(t.getFullYear(), t.getMonth(), anchor)
-  if (t >= end) end = at(t.getFullYear(), t.getMonth() + 1, anchor)
-  const start = at(end.getFullYear(), end.getMonth() - 1, anchor)
-
-  const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return { since: iso(start), until: todayIso, endsOn: iso(end) }
+  const { startsOn, endsOn } = periodOf(anchorDay(endIso), todayIso)
+  return { since: startsOn, until: todayIso, endsOn }
 }
 
 /**
@@ -116,6 +109,11 @@ export async function pullInstagram(client) {
     },
     error: null,
   }
+}
+
+// Проверка сверки с контент-планом: что с чем связалось бы. В базу не пишет.
+export async function fetchSyncPreview(clientId) {
+  return callInstagram({ action: 'preview', clientId })
 }
 
 export async function fetchInstagramAnalytics(accountId, since, until) {

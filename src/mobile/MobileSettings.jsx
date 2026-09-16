@@ -6,6 +6,7 @@
 // со стороны RLS кнопка выглядела нажатой, но заявка оставалась на месте.
 
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { logAction } from '../lib/auditLog'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, EmptyState } from './ui'
@@ -20,6 +21,7 @@ function initials(name) {
 }
 
 export default function MobileSettings() {
+  const navigate = useNavigate()
   const [toast, flash] = useToast()
 
   const [tab, setTab] = useState('requests')
@@ -127,7 +129,19 @@ export default function MobileSettings() {
         padding: '8px 20px 12px',
         display: 'flex', flexDirection: 'column', gap: 12,
       }}>
-        <span style={{ font: `700 26px ${OSW}`, color: T.text }}>НАСТРОЙКИ</span>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <span style={{ font: `700 26px ${OSW}`, color: T.text }}>НАСТРОЙКИ</span>
+          <button
+            onClick={() => navigate('/sync-check')}
+            style={{
+              minHeight: 34, padding: '0 12px', borderRadius: 11, flex: 'none',
+              background: T.surface2, border: `1px solid ${T.soft}`, color: T.text,
+              ...mono(600, 10, '.06em'),
+            }}
+          >
+            СВЕРКА С INSTAGRAM
+          </button>
+        </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {[['requests', `ЗАЯВКИ ${pending.length ? pending.length : ''}`.trim()], ['staff', 'СОТРУДНИКИ']].map(([id, label]) => {
             const on = tab === id

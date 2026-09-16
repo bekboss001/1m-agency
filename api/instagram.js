@@ -8,6 +8,11 @@
 // не входят: у них отдельная точка и время жизни сутки, суточный пересчёт их
 // всё равно не поймал бы. По решению заказчика сторис в план не входят.
 
+import {
+  anchorDay, periodOf, previousPeriod, astanaDate, astanaToday, parseIgTime,
+} from './contractPeriod.js'
+import { matchPeriod, periodBalance, offPlanReason, mediaKind } from './matchPosts.js'
+
 const GRAPH = 'https://graph.facebook.com/v19.0'
 
 async function getJson(url) {
@@ -57,8 +62,9 @@ export default async function handler(req, res) {
   // Права проверяем не одинаково для всех действий. Перечисление аккаунтов —
   // это обход всех бизнес-портфолио агентства, он остаётся за администратором.
   // Статистику по одному аккаунту смотрит любой вошедший: её открывают из
-  // карточки клиента, в том числе сотрудники со своих телефонов.
-  if (action === 'accounts') {
+  // карточки клиента, в том числе сотрудники со своих телефонов. Проверка
+  // сверки с КП тоже админская: она читает план и ленту всех клиентов подряд.
+  if (action === 'accounts' || action === 'preview') {
     const profileRes = await fetch(
       `${supabaseUrl}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(user.id)}`,
       { headers: sbHeaders },
@@ -300,6 +306,141 @@ export default async function handler(req, res) {
     } catch (e) {
       console.error('instagram analytics:', e)
       return res.status(502).json({ error: 'Не удалось получить аналитику' })
+    }
+  }
+
+  /* ─────────────── Сверка с контент-планом: проверка без записи ─────────────── */
+
+  // Шаг перед автоматической сверкой. Считает, что с чем связалось бы, и ничего
+  // не пишет в базу: отчёт сначала проверяют глазами на реальных данных.
+  //
+  // Берутся два периода договора, текущий и прошлый. Прошлый нужен, чтобы
+  // увидеть долг или аванс на входе в текущий: Instagram хранит историю, а
+  // таблица клиентов её не хранит.
+  if (action === 'preview') {
+    const clientId = String(req.body?.clientId ?? '')
+    if (!/^[0-9a-f-]{36}$/i.test(clientId)) {
+      return res.status(400).json({ error: 'Некорректный clientId' })
+    }
+
+    const sb = async path => {
+      const r = await fetch(`${supabaseUrl}/rest/v1/${path}`, { headers: sbHeaders })
+      if (!r.ok) throw new Error(`Supabase ${r.status}: ${(await r.text()).slice(0, 200)}`)
+      return r.json()
+    }
+
+    try {
+      const [client] = await sb(
+        `clients?select=id,name,total_posts,published_posts,last_post_date,contract_end,instagram_account_id,instagram_username&id=eq.${clientId}`,
+      )
+      if (!client) return res.status(404).json({ error: 'Клиент не найден' })
+
+      const table = {
+        planned: client.total_posts || 0,
+        done: client.published_posts || 0,
+        lastPost: client.last_post_date || null,
+        contractEnd: client.contract_end || null,
+      }
+      if (!client.instagram_account_id) {
+        return res.status(200).json({ clientId, name: client.name, table, skipped: 'no_account' })
+      }
+
+      const today = astanaToday()
+      const anchor = anchorDay(client.contract_end)
+      const current = periodOf(anchor, today)
+      const previous = previousPeriod(anchor, current)
+
+      const posts = await sb(
+        `posts?select=id,title,publish_date,post_type,status&client_id=eq.${clientId}`
+        + `&publish_date=gte.${previous.startsOn}&publish_date=lt.${current.endsOn}&order=publish_date`,
+      )
+
+      // Лента идёт от свежих к старым, поэтому обход прерывается, как только
+      // записи ушли раньше начала прошлого периода.
+      const { out, error } = await collect(
+        `${GRAPH}/${client.instagram_account_id}/media?fields=id,timestamp,media_type,media_product_type,permalink,caption&limit=100&access_token=${metaToken}`,
+        items => {
+          const last = items[items.length - 1]
+          return last && astanaDate(last.timestamp) < previous.startsOn
+        },
+      )
+      if (error) {
+        return res.status(502).json({
+          error: error.code === 190
+            ? 'Токен Meta не принят. Проверьте META_ACCESS_TOKEN в настройках Vercel.'
+            : error.message,
+        })
+      }
+
+      const media = out
+        .map(m => ({
+          id: m.id,
+          ms: parseIgTime(m.timestamp),
+          date: astanaDate(m.timestamp),
+          kind: mediaKind(m),
+          permalink: m.permalink || null,
+          caption: String(m.caption || '').split('\n')[0].trim().slice(0, 90),
+        }))
+        .filter(m => m.kind)
+        // Порядок по времени считаем сами, а не берём из ленты: закреплённые
+        // посты Instagram может отдавать вне хронологии.
+        .sort((a, b) => a.ms - b.ms)
+
+      const clock = ms => new Date(ms + 5 * 3600 * 1000).toISOString().slice(11, 16)
+      const brief = p => ({ id: p.id, title: p.title, date: p.publish_date, type: p.post_type, status: p.status })
+
+      const build = (period, carryIn, isCurrent) => {
+        const inside = d => d >= period.startsOn && d < period.endsOn
+        const published = media.filter(m => inside(m.date))
+        const kp = posts.filter(p => inside(p.publish_date))
+        const plan = kp.filter(p => p.post_type !== 'stories')
+
+        const { links, unmatched } = matchPeriod(published, plan)
+        const balance = periodBalance({ planned: table.planned, carryIn, done: published.length })
+
+        return {
+          ...period,
+          isCurrent,
+          ...balance,
+          kpCount: plan.length,
+          kpStories: kp.length - plan.length,
+          links: links.map((l, i) => ({
+            date: l.media.date,
+            time: clock(l.media.ms),
+            kind: l.media.kind,
+            permalink: l.media.permalink,
+            caption: l.media.caption,
+            post: l.post ? brief(l.post) : null,
+            sameType: l.sameType,
+            shift: l.shift,
+            tie: l.tie,
+            reason: l.post ? null : offPlanReason(i + 1, balance),
+          })),
+          unmatched: unmatched.map(p => ({
+            ...brief(p),
+            // Отмечен руками, но в Instagram пары нет; не вышел в срок; ещё впереди.
+            state: p.status === 'published' ? 'manual' : p.publish_date < today ? 'overdue' : 'upcoming',
+          })),
+        }
+      }
+
+      // Прошлый период считаем с нулевым переносом: что было до него, Instagram
+      // по этой выборке не знает. Его итог и есть перенос на вход текущего.
+      const prev = build(previous, 0, false)
+      const cur = build(current, prev.carryOut, true)
+
+      return res.status(200).json({
+        clientId,
+        name: client.name,
+        account: client.instagram_username || null,
+        today,
+        table,
+        lastPost: media.length ? media[media.length - 1].date : null,
+        periods: [prev, cur],
+      })
+    } catch (e) {
+      console.error('instagram preview:', e)
+      return res.status(502).json({ error: 'Не удалось построить отчёт: ' + e.message })
     }
   }
 

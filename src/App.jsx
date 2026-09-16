@@ -25,6 +25,7 @@ import MobileTasks from './mobile/MobileTasks'
 import MobileSettings from './mobile/MobileSettings'
 import MobileClientCard from './mobile/MobileClientCard'
 import MobileScript from './mobile/MobileScript'
+import SyncCheck from './mobile/SyncCheck'
 import ScreenTable from './desktop/ScreenTable'
 import ScreenPlan from './desktop/ScreenPlan'
 import ScreenShoots from './desktop/ScreenShoots'
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="calendar" element={<GuardedRoute perm="calendar"><CalendarPage /></GuardedRoute>} />
           <Route path="tasks"    element={<GuardedRoute perm="tasks"><Responsive mobile={MobileTasks} desktop={TasksPage} /></GuardedRoute>} />
           <Route path="settings" element={<GuardedRoute adminOnly><Responsive mobile={MobileSettings} desktop={ScreenSettings} /></GuardedRoute>} />
+          <Route path="sync-check" element={<GuardedRoute adminOnly><SyncCheck /></GuardedRoute>} />
           <Route path="profile"  element={<Responsive mobile={MobileProfile} desktop={ProfilePage} />} />
         </Route>
       </Routes>

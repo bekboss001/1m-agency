@@ -1,6 +1,7 @@
 // Экран «Настройки»: шесть разделов, меню слева.
 
 import { useState, useEffect, useCallback, useMemo, Fragment } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { ymd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, LimeButton, Toggle, SectionCard } from './ui'
@@ -762,7 +763,16 @@ function DeclineButton({ onClick, disabled }) {
 /* ──────────────────────────── Интеграции ────────────────────────────── */
 
 function Integrations({ settings, put }) {
+  const navigate = useNavigate()
   return (
+    <>
+    <SectionCard
+      title="Сверка публикаций с контент-планом"
+      subtitle="Проверка без записи: как публикации из Instagram связались бы с постами КП, что оказалось бы вне плана, какой вышел бы долг или аванс."
+      style={{ marginBottom: 12 }}
+    >
+      <LimeButton onClick={() => navigate('/sync-check')}>Открыть отчёт</LimeButton>
+    </SectionCard>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
       {INTEGRATIONS.map(([key, name, desc]) => {
         const on = !!settings[key]
@@ -794,6 +804,7 @@ function Integrations({ settings, put }) {
         через него приходит статистика во вкладке «Таргет».
       </div>
     </div>
+    </>
   )
 }
 
