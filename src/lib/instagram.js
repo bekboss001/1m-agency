@@ -6,7 +6,7 @@
 
 import { supabase } from './supabase'
 import { today } from './tz'
-import { periodOf, anchorDay } from '../../api/contractPeriod.js'
+import { periodOf, anchorDay } from '../../server/contractPeriod.js'
 
 async function callInstagram(body) {
   const { data: { session } } = await supabase.auth.getSession()
@@ -50,7 +50,7 @@ export async function fetchInstagramStats(accountId, since, until) {
 
 // Период плана привязан ко дню окончания договора: договор до 9 числа означает
 // месяц с 9-го по 9-е, а не календарный.
-// Само определение общее с сервером, см. api/contractPeriod.js.
+// Само определение общее с сервером, см. server/contractPeriod.js.
 export function planPeriod(endIso, todayIso) {
   const { startsOn, endsOn } = periodOf(anchorDay(endIso), todayIso)
   return { since: startsOn, until: todayIso, endsOn }

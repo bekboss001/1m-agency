@@ -16,7 +16,7 @@ import {
 import { runSync, planPeriod, SYNC_EVENT } from '../lib/instagram'
 import { planState } from '../lib/postPlan'
 import { issueText } from '../lib/syncIssues'
-import { BRIEF_GROUPS, BRIEF_KEYS } from '../../api/briefFields.js'
+import { BRIEF_GROUPS, BRIEF_KEYS } from '../../server/briefFields.js'
 
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 

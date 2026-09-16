@@ -9,13 +9,13 @@
 // в таймаут функции.
 
 import Anthropic from '@anthropic-ai/sdk'
-import { ASK_TOOL, renderAsk, validAsk } from './askTool.js'
-import { renderBrief } from './briefFields.js'
-import { TARGET_SYSTEM, renderTargetData } from './targetPrompt.js'
+import { ASK_TOOL, renderAsk, validAsk } from '../server/askTool.js'
+import { renderBrief } from '../server/briefFields.js'
+import { TARGET_SYSTEM, renderTargetData } from '../server/targetPrompt.js'
 import {
   buildScriptTool, buildScriptSystem, parseBlocks, validScript,
   FORMAT_LABEL, GOAL_LABEL, DEFAULT_BLOCKS,
-} from './scriptTool.js'
+} from '../server/scriptTool.js'
 
 const MODEL = 'claude-opus-5'
 const GRAPH = 'https://graph.facebook.com/v19.0'

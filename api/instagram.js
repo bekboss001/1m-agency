@@ -8,11 +8,11 @@
 // не входят: у них отдельная точка и время жизни сутки, суточный пересчёт их
 // всё равно не поймал бы. По решению заказчика сторис в план не входят.
 
-import { anchorDay, periodOf, previousPeriod, astanaToday } from './contractPeriod.js'
-import { matchPeriod, offPlanReason } from './matchPosts.js'
-import { buildLedger } from './ledger.js'
-import { GRAPH, collect, fetchFeed } from './igMedia.js'
-import { computeSync, rowIssues, feedStart } from './syncEngine.js'
+import { anchorDay, periodOf, previousPeriod, astanaToday } from '../server/contractPeriod.js'
+import { matchPeriod, offPlanReason } from '../server/matchPosts.js'
+import { buildLedger } from '../server/ledger.js'
+import { GRAPH, collect, fetchFeed } from '../server/igMedia.js'
+import { computeSync, rowIssues, feedStart } from '../server/syncEngine.js'
 
 async function getJson(url) {
   const res = await fetch(url)
@@ -295,7 +295,7 @@ export default async function handler(req, res) {
   /* ─────────────── Сверка с контент-планом: проверка без записи ─────────────── */
 
   // Показывает то же, что запишет сверка (api/sync.js), но ничего не пишет:
-  // расчёт один, api/syncEngine.js. Сверх записи отчёт показывает связь
+  // расчёт один, server/syncEngine.js. Сверх записи отчёт показывает связь
   // публикаций с контент-планом и историю месяцев за год.
   if (action === 'preview') {
     const clientId = String(req.body?.clientId ?? '')

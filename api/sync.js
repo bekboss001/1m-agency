@@ -8,12 +8,12 @@
 //          сейчас». Пишет от имени вошедшего администратора. В теле можно
 //          передать clientId, чтобы пересчитать одного клиента.
 //
-// Сам расчёт в api/syncEngine.js, он же показывается в отчёте проверки.
+// Сам расчёт в server/syncEngine.js, он же показывается в отчёте проверки.
 // Повторный запуск безопасен: окно периода каждый раз пересчитывается заново.
 
-import { astanaToday } from './contractPeriod.js'
-import { fetchFeed } from './igMedia.js'
-import { computeSync, rowIssues, feedStart } from './syncEngine.js'
+import { astanaToday } from '../server/contractPeriod.js'
+import { fetchFeed } from '../server/igMedia.js'
+import { computeSync, rowIssues, feedStart } from '../server/syncEngine.js'
 
 const CLIENT_COLUMNS = [
   'id', 'name', 'total_posts', 'published_posts', 'carry_posts', 'period_plan', 'period_day',
