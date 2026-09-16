@@ -315,9 +315,13 @@ export default async function handler(req, res) {
   // Шаг перед автоматической сверкой. Считает, что с чем связалось бы, и ничего
   // не пишет в базу: отчёт сначала проверяют глазами на реальных данных.
   //
-  // Долг и аванс считаются от стартовой точки, таблицы агентства на 16.09.2026
-  // (sync_baselines). От неё перенос разносится вперёд до текущего периода и
-  // назад на год истории.
+  // Стартовая точка это сама таблица клиентов, отдельно она нигде не хранится:
+  //   План                     : план на период;
+  //   Выпущено                 : сколько засчитано в текущий период;
+  //   Договор до               : дедлайн текущего периода;
+  //   Дата последней выкладки  : по какой день публикации уже учтены.
+  // Таблица ведёт очередь (период открыт, пока не выпущено всё), расчёт
+  // переводит её в долг и аванс и доводит до сегодня по ленте Instagram.
   if (action === 'preview') {
     const clientId = String(req.body?.clientId ?? '')
     if (!/^[0-9a-f-]{36}$/i.test(clientId)) {
@@ -331,43 +335,65 @@ export default async function handler(req, res) {
     }
 
     try {
-      const [[client], [base]] = await Promise.all([
-        sb(`clients?select=id,name,total_posts,contract_end,instagram_account_id,instagram_username&id=eq.${clientId}`),
-        sb(`sync_baselines?select=as_of,period_ends_on,planned,counted,platform,active,served_since&client_id=eq.${clientId}`),
-      ])
+      const [client] = await sb(
+        `clients?select=id,name,is_active,total_posts,published_posts,last_post_date,contract_end,instagram_account_id,instagram_username&id=eq.${clientId}`,
+      )
       if (!client) return res.status(404).json({ error: 'Клиент не найден' })
 
+      const table = {
+        planned: client.total_posts || 0,
+        counted: client.published_posts || 0,
+        deadline: client.contract_end || null,
+        lastPost: client.last_post_date || null,
+      }
       const head = {
         clientId,
         name: client.name,
         account: client.instagram_username || null,
-        cardPlanned: client.total_posts || 0,
-        baseline: base ? {
-          asOf: base.as_of,
-          periodEndsOn: base.period_ends_on,
-          planned: base.planned,
-          counted: base.counted,
-          servedSince: base.served_since,
-        } : null,
+        table,
       }
 
-      if (base && !base.active) return res.status(200).json({ ...head, skipped: 'stopped' })
-      if (base?.platform === 'tiktok') return res.status(200).json({ ...head, skipped: 'tiktok' })
+      if (!client.is_active) return res.status(200).json({ ...head, skipped: 'stopped' })
       if (!client.instagram_account_id) return res.status(200).json({ ...head, skipped: 'no_account' })
 
       const today = astanaToday()
-      // День-якорь берём у дедлайна из таблицы: в «Договор до» бывает дата
-      // окончания договора на месяцы вперёд, и её месяц для периода не годится.
-      const anchor = base ? Number(base.period_ends_on.slice(8, 10)) : anchorDay(client.contract_end)
-      const planned = base ? base.planned : (client.total_posts || 0)
+      const planned = table.planned
       const HISTORY = 12
 
+      // Дни дедлайнов задаёт «Договор до». Без него периоды считаем по
+      // календарю, но долг посчитать уже нельзя.
+      const anchor = anchorDay(table.deadline)
       const current = periodOf(anchor, today)
+
+      // Проблемы таблицы, из-за которых долг посчитать нельзя или он выйдет
+      // неверным. Проверяются здесь, а не угадываются: отчёт должен сказать,
+      // какую ячейку поправить.
+      const issues = []
+      let baseline = null
+
+      if (!table.deadline) {
+        issues.push('no_deadline')
+      } else if (table.counted > 0 && !table.lastPost) {
+        issues.push('no_last_post')
+      } else if (table.lastPost && table.lastPost > today) {
+        issues.push('future_last_post')
+      } else {
+        // Без последней выкладки ничего ещё не учтено: считаем учтённым всё до
+        // начала текущего периода по таблице.
+        const openStart = previousPeriod(anchor, periodOf(anchor, table.deadline)).startsOn
+        const dayBefore = new Date(Date.parse(openStart + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10)
+        baseline = { asOf: table.lastPost || dayBefore, periodEndsOn: table.deadline, counted: table.counted }
+
+        // Дедлайн позже текущего периода бывает только при авансе. Если план
+        // не выполнен, в «Договор до» скорее всего стоит конец договора.
+        if (table.deadline > current.endsOn && table.counted < planned) issues.push('far_deadline')
+      }
+
       let oldest = current
       for (let i = 0; i < HISTORY; i++) oldest = previousPeriod(anchor, oldest)
-      // Лента нужна и до стартовой точки, если она старше года истории.
-      const since = base && base.as_of < oldest.startsOn
-        ? periodOf(anchor, base.as_of).startsOn
+      // Лента нужна и до даты, по которую учла таблица, если та старше года.
+      const since = baseline && baseline.asOf < oldest.startsOn
+        ? periodOf(anchor, baseline.asOf).startsOn
         : oldest.startsOn
 
       const [posts, feed] = await Promise.all([
@@ -412,8 +438,7 @@ export default async function handler(req, res) {
         anchor,
         today,
         pubs: media.map(m => m.date),
-        baseline: base ? { asOf: base.as_of, periodEndsOn: base.period_ends_on, counted: base.counted } : null,
-        servedSince: base?.served_since || null,
+        baseline,
         depth: HISTORY,
       })
 
@@ -435,8 +460,7 @@ export default async function handler(req, res) {
         anchor,
         planned,
         lastPost: media.length ? media[media.length - 1].date : null,
-        startGap: ledger.startGap,
-        baselinePeriod: ledger.baseline,
+        issues,
         current: {
           ...cur,
           kpCount: plan.length,

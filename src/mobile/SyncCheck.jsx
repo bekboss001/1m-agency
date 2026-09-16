@@ -1,6 +1,6 @@
 // Проверка сверки с Instagram.
 //
-// Показывает долг или аванс клиента от стартовой точки, историю за год и то, как
+// Показывает долг или аванс клиента по таблице клиентов, историю за год и то, как
 // публикации текущего периода связались бы с контент-планом. В базу ничего не пишет: это
 // шаг перед включением автоматической сверки, отчёт проверяют глазами.
 //
@@ -34,8 +34,14 @@ const carryText = n => (n < 0 ? `долг ${-n}` : n > 0 ? `аванс ${n}` : '
 
 const SKIPPED = {
   stopped: 'НЕ ВЕДЁМ',
-  tiktok: 'TIKTOK · В СВЕРКЕ НЕ УЧАСТВУЕТ',
   no_account: 'INSTAGRAM НЕ ПРИВЯЗАН',
+}
+
+const ISSUE = {
+  no_deadline: 'В таблице не заполнено «Договор до». Без дедлайна текущего периода долг не посчитать.',
+  no_last_post: 'Выпущено больше нуля, но нет даты последней выкладки. Непонятно, какие публикации таблица уже учла.',
+  future_last_post: 'Дата последней выкладки стоит в будущем.',
+  far_deadline: '«Договор до» дальше текущего периода, а план не выполнен. Похоже, там конец договора, а для расчёта нужен дедлайн текущего периода.',
 }
 
 function warnings(report) {
@@ -46,9 +52,7 @@ function warnings(report) {
     if (l.tie || (l.post && !l.sameType) || l.reason === 'not_in_kp') n++
   }
   for (const u of cur.unmatched) if (u.state !== 'upcoming') n++
-  if (!report.baseline) n++
-  if (report.baseline && report.baseline.planned !== report.cardPlanned) n++
-  if (report.startGap) n++
+  n += report.issues.length
   return n
 }
 
@@ -152,7 +156,7 @@ function ClientRow({ client, state, open, onToggle }) {
   if (!state || state.loading) meta = 'СЧИТАЕМ…'
   else if (state.error) meta = 'ОШИБКА'
   else if (r.skipped) meta = SKIPPED[r.skipped]
-  else if (cur.due === null) meta = `НЕТ СТАРТОВОЙ ТОЧКИ · ВЫШЛО ${cur.done}`
+  else if (cur.due === null) meta = `ДОЛГ НЕ ПОСЧИТАН · ВЫШЛО ${cur.done}`
   else {
     const left = Math.max(0, -cur.carryOut)
     meta = left > 0
@@ -203,41 +207,23 @@ function ClientRow({ client, state, open, onToggle }) {
 }
 
 function Details({ report: r }) {
-  const b = r.baseline
+  const t = r.table
   const cur = r.current
 
   return (
     <div style={{ borderTop: `1px solid ${T.hair}`, padding: 14, display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-        {b ? (
-          <Fact label={`ТАБЛИЦА НА ${dm(b.asOf)}`} value={`${b.counted} из ${b.planned} до ${dm(b.periodEndsOn)}`} />
-        ) : (
-          <Fact label="СТАРТОВАЯ ТОЧКА" value="нет" alert />
-        )}
+        <Fact
+          label={t.lastPost ? `ТАБЛИЦА · УЧТЕНО ПО ${dm(t.lastPost)}` : 'ТАБЛИЦА'}
+          value={`${t.counted} из ${t.planned}${t.deadline ? ` до ${dm(t.deadline)}` : ''}`}
+        />
         {cur.due !== null && (
           <Fact label="СЕЙЧАС ОСТАЛОСЬ" value={`${Math.max(0, -cur.carryOut)} до ${dm(cur.endsOn)}`} />
         )}
         <Fact label="ПОСЛЕДНЯЯ В INSTAGRAM" value={dm(r.lastPost) || 'нет'} />
       </div>
 
-      {!b && (
-        <Note>
-          Клиента нет в таблице, по которой задавалась стартовая точка, поэтому долг и аванс неизвестны.
-          Показано только, сколько вышло.
-        </Note>
-      )}
-      {b && b.planned !== r.cardPlanned && (
-        <Note>
-          В таблице план {b.planned}, а в карточке клиента {r.cardPlanned}. Расчёт идёт по таблице.
-        </Note>
-      )}
-      {r.startGap ? (
-        <Note>
-          Если считать по ленте от начала работы ({dm(b.servedSince)}), к {dm(r.baselinePeriod.startsOn)} выходит
-          {' '}{carryText(r.baselinePeriod.carryIn + r.startGap)}, а по таблице {carryText(r.baselinePeriod.carryIn)}.
-          Расхождение значит, что план менялся или в ленту выходили посты не по договору.
-        </Note>
-      ) : null}
+      {r.issues.map(i => <Note key={i}>{ISSUE[i]}</Note>)}
 
       <Period period={cur} planned={r.planned} />
       <History rows={r.history} />
@@ -324,7 +310,7 @@ function History({ rows }) {
       <div style={{ color: T.muted, ...mono(600, 10.5, '.12em') }}>ИСТОРИЯ</div>
       {isolated && (
         <div style={{ color: T.faint, font: `400 11.5px/1.45 ${SANS}` }}>
-          До стартовой точки долг из месяца в месяц не переносится: без даты начала работы его не с чего начать.
+          Раньше того, что учла таблица, долг из месяца в месяц не переносится: его не с чего начать.
           Показан итог каждого месяца по отдельности, при плане как сейчас.
         </div>
       )}
@@ -407,18 +393,13 @@ function reportText(client, state) {
   const r = state.data
   if (r.skipped) return `${head}\n  ${SKIPPED[r.skipped].toLowerCase()}`
 
-  const b = r.baseline
+  const t = r.table
   const c = r.current
   const lines = [`${head} (@${r.account})`]
 
-  lines.push(b
-    ? `  таблица на ${dm(b.asOf)}: ${b.counted} из ${b.planned} до ${dm(b.periodEndsOn)}`
-      + (b.planned !== r.cardPlanned ? `; в карточке план ${r.cardPlanned}` : '')
-    : '  стартовой точки нет')
-  if (r.startGap) {
-    lines.push(`  по ленте от начала работы ${dm(b.servedSince)} к ${dm(r.baselinePeriod.startsOn)} выходит `
-      + `${carryText(r.baselinePeriod.carryIn + r.startGap)}, по таблице ${carryText(r.baselinePeriod.carryIn)}`)
-  }
+  lines.push(`  таблица: выпущено ${t.counted} из ${t.planned}, договор до ${dm(t.deadline) || 'пусто'}, `
+    + `последняя выкладка ${dm(t.lastPost) || 'пусто'}`)
+  for (const i of r.issues) lines.push(`  ! ${ISSUE[i]}`)
 
   lines.push(c.due === null
     ? `  ТЕКУЩИЙ с ${dm(c.startsOn)} до ${dm(c.endsOn)}: план ${r.planned}, вышло ${c.done}; в КП ${c.kpCount}`
