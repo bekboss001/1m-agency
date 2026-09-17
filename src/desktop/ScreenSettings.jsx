@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { ymd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, LimeButton, Toggle, SectionCard } from './ui'
+import { botStatus, botConnect, botTest, botStateText } from '../lib/telegramBot'
 import {
   fetchSettings, saveSetting, fetchRoles, fetchUsers, fetchRequests,
   setUserRole, approveUser, rejectUser, fetchAuditLog, fetchTeamLoad,
@@ -20,16 +21,18 @@ const TZ = [
 const ROLE_LABEL = { admin: 'Администратор', smm: 'СММ', operator: 'Оператор', client: 'Клиент', viewer: 'Наблюдатель' }
 
 const NOTIF = [
-  ['notif_shoot', 'Напоминание о съёмке', 'За 12 часов до начала — оператору и СММ'],
-  ['notif_deadline', 'Дедлайн публикации', 'Если пост не опубликован в день выкладки'],
-  ['notif_digest', 'Утренний дайджест', 'Сводка задач в 09:00 в Telegram'],
+  ['notif_digest', 'Утренний дайджест', 'Сводка дня в 09:00 в рабочий чат'],
+  ['notif_reminders', 'Напоминания по расписанию', 'Сторис 10:30, согласование 14:00, посты 16:00 — с кнопками «Да / Ещё нет»'],
+  ['notif_shoot', 'Напоминание о съёмке', 'За 12 часов до начала'],
+  ['notif_deadline', 'Дедлайн публикации', 'Вечером — какие посты дня так и не вышли'],
   ['notif_target', 'Перерасход по таргету', 'Если дневной бюджет превышен на 20%'],
 ]
 
+// Рассылку в Telegram ведёт бот, у него своя карточка ниже с состоянием и
+// кнопками. Здесь остались интеграции, у которых настраивать нечего.
 const INTEGRATIONS = [
   ['integration_ig', 'Instagram Business', 'Публикации и охваты по аккаунтам клиентов'],
   ['integration_fb', 'Facebook Ads', 'Расход и метрики рекламных кабинетов'],
-  ['integration_tg', 'Telegram Bot', 'Уведомления и дайджест в рабочий чат'],
   ['integration_drive', 'Google Drive', 'Хранилище исходников со съёмок'],
 ]
 
@@ -312,7 +315,8 @@ function General({ settings, put }) {
           </div>
         ))}
         <div style={{ marginTop: 12, fontFamily: GROTESK, fontSize: 11.5, color: D.quiet, lineHeight: 1.5 }}>
-          Переключатели сохраняются, но сама рассылка пока не подключена — для неё нужен телеграм-бот.
+          Первые четыре отправляет телеграм-бот в рабочий чат — он настраивается во вкладке
+          «Интеграции». Перерасход по таргету пока не рассылается.
         </div>
       </SectionCard>
     </div>
@@ -773,6 +777,9 @@ function Integrations({ settings, put }) {
     >
       <LimeButton onClick={() => navigate('/sync-check')}>Открыть отчёт</LimeButton>
     </SectionCard>
+
+    <TelegramCard settings={settings} put={put} />
+
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
       {INTEGRATIONS.map(([key, name, desc]) => {
         const on = !!settings[key]
@@ -800,11 +807,100 @@ function Integrations({ settings, put }) {
         )
       })}
       <div style={{ gridColumn: '1 / -1', fontFamily: GROTESK, fontSize: 11.5, color: D.quiet, lineHeight: 1.5 }}>
-        Переключатели фиксируют, что именно подключено. Реально работает только Facebook Ads —
-        через него приходит статистика во вкладке «Таргет».
+        Переключатели фиксируют, что именно подключено. Реально работают Facebook Ads —
+        через него приходит статистика во вкладке «Таргет» — и телеграм-бот выше.
       </div>
     </div>
     </>
+  )
+}
+
+/* ───────────────────────────── Телеграм-бот ─────────────────────────── */
+
+// Бот — единственная интеграция, у которой есть что настраивать: состояние
+// вебхука, список чатов и проверка связи. Поэтому у него своя карточка, а не
+// строка в общей сетке с тумблером.
+//
+// «Подключить» прописывает вебхук на текущий домен. Нажимать его нужно один
+// раз и потом ещё раз после переезда на другой адрес.
+function TelegramCard({ settings, put }) {
+  const [state, setState] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [note, setNote] = useState(null)
+
+  const refresh = useCallback(() => { botStatus().then(setState) }, [])
+  useEffect(() => { refresh() }, [refresh])
+
+  const run = async (fn, done) => {
+    setBusy(true); setNote(null)
+    const r = await fn()
+    setBusy(false)
+    if (r.error) setNote({ bad: true, text: r.error })
+    else { setNote({ text: done(r) }); refresh() }
+  }
+
+  const on = !!settings.integration_tg
+  const chats = (state?.chats || []).filter(c => c.is_active)
+
+  return (
+    <SectionCard
+      title="Телеграм-бот"
+      subtitle="Утренняя сводка, напоминания с кнопками, съёмки и невышедшие посты — в рабочий чат."
+      style={{ marginBottom: 12 }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 12 }}>
+        <span style={{
+          width: 8, height: 8, borderRadius: '50%', flex: 'none',
+          background: on && state?.webhook && chats.length ? D.okSoft : D.off,
+        }} />
+        <span style={{ flex: 1, fontFamily: GROTESK, fontSize: 13, color: state?.error ? D.err : D.t3 }}>
+          {botStateText(state)}
+        </span>
+        <Toggle on={on} onChange={v => put('integration_tg', v)} />
+      </div>
+
+      {state?.webhookError && (
+        <div style={{
+          margin: '0 0 12px', padding: '9px 12px', borderRadius: 9,
+          background: D.errBg, color: D.err, fontFamily: GROTESK, fontSize: 12,
+        }}>
+          Telegram жалуется: {state.webhookError}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <LimeButton
+          onClick={() => run(botConnect, () => 'Вебхук прописан, команды в меню обновлены')}
+          disabled={busy}
+        >
+          {state?.webhook ? 'Переподключить' : 'Подключить'}
+        </LimeButton>
+        <button
+          onClick={() => run(botTest, r => r.ok
+            ? `Проверка ушла: ${r.sent.join(', ')}`
+            : r.error || 'Отправить не вышло')}
+          disabled={busy || !chats.length}
+          style={{
+            height: 36, padding: '0 14px', borderRadius: 9, border: 'none',
+            background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 13,
+            opacity: busy || !chats.length ? 0.4 : 1,
+          }}
+        >
+          Отправить проверку
+        </button>
+        {note && (
+          <span style={{ fontFamily: GROTESK, fontSize: 12, color: note.bad ? D.err : D.okSoft }}>
+            {note.text}
+          </span>
+        )}
+      </div>
+
+      <div style={{ marginTop: 14, fontFamily: GROTESK, fontSize: 11.5, color: D.quiet, lineHeight: 1.6 }}>
+        Чтобы бот начал писать в чат, добавьте его в этот чат — он запомнит его сам.
+        Что именно рассылать, включается во вкладке «Общие».
+        Разовый вопрос команде задаётся прямо в чате: <code>/ask Все выложили сторис?</code>
+      </div>
+    </SectionCard>
   )
 }
 

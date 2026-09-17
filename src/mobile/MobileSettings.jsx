@@ -10,6 +10,17 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { logAction } from '../lib/auditLog'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, EmptyState } from './ui'
+import { botStatus, botConnect, botTest, botStateText } from '../lib/telegramBot'
+
+// Что рассылает бот. Те же ключи, что в десктопных настройках: тумблер один
+// на оба экрана, иначе включённое на телефоне выглядело бы выключенным на
+// компьютере.
+const BOT_NOTIF = [
+  ['notif_digest', 'Утренняя сводка', 'В 09:00 — съёмки, задачи и выкладка дня'],
+  ['notif_reminders', 'Напоминания по расписанию', 'Сторис 10:30, согласование 14:00, посты 16:00'],
+  ['notif_shoot', 'Съёмка', 'За 12 часов до начала'],
+  ['notif_deadline', 'Не вышло в свой день', 'Вечером — какие посты дня остались неопубликованными'],
+]
 
 const ROLE_LABEL = { admin: 'Админ', smm: 'СММ', operator: 'Оператор', client: 'Клиент', pending: 'Ожидает' }
 const ASSIGNABLE = ['smm', 'operator', 'admin', 'client']
@@ -143,7 +154,7 @@ export default function MobileSettings() {
           </button>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {[['requests', `ЗАЯВКИ ${pending.length ? pending.length : ''}`.trim()], ['staff', 'СОТРУДНИКИ']].map(([id, label]) => {
+          {[['requests', `ЗАЯВКИ ${pending.length ? pending.length : ''}`.trim()], ['staff', 'СОТРУДНИКИ'], ['bot', 'БОТ']].map(([id, label]) => {
             const on = tab === id
             return (
               <button
@@ -168,6 +179,8 @@ export default function MobileSettings() {
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
             <div className="spinner" style={{ width: 26, height: 26 }} />
           </div>
+        ) : tab === 'bot' ? (
+          <BotTab flash={flash} />
         ) : tab === 'requests' ? (
           pending.length === 0 ? (
             <EmptyState title="Заявок нет" hint="Новые регистрации появятся здесь." />
@@ -346,5 +359,144 @@ function Field({ label, children }) {
       <span style={{ display: 'block', marginBottom: 6, color: T.muted, ...mono(500, 9.5, '.12em') }}>{label}</span>
       {children}
     </label>
+  )
+}
+
+/* ───────────────────────────── Телеграм-бот ─────────────────────────── */
+
+// Состояние бота и выключатели рассылки. Настройки читаются и пишутся прямо
+// в app_settings: своей таблицы у них нет, а ключи те же, что на компьютере.
+function BotTab({ flash }) {
+  const [state, setState] = useState(null)
+  const [settings, setSettings] = useState({})
+  const [busy, setBusy] = useState(false)
+
+  const refresh = useCallback(async () => {
+    const [s, { data }] = await Promise.all([
+      botStatus(),
+      supabase.from('app_settings').select('key, value'),
+    ])
+    setState(s)
+    setSettings(Object.fromEntries((data || []).map(r => [r.key, r.value])))
+  }, [])
+
+  useEffect(() => { refresh() }, [refresh])
+
+  const put = async (key, value) => {
+    const before = settings[key]
+    setSettings(s => ({ ...s, [key]: value }))
+    const { error } = await supabase.from('app_settings').upsert({ key, value }, { onConflict: 'key' })
+    if (error) {
+      setSettings(s => ({ ...s, [key]: before }))
+      flash('НЕ СОХРАНИЛОСЬ')
+    }
+  }
+
+  const run = async (fn, done) => {
+    setBusy(true)
+    const r = await fn()
+    setBusy(false)
+    flash(r.error ? r.error.toUpperCase() : done(r).toUpperCase())
+    if (!r.error) refresh()
+  }
+
+  const on = settings.integration_tg !== false
+  const chats = (state?.chats || []).filter(c => c.is_active)
+  const live = on && state?.webhook && chats.length > 0
+
+  const card = {
+    background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16,
+    padding: 14, display: 'flex', flexDirection: 'column', gap: 12,
+  }
+  const button = enabled => ({
+    minHeight: 44, borderRadius: 12, border: 'none', flex: 1,
+    background: enabled ? T.accent : T.surface2,
+    color: enabled ? T.onAccent : T.faint,
+    ...mono(600, 11, '.06em'),
+  })
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 24 }}>
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%', flex: 'none',
+            background: live ? T.accent : T.hotDot,
+          }} />
+          <span style={{ flex: 1, font: `500 13px/1.45 ${SANS}`, color: state?.error ? T.hot : T.text2 }}>
+            {botStateText(state)}
+          </span>
+        </div>
+
+        {state?.webhookError && (
+          <div style={{
+            padding: '9px 11px', borderRadius: 11, background: T.accentDim,
+            color: T.hot, font: `400 12px/1.45 ${SANS}`,
+          }}>
+            Telegram жалуется: {state.webhookError}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button disabled={busy} style={button(true)}
+            onClick={() => run(botConnect, () => 'бот подключён')}>
+            {state?.webhook ? 'ПЕРЕПОДКЛЮЧИТЬ' : 'ПОДКЛЮЧИТЬ'}
+          </button>
+          <button disabled={busy || !chats.length} style={button(false)}
+            onClick={() => run(botTest, r => r.ok ? 'проверка ушла' : r.error || 'не вышло')}>
+            ПРОВЕРКА
+          </button>
+        </div>
+
+        <div style={{ font: `400 12px/1.55 ${SANS}`, color: T.muted }}>
+          Добавьте бота в рабочий чат — он запомнит его сам. Разовый вопрос команде
+          задаётся прямо в чате: <span style={{ ...mono(500, 11, '.02em'), color: T.text2 }}>/ask Все выложили сторис?</span>
+        </div>
+      </div>
+
+      <div style={card}>
+        <div style={{ color: T.muted, ...mono(500, 9.5, '.12em') }}>ЧТО РАССЫЛАТЬ</div>
+        {BOT_NOTIF.map(([key, name, desc]) => (
+          <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ font: `600 13.5px ${SANS}`, color: T.text }}>{name}</div>
+              <div style={{ marginTop: 2, font: `400 11.5px/1.4 ${SANS}`, color: T.muted }}>{desc}</div>
+            </div>
+            <Switch on={settings[key] !== false} onChange={v => put(key, v)} />
+          </div>
+        ))}
+      </div>
+
+      <div style={card}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ font: `600 13.5px ${SANS}`, color: T.text }}>Бот включён</div>
+            <div style={{ marginTop: 2, font: `400 11.5px/1.4 ${SANS}`, color: T.muted }}>
+              Выключите, чтобы бот замолчал целиком, не трогая остальные настройки
+            </div>
+          </div>
+          <Switch on={on} onChange={v => put('integration_tg', v)} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Switch({ on, onChange }) {
+  return (
+    <button
+      onClick={() => onChange(!on)}
+      style={{
+        width: 46, height: 28, borderRadius: 14, border: 'none', flex: 'none', padding: 3,
+        background: on ? T.accent : T.track,
+        display: 'flex', justifyContent: on ? 'flex-end' : 'flex-start',
+        transition: 'background 140ms ease',
+      }}
+    >
+      <span style={{
+        width: 22, height: 22, borderRadius: '50%', display: 'block',
+        background: on ? T.onAccent : T.faint,
+      }} />
+    </button>
   )
 }
