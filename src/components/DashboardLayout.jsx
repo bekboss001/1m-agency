@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
   LayoutDashboard, Users, FileText, Camera, Calendar,
-  Settings, LogOut, Target, CheckSquare, Home, User, Sun, Moon, Sparkles,
+  Settings, LogOut, Target, CheckSquare, Home, User, Sun, Moon, Sparkles, RefreshCw,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useProfile } from '../lib/useProfile'
@@ -12,6 +12,8 @@ import { useMediaQuery } from '../lib/useMediaQuery'
 import { useTheme } from '../lib/ThemeContext'
 import GlassBackdrop from '../mobile/GlassBackdrop'
 import InstallHint from '../mobile/InstallHint'
+import MobileMenu, { MenuButton, visibleSections, tabSections } from '../mobile/MobileMenu'
+import { today } from '../lib/tz'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -25,14 +27,29 @@ const ALL_NAV = [
   { to: '/target',   icon: Target,          label: 'Таргет',      page: 'target' },
 ]
 
-const MOB_TABS = [
-  { to: '/',        icon: Home,        label: 'Главная',  end: true,           noClient: true },
-  { to: '/content', icon: FileText,    label: 'Контент',                       page: 'content' },
-  { to: '/shoots',  icon: Camera,      label: 'Съёмки',                        page: 'shoots' },
-  { to: '/chat',    icon: Sparkles,    label: 'Сценарист',                     page: 'content' },
-  { to: '/target',  icon: Target,      label: 'Таргет',                        page: 'target' },
-  { to: '/profile', icon: User,        label: 'Профиль' },
+// Все разделы телефона одним списком: из него собираются и нижняя лента, и
+// бургер-меню. Раньше лента была единственной навигацией, и разделы, которые в
+// неё не влезали, просто некуда было положить.
+//
+// tab  — раздел живёт в нижней ленте всегда;
+// slot — кандидат на третье место в ленте: берётся первый доступный по роли,
+//        у админа это «Таргет», у оператора «Задачи»;
+// group — карточка бургер-меню, в которой раздел показан.
+const MOB_SECTIONS = [
+  { to: '/',           icon: Home,        label: 'Главная',   end: true, noClient: true, group: 'Работа', tab: true },
+  { to: '/content',    icon: FileText,    label: 'Контент',   page: 'content',           group: 'Работа' },
+  { to: '/chat',       icon: Sparkles,    label: 'Сценарист', page: 'content',           group: 'Работа' },
+  { to: '/shoots',     icon: Camera,      label: 'Съёмки',    page: 'shoots',            group: 'Работа', tab: true },
+  { to: '/tasks',      icon: CheckSquare, label: 'Задачи',    page: 'tasks',             group: 'Работа', slot: 2 },
+  { to: '/calendar',   icon: Calendar,    label: 'Календарь', page: 'calendar',          group: 'Работа' },
+  { to: '/target',     icon: Target,      label: 'Таргет',    adminOnly: true,           group: 'Аналитика', slot: 1 },
+  { to: '/sync-check', icon: RefreshCw,   label: 'Сверка',    adminOnly: true,           group: 'Аналитика' },
+  { to: '/clients',    icon: Users,       label: 'Клиенты',   page: 'clients',           group: 'Команда' },
+  { to: '/settings',   icon: Settings,    label: 'Настройки', adminOnly: true,           group: 'Команда' },
+  { to: '/profile',    icon: User,        label: 'Профиль',                              group: 'Команда', tab: true },
 ]
+
+export { MOB_SECTIONS }
 
 export default function DashboardLayout({ session }) {
   const navigate = useNavigate()
@@ -74,6 +91,43 @@ export default function DashboardLayout({ session }) {
     if (item.noClient && isClientRole) return false
     return can(item.page)
   })
+
+  // ── Разделы телефона ───────────────────────────────────────
+  const mobSections = visibleSections(MOB_SECTIONS, { isAdmin, isClientRole, can })
+  const mobTabs = tabSections(mobSections)
+
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [counts, setCounts] = useState({})
+
+  // Счётчики показываем только там, где за ними стоит настоящий запрос:
+  // выдуманная цифра на плитке хуже пустой плитки.
+  useEffect(() => {
+    if (!profile) return
+    let alive = true
+    async function load() {
+      const [review, mine] = await Promise.all([
+        can('content')
+          ? supabase.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'review')
+          : Promise.resolve({ count: 0 }),
+        profile.employee_id
+          ? supabase.from('tasks').select('id', { count: 'exact', head: true })
+              .eq('assignee_id', profile.employee_id).neq('status', 'done').lte('deadline', today())
+          : Promise.resolve({ count: 0 }),
+      ])
+      if (!alive) return
+      setCounts({ '/content': review.count || 0, '/tasks': mine.count || 0 })
+    }
+    load()
+    return () => { alive = false }
+  }, [profile, menuOpen])
+
+  const menuCounts = { ...counts, '/settings': pendingCount }
+
+  // На кнопке меню — сколько спрятанных разделов чего-то ждут. Разделы из
+  // ленты не считаем: их видно и так.
+  const hiddenUnread = mobSections
+    .filter(x => !mobTabs.includes(x))
+    .filter(x => (menuCounts[x.to] || 0) > 0).length
 
   // ── Sidebar (desktop) ─────────────────────────────────────
   const Sidebar = () => (
@@ -152,15 +206,9 @@ export default function DashboardLayout({ session }) {
 
   // ── Mobile tab bar ─────────────────────────────────────────
   const TabBar = () => {
-    const isClientRole = profile?.role === 'client'
-    const tabs = MOB_TABS.filter(t => {
-      if (t.noClient && isClientRole) return false
-      if (t.page && !can(t.page)) return false
-      return true
-    })
     return (
       <div className="g-tabbar" style={s.tabBar}>
-        {tabs.map(({ to, icon: Icon, label, end }) => {
+        {mobTabs.map(({ to, icon: Icon, label, end }) => {
           const isActive = end ? location.pathname === to : location.pathname.startsWith(to)
           return (
             // Иконка + моно-подпись капсом под акцентной полоской: хендофф
@@ -175,6 +223,7 @@ export default function DashboardLayout({ session }) {
             </button>
           )
         })}
+        <MenuButton onClick={() => setMenuOpen(true)} badge={hiddenUnread} />
       </div>
     )
   }
@@ -212,6 +261,14 @@ export default function DashboardLayout({ session }) {
         <Outlet />
       </main>
       <TabBar />
+      <MobileMenu
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        sections={mobSections}
+        counts={menuCounts}
+        profile={profile}
+        session={session}
+      />
     </div>
   )
 }
