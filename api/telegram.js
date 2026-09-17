@@ -351,7 +351,11 @@ async function tick(token, rest, now = Date.now()) {
     for (const chat of chats) {
       // Занимаем пару (задание, дата) до отправки. Тик приходит каждые
       // несколько минут, и без этого одно напоминание ушло бы десяток раз.
-      const claimed = await rest('POST', 'telegram_jobs', {
+      //
+      // on_conflict обязателен: без него PostgREST гасит столкновение только по
+      // первичному ключу, а он здесь новый uuid и не конфликтует никогда.
+      // Столкновение у нас по этой тройке, и без указания тик падал целиком.
+      const claimed = await rest('POST', 'telegram_jobs?on_conflict=job_key,run_on,chat_id', {
         job_key: job.key, run_on: job.runOn, chat_id: chat.chat_id,
       }, 'resolution=ignore-duplicates,return=representation')
       const claim = claimed?.[0]
