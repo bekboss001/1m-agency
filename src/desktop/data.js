@@ -9,6 +9,8 @@
 
 import { supabase } from '../lib/supabase'
 import { logAction } from '../lib/auditLog'
+import { nextAdjust, debtToCarry } from '../lib/postPlan'
+import { today } from '../lib/tz'
 
 /* ─────────────────────────────── Клиенты ─────────────────────────────── */
 
@@ -16,7 +18,7 @@ import { logAction } from '../lib/auditLog'
 export async function fetchClients() {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, number, name, color, total_posts, published_posts, carry_posts, period_plan, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief, brief_data')
+    .select('id, number, name, color, total_posts, published_posts, carry_posts, posts_adjust, period_plan, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief, brief_data')
     .eq('is_active', true)
     .order('number')
 
@@ -31,6 +33,7 @@ export async function fetchClients() {
       done: c.published_posts || 0,
       // Долг или аванс на входе в период и план периода ведёт сверка.
       carry: c.carry_posts ?? null,
+      adjust: c.posts_adjust || 0,
       periodPlan: c.period_plan ?? null,
       out: c.last_post_date || '',
       end: c.contract_end || '',
@@ -50,6 +53,8 @@ export async function fetchClients() {
 const CLIENT_FIELDS = {
   total: 'total_posts',
   done: 'published_posts',
+  carry: 'carry_posts',
+  adjust: 'posts_adjust',
   out: 'last_post_date',
   end: 'contract_end',
   smmId: 'smm_id',
@@ -63,6 +68,26 @@ const CLIENT_FIELDS = {
   brief: 'brief',
   briefData: 'brief_data',
 }
+
+/**
+ * Правка «выпущено» руками — одинаково с карточки и из панели клиента.
+ *
+ * У клиента, которого ведёт сверка, это число не хранится, а считается по ленте
+ * Instagram. Одного нового значения мало: ближайший прогон посчитает своё и
+ * правку затрёт. Поэтому вместе с ним пишем поправку — разницу, которую сверка
+ * прибавит к своему счёту.
+ */
+export function donePatch(client, next) {
+  const done = Math.max(0, next)
+  const adjust = nextAdjust(client, done)
+  // Дату последней выкладки ставим только там, где её ведут руками: у клиента
+  // на сверке её задаёт лента, и «сегодня» затёрло бы настоящий день выхода.
+  return adjust === null ? { done, out: today() } : { done, adjust }
+}
+
+// Долг правится напрямую: сверка не трогает перенос, пока период не закрылся.
+// Отрицательное значение в поле долга означает аванс.
+export const debtPatch = debt => ({ carry: debtToCarry(debt) })
 
 export async function patchClient(id, patch) {
   const row = {}

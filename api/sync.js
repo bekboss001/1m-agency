@@ -19,14 +19,14 @@ import { computeSync, rowIssues, feedStart } from '../server/syncEngine.js'
 import { contentWindow, planContentSync, createdPostTitle } from '../server/contentSync.js'
 
 const CLIENT_COLUMNS = [
-  'id', 'name', 'total_posts', 'published_posts', 'carry_posts', 'period_plan', 'period_day',
+  'id', 'name', 'total_posts', 'published_posts', 'carry_posts', 'period_plan', 'period_day', 'posts_adjust',
   'contract_end', 'last_post_date', 'instagram_synced_at', 'instagram_account_id',
   'smm_id', 'operator_id',
 ].join(',')
 
 // Какие колонки сверка может менять. Всё прочее в строке клиента не трогается.
 const PATCH_COLUMNS = [
-  'contract_end', 'published_posts', 'carry_posts', 'period_plan', 'period_day',
+  'contract_end', 'published_posts', 'carry_posts', 'period_plan', 'period_day', 'posts_adjust',
   'last_post_date', 'instagram_synced_at',
 ]
 

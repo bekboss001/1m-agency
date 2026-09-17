@@ -8,7 +8,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import { today, parseYmd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, Pill, LimeButton, Badge, Divider } from './ui'
-import { fetchClients, fetchEmployees, patchClient, createClient } from './data'
+import { fetchClients, fetchEmployees, patchClient, createClient, donePatch } from './data'
 import ClientDrawer from './ClientDrawer'
 import { planState } from '../lib/postPlan'
 import { SYNC_EVENT } from '../lib/instagram'
@@ -215,9 +215,14 @@ function ClientCard({ c, smms, ops, onPatch, onOpen }) {
   const [hover, setHover] = useState(false)
   const plan = planState(c)
   const left = plan.left
-  // Клиента, которого ведёт сверка, счётчиком руками не правят: следующий
-  // прогон пересчитает окно периода по Instagram и правка молча пропадёт.
+  // Клиента ведёт сверка. Править счётчик всё равно можно: правка запоминается
+  // поправкой, и следующий прогон считает уже от неё.
   const auto = Boolean(c.igId) && c.carry !== null
+
+  // Квадратик под номером j означает «в план месяца засчитано j». Само
+  // «выпущено» больше на непогашенный долг и меньше на аванс: публикации
+  // сперва гасят долг, а аванс засчитан в план заранее.
+  const setPlanDone = j => donePatch(c, Math.max(0, plan.debt + j - plan.advance))
   const endDays = dayDiff(c.end)
   const outDays = c.out ? -dayDiff(c.out) : null   // сколько дней назад выкладывали
 
@@ -295,24 +300,23 @@ function ClientCard({ c, smms, ops, onPatch, onOpen }) {
           {Array.from({ length: plan.plan }, (_, i) => i + 1).map(j => (
             <button
               key={j}
-              title={auto ? 'Считается автоматически по Instagram' : `Поставить ${j} из ${plan.plan}`}
-              disabled={auto}
-              onClick={() => onPatch(c.id, { done: j === c.done ? j - 1 : j, out: today() })}
+              title={auto
+                ? `Поставить ${j}: сверка запомнит правку и продолжит считать с неё`
+                : `Поставить ${j} из ${plan.plan}`}
+              onClick={() => onPatch(c.id, setPlanDone(j === plan.planDone ? j - 1 : j))}
               style={{
                 width: 9, height: 9, borderRadius: 3, border: 'none', padding: 0,
                 background: j <= plan.planDone ? '#e8e8e8' : '#242424',
-                cursor: auto ? 'default' : 'pointer',
+                cursor: 'pointer',
               }}
             />
           ))}
         </div>
 
-        {!auto && (
-          <PlusButton
-            onClick={() => onPatch(c.id, { done: Math.min(plan.due, c.done + 1), out: today() })}
-            disabled={c.done >= plan.due}
-          />
-        )}
+        <PlusButton
+          onClick={() => onPatch(c.id, donePatch(c, c.done + 1))}
+          disabled={!auto && c.done >= plan.due}
+        />
       </div>
 
       {plan.debt > 0 && (

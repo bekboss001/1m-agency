@@ -111,10 +111,20 @@ export function computeSync({ row, media, today }) {
   if (issues.length) return { issues, patch: null, closed: [], current: null }
 
   const pubs = media.map(m => m.date)
-  const count = p => pubs.filter(d => d >= p.startsOn && d < p.endsOn).length
   const plan = row.total_posts || 0
 
   const start = startState(row, today, pubs)
+
+  // Поправка, поставленная руками: столько публикаций человек добавил к тому,
+  // что нашлось в ленте, или убрал. Относится к периоду, который был текущим в
+  // момент правки, — с него и начинается пересчёт. В состоянии очереди её нет:
+  // там «выпущено» и так записано руками и участвует через baselineCarry.
+  const synced = row.carry_posts !== null && row.carry_posts !== undefined
+  const adjust = synced ? (row.posts_adjust || 0) : 0
+  const count = p => {
+    const found = pubs.filter(d => d >= p.startsOn && d < p.endsOn).length
+    return p.startsOn === start.period.startsOn ? Math.max(0, found + adjust) : found
+  }
   let { period, carryIn, plan: periodPlan } = start
   const closed = []
 
@@ -146,6 +156,9 @@ export function computeSync({ row, media, today }) {
       carry_posts: carryIn,
       period_plan: periodPlan,
       period_day: start.anchor,
+      // Поправка живёт до конца своего периода: закрывшись, он уже унёс её в
+      // перенос, и дальше она удвоила бы счёт.
+      posts_adjust: closed.length ? 0 : adjust,
       last_post_date: lastDate || null,
       ...(last ? { instagram_synced_at: new Date(last.ms).toISOString() } : {}),
     },

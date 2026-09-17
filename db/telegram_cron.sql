@@ -22,10 +22,31 @@ create extension if not exists pg_net;
  *
  * Оба кладутся в Vault, а не в текст задания: расписание pg_cron видно любому,
  * у кого есть доступ к базе, и секрет в нём лежал бы открытым текстом.
+ *
+ * Настоящий CRON_SECRET сюда не вписывается: этот файл лежит в репозитории.
+ * Подставьте его в своей копии запроса в SQL Editor и не сохраняйте обратно.
+ *
+ * Пишем через create/update, а не одним create_secret: со второго запуска он
+ * падает на «имя уже занято», а файл должен переживать повторный запуск —
+ * адрес меняется при переезде на свой домен, секрет при смене.
  */
 
-select vault.create_secret('https://ПОДСТАВЬТЕ-АДРЕС.vercel.app', 'app_base_url', 'Адрес приложения для pg_cron');
-select vault.create_secret('ПОДСТАВЬТЕ-CRON_SECRET', 'cron_secret', 'Общий секрет с Vercel для заданий по расписанию');
+do $$
+declare
+  v_url    text := 'https://1m-agency.vercel.app';
+  v_secret text := 'ПОДСТАВЬТЕ-CRON_SECRET';
+  sid      uuid;
+begin
+  select id into sid from vault.secrets where name = 'app_base_url';
+  if sid is null then perform vault.create_secret(v_url, 'app_base_url', 'Адрес приложения для pg_cron');
+  else perform vault.update_secret(sid, v_url, 'app_base_url', 'Адрес приложения для pg_cron');
+  end if;
+
+  select id into sid from vault.secrets where name = 'cron_secret';
+  if sid is null then perform vault.create_secret(v_secret, 'cron_secret', 'Общий секрет с Vercel для заданий по расписанию');
+  else perform vault.update_secret(sid, v_secret, 'cron_secret', 'Общий секрет с Vercel для заданий по расписанию');
+  end if;
+end $$;
 
 /* ── 2. Само расписание ──────────────────────────────────────────────
  *

@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
-import { planStateRow } from '../lib/postPlan'
+import { planStateRow, nextAdjust, debtToCarry, carryToDebt } from '../lib/postPlan'
 import DebtRow from './DebtRow'
 import { SYNC_EVENT } from '../lib/instagram'
 import { parseYmd, today } from '../lib/tz'
@@ -92,6 +92,7 @@ export default function MobileClients() {
     setEdit({
       total_posts: c.total_posts ?? 0,
       published_posts: c.published_posts ?? 0,
+      debt: carryToDebt(c.carry_posts ?? 0),
       last_post_date: c.last_post_date || '',
       contract_end: c.contract_end || '',
     })
@@ -103,11 +104,22 @@ export default function MobileClients() {
   async function saveEdit(e) {
     e.preventDefault()
     setSaving(true)
+    const done = Math.max(0, parseInt(edit.published_posts) || 0)
+    // У клиента на сверке «выпущено» считается по ленте Instagram. Одного
+    // нового числа мало — ближайший прогон посчитает своё; поэтому вместе с ним
+    // пишем поправку, и дальше сверка считает уже от неё.
+    const adjust = nextAdjust(
+      { carry: editing.carry_posts, done: editing.published_posts, adjust: editing.posts_adjust },
+      done,
+    )
     const payload = {
       total_posts: parseInt(edit.total_posts) || 0,
-      // Выпущенное у клиента, которого ведёт сверка, не отправляем: она
-      // пересчитает его по Instagram, и ручное число всё равно пропадёт.
-      ...(editAuto ? {} : { published_posts: parseInt(edit.published_posts) || 0 }),
+      published_posts: done,
+      ...(adjust === null ? {} : { posts_adjust: adjust }),
+      // Долг сверка не пересчитывает, пока период не закрылся, — пишем прямо.
+      ...(editing.carry_posts === null || editing.carry_posts === undefined
+        ? {}
+        : { carry_posts: debtToCarry(parseInt(edit.debt) || 0) }),
       // Пустую дату шлём как null, иначе Postgres не примет пустую строку.
       last_post_date: edit.last_post_date || null,
       contract_end: edit.contract_end || null,
@@ -299,18 +311,33 @@ export default function MobileClients() {
                 <input
                   type="number" min="0" inputMode="numeric"
                   value={edit.published_posts}
-                  disabled={editAuto}
                   onChange={e => setEdit({ ...edit, published_posts: e.target.value })}
-                  style={{ ...inputStyle, opacity: editAuto ? 0.55 : 1 }}
+                  style={inputStyle}
                 />
               </Field>
+              {editAuto && (
+                <Field label="ДОЛГ" style={{ flex: 1 }}>
+                  <input
+                    type="number" inputMode="numeric"
+                    value={edit.debt}
+                    onChange={e => setEdit({ ...edit, debt: e.target.value })}
+                    style={inputStyle}
+                  />
+                </Field>
+              )}
             </div>
 
             <div style={{ color: T.muted, ...mono(500, 10, '.08em') }}>
               {editAuto
-                ? `ОСТАЛОСЬ: ${planStateRow(editing).left} · ВЫПУЩЕНО, ДОЛГ И ДЕДЛАЙН ВЕДЁТ СВЕРКА С INSTAGRAM`
+                ? `ОСТАЛОСЬ: ${planStateRow(editing).left} · МИНУС В ДОЛГЕ ОЗНАЧАЕТ АВАНС`
                 : `ОСТАНЕТСЯ: ${Math.max((parseInt(edit.total_posts) || 0) - (parseInt(edit.published_posts) || 0), 0)}`}
             </div>
+            {editAuto && (
+              <div style={{ color: T.muted, font: `400 12px/1.45 ${SANS}` }}>
+                Выпущено и долг ведёт сверка с Instagram, но поправленное здесь она не затирает:
+                запомнит правку и продолжит считать от неё.
+              </div>
+            )}
             {editAuto && editing.period_plan !== null && (parseInt(edit.total_posts) || 0) !== editing.period_plan && (
               <div style={{ color: T.muted, font: `400 12px/1.45 ${SANS}` }}>
                 Текущий период считается по плану {editing.period_plan}, новый план начнёт действовать со следующего периода.

@@ -61,4 +61,29 @@ export function planStateRow(row) {
 }
 
 // Колонки, без которых остаток посчитать нельзя. Добавлять к select клиентов.
-export const PLAN_COLUMNS = 'total_posts, published_posts, carry_posts, period_plan'
+export const PLAN_COLUMNS = 'total_posts, published_posts, carry_posts, period_plan, posts_adjust'
+
+/**
+ * Новая поправка после того, как «выпущено» поставили руками.
+ *
+ * У клиента, которого ведёт сверка, это число не хранится, а считается каждый
+ * прогон по ленте Instagram. Записать туда введённое напрямую мало: ближайшая
+ * сверка посчитает своё и правку затрёт. Поэтому запоминаем разницу — сверка
+ * прибавит её к своему счёту, и новые публикации продолжат приходить сверху.
+ *
+ * Возвращает null, если клиента сверка не ведёт: там «выпущено» и так лежит в
+ * таблице как есть, и поправка не нужна.
+ *
+ * @param carry   перенос на входе в период (clients.carry_posts); null — сверки нет
+ * @param done    что стоит в «выпущено» сейчас
+ * @param adjust  прежняя поправка
+ */
+export function nextAdjust({ carry, done, adjust }, nextDone) {
+  if (carry === null || carry === undefined) return null
+  return (adjust || 0) + (nextDone - (done || 0))
+}
+
+// Долг и аванс — одна колонка с разным знаком: долг это минус, аванс это плюс.
+// Поэтому поле правки одно, и отрицательное значение в нём означает аванс.
+export const debtToCarry = debt => -Math.round(debt || 0)
+export const carryToDebt = carry => -(carry || 0)

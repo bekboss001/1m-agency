@@ -312,7 +312,7 @@ export default async function handler(req, res) {
 
     try {
       const [client] = await sb(
-        `clients?select=id,name,is_active,total_posts,published_posts,carry_posts,period_plan,period_day,last_post_date,contract_end,instagram_synced_at,instagram_account_id,instagram_username&id=eq.${clientId}`,
+        `clients?select=id,name,is_active,total_posts,published_posts,carry_posts,posts_adjust,period_plan,period_day,last_post_date,contract_end,instagram_synced_at,instagram_account_id,instagram_username&id=eq.${clientId}`,
       )
       if (!client) return res.status(404).json({ error: 'Клиент не найден' })
 

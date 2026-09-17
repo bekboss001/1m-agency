@@ -11,10 +11,10 @@ import { Icon, LimeButton } from './ui'
 import OrganicBlock from './OrganicBlock'
 import {
   fetchClientMonths, archiveClient,
-  fetchInstagramAccounts, refreshInstagramAccounts,
+  fetchInstagramAccounts, refreshInstagramAccounts, donePatch, debtPatch,
 } from './data'
 import { runSync, planPeriod, SYNC_EVENT } from '../lib/instagram'
-import { planState } from '../lib/postPlan'
+import { planState, carryToDebt } from '../lib/postPlan'
 import { issueText } from '../lib/syncIssues'
 import { BRIEF_GROUPS, BRIEF_KEYS } from '../../server/briefFields.js'
 
@@ -144,16 +144,32 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
               <input
                 type="number" min="0"
                 value={client.done}
-                disabled={auto}
-                onChange={e => onPatch(client.id, { done: parseInt(e.target.value) || 0 })}
-                style={{ ...field, opacity: auto ? 0.6 : 1 }}
+                onChange={e => onPatch(client.id, donePatch(client, parseInt(e.target.value) || 0))}
+                style={field}
               />
             </Row>
-            <Row label="ДОЛГ">
-              <div style={{ ...field, display: 'flex', alignItems: 'center', color: plan.debt > 0 ? D.alert : plan.advance > 0 ? D.lime : D.mut2 }}>
-                {client.carry === null ? 'появится после первой сверки' : plan.debt > 0 ? `погашено ${plan.debtDone} из ${plan.debt}` : plan.advance > 0 ? `аванс ${plan.advance}` : 'нет'}
-              </div>
+            <Row label={plan.advance > 0 ? 'ДОЛГ · СЕЙЧАС АВАНС' : 'ДОЛГ'}>
+              {client.carry === null ? (
+                <div style={{ ...field, display: 'flex', alignItems: 'center', color: D.mut2 }}>
+                  появится после первой сверки
+                </div>
+              ) : (
+                <input
+                  type="number"
+                  value={carryToDebt(client.carry)}
+                  onChange={e => onPatch(client.id, debtPatch(parseInt(e.target.value) || 0))}
+                  style={{ ...field, color: plan.debt > 0 ? D.alert : plan.advance > 0 ? D.lime : D.t2 }}
+                />
+              )}
             </Row>
+            {client.carry !== null && (
+              <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.5, marginTop: -4 }}>
+                {plan.debt > 0
+                  ? `Погашено ${plan.debtDone} из ${plan.debt}. `
+                  : plan.advance > 0 ? `Аванс ${plan.advance} засчитан в план периода. ` : ''}
+                Минус в этом поле означает аванс.
+              </div>
+            )}
             <Row label="ДАТА ПОСЛЕДНЕЙ ВЫКЛАДКИ">
               <input
                 type="date"
@@ -173,7 +189,8 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
             {auto && (
               <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.5 }}>
                 Выпущено, долг и «Договор до» ведёт сверка с Instagram: в дедлайн период закрывается сам,
-                недобор уходит в долг.
+                недобор уходит в долг. Поправленное здесь она не затирает — запоминает правку и считает
+                дальше от неё, поэтому новые публикации по-прежнему приходят сами.
               </div>
             )}
             <Row label="ЦВЕТОВАЯ МЕТКА">
