@@ -36,6 +36,67 @@
         } catch (e) {}
       })()
     </script>
+    <script>
+      // Спасение от устаревшей страницы в кэше.
+      //
+      // Браузер может держать index.html прошлого деплоя. Она ссылается на
+      // файлы сборки, которых на сервере уже нет, сервер отвечает на такой
+      // адрес самой страницей, браузер получает HTML вместо скрипта и
+      // отказывается его исполнять. Приложение не стартует вовсе — ни кода,
+      // ни ошибки на экране, просто пустота.
+      //
+      // Обработчик ошибок в React тут не поможет: он сам лежит в том файле,
+      // который не загрузился. Поэтому спасение живёт прямо в странице.
+      //
+      // Один раз за сеанс: чистим кэш, снимаем служебный поток и
+      // перезагружаемся. Флаг снимается, когда приложение действительно
+      // нарисовалось, — иначе одна неудача заперла бы починку навсегда.
+      (function () {
+        var KEY = '1m-recovering'
+
+        function recover() {
+          var reload = function () { location.reload() }
+          var jobs = []
+          try {
+            if (window.caches && caches.keys) {
+              jobs.push(caches.keys().then(function (keys) {
+                return Promise.all(keys.map(function (k) { return caches.delete(k) }))
+              }))
+            }
+            if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+              jobs.push(navigator.serviceWorker.getRegistrations().then(function (regs) {
+                return Promise.all(regs.map(function (r) { return r.unregister() }))
+              }))
+            }
+            Promise.all(jobs).then(reload, reload)
+            // Если чистка подвиснет, всё равно перезагружаемся.
+            setTimeout(reload, 3000)
+          } catch (e) { reload() }
+        }
+
+        window.addEventListener('error', function (e) {
+          var el = e.target
+          if (!el || (el.tagName !== 'SCRIPT' && el.tagName !== 'LINK')) return
+          // Только свои файлы: шрифты Google не загрузятся без сети, и чистить
+          // из-за них кэш — значит ломать работу офлайн.
+          var src = el.src || el.href || ''
+          if (src.indexOf(location.origin + '/') !== 0) return
+          try {
+            if (sessionStorage.getItem(KEY)) return
+            sessionStorage.setItem(KEY, '1')
+          } catch (err) { return }
+          recover()
+        }, true)
+
+        // Приложение нарисовалось — чинить нечего, снимаем флаг на будущее.
+        setTimeout(function () {
+          try {
+            var root = document.getElementById('root')
+            if (root && root.childNodes.length) sessionStorage.removeItem(KEY)
+          } catch (e) {}
+        }, 5000)
+      })()
+    </script>
     <script type="module" src="./src/main.jsx"></script>
   </body>
 </html>

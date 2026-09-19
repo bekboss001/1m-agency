@@ -17,7 +17,7 @@
 //
 // Версия в имени кэша: при её смене старые кэши сносятся в activate.
 
-const VERSION = 'v4'
+const VERSION = 'v5'
 const SHELL = `1m-shell-${VERSION}`
 const ASSETS = `1m-assets-${VERSION}`
 
@@ -73,7 +73,18 @@ self.addEventListener('fetch', e => {
       const cached = await caches.match(req, { cacheName: ASSETS })
       if (cached) return cached
       const res = await fetch(req)
-      if (res.ok) (await caches.open(ASSETS)).put(req, res.clone())
+
+      // Вместо файла сборки пришла страница — значит, запрошен файл прошлого
+      // деплоя, которого на сервере уже нет. Отдать такое браузеру нельзя: он
+      // молча откажется исполнять HTML как скрипт, и приложение не стартует.
+      // Честный отказ поднимает событие ошибки, а его ловит спасение в
+      // index.html: чистит кэш и перезагружает.
+      const type = res.headers.get('Content-Type') || ''
+      if (!res.ok || type.includes('text/html')) {
+        return new Response('', { status: 404, statusText: 'Файл этой сборки больше не существует' })
+      }
+
+      ;(await caches.open(ASSETS)).put(req, res.clone())
       return res
     })())
   }
