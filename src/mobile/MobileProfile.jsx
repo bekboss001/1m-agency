@@ -17,6 +17,8 @@ import { weekDays, todayDate } from './todayTasks'
 import { useTheme } from '../lib/ThemeContext'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, SectionTitle } from './ui'
 
+const COLLAPSED_CLIENTS = 3
+
 const ROLE_LABEL = { admin: 'ВЛАДЕЛЕЦ', smm: 'SMM-МЕНЕДЖЕР', operator: 'ОПЕРАТОР', client: 'КЛИЕНТ' }
 const MONTHS_SHORT = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЯ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК']
 const MONTHS_PREP = ['ЯНВАРЯ', 'ФЕВРАЛЯ', 'МАРТА', 'АПРЕЛЯ', 'МАЯ', 'ИЮНЯ', 'ИЮЛЯ', 'АВГУСТА', 'СЕНТЯБРЯ', 'ОКТЯБРЯ', 'НОЯБРЯ', 'ДЕКАБРЯ']
@@ -117,6 +119,10 @@ export default function MobileProfile() {
       tasksTotal,
     }
   }, [days, posts, shoots, tasks])
+
+  // Сколько проектов видно, пока список свёрнут. Больше трёх — и карточка
+  // профиля превращается в список клиентов, ради которого есть свой экран.
+  const [allClients, setAllClients] = useState(false)
 
   const myClients = useMemo(() => {
     const empId = profile?.employee_id
@@ -305,11 +311,20 @@ export default function MobileProfile() {
       {/* Мои клиенты */}
       {myClients.length > 0 && (
         <div>
-          <SectionTitle action={`ВСЕ ${myClients.length} →`} onAction={() => navigate('/clients')}>
-            МОИ КЛИЕНТЫ
+          {/* Список раскрывается здесь же, а не уводит на «Клиентов»: у
+              оператора того раздела нет, и кнопка его просто разворачивала.
+              Заодно это единственное место, где он видит все свои проекты, —
+              на «Клиентах» список общий, а не его. */}
+          <SectionTitle
+            action={myClients.length > COLLAPSED_CLIENTS
+              ? (allClients ? 'СВЕРНУТЬ' : `ВСЕ ${myClients.length} →`)
+              : null}
+            onAction={() => setAllClients(v => !v)}
+          >
+            МОИ КЛИЕНТЫ · {myClients.length}
           </SectionTitle>
           <div style={{ background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16, overflow: 'hidden' }}>
-            {myClients.slice(0, 3).map((c, i) => {
+            {(allClients ? myClients : myClients.slice(0, COLLAPSED_CLIENTS)).map((c, i) => {
               const hot = c.pct < 40
               return (
                 <button
