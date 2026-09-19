@@ -251,9 +251,21 @@ input, select, textarea { font-family: 'Space Grotesk', system-ui, sans-serif; }
 .m-sheet   { animation: mSheetUp 240ms cubic-bezier(.2,.8,.2,1); }
 .m-overlay { animation: mFadeIn 240ms ease-out; }
 .m-toast   { animation: mToastIn 160ms ease-out; }
+
+/* Лист меню выезжает заметно медленнее прочих шторок: он занимает почти весь
+   экран, и на 240 мс движение читается как рывок. 300 мс — из спецификации. */
+.m-menu-sheet   { animation: mSheetUp 300ms cubic-bezier(.2,.86,.22,1); }
+.m-menu-overlay { animation: mFadeIn 300ms ease-out; }
+
 @media (prefers-reduced-motion: reduce) {
-  .m-sheet, .m-overlay, .m-toast { animation: none; }
+  .m-sheet, .m-overlay, .m-toast,
+  .m-menu-sheet, .m-menu-overlay { animation: none; }
 }
+
+/* Список разделов в меню: прокручивается, но полосу не показывает — она
+   резала бы стеклянный край листа. */
+.m-noscroll { scrollbar-width: none; }
+.m-noscroll::-webkit-scrollbar { display: none; }
 
 /* Горизонтальные ленты чипов: скроллятся без видимой полосы.
    overflow-y: hidden обязателен — при auto по одной оси браузер делает auto и

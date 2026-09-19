@@ -95,7 +95,7 @@ export function useToast() {
 // z-index внутри него меряется уже внутри первого слоя: лист с z-index 250
 // оказывается ниже панели вкладок с её пятьюдесятью. Портал выносит узел из
 // этого контекста, и числа снова сравниваются между собой.
-const toBody = node => (typeof document === 'undefined' ? node : createPortal(node, document.body))
+export const toBody = node => (typeof document === 'undefined' ? node : createPortal(node, document.body))
 
 export function Toast({ text }) {
   if (!text) return null

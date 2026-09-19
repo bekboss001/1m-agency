@@ -100,12 +100,15 @@ export default function DashboardLayout({ session }) {
   const [counts, setCounts] = useState({})
 
   // Счётчики показываем только там, где за ними стоит настоящий запрос:
-  // выдуманная цифра на плитке хуже пустой плитки.
+  // выдуманная цифра в строке хуже пустой строки.
+  //
+  // Вид счётчика разный по смыслу: лаймовый — то, что ждёт действия человека,
+  // жёлтый — то, о чём стоит знать, но что само по себе никуда не зовёт.
   useEffect(() => {
     if (!profile) return
     let alive = true
     async function load() {
-      const [review, mine] = await Promise.all([
+      const [review, mine, shootsToday] = await Promise.all([
         can('content')
           ? supabase.from('posts').select('id', { count: 'exact', head: true }).eq('status', 'review')
           : Promise.resolve({ count: 0 }),
@@ -113,21 +116,29 @@ export default function DashboardLayout({ session }) {
           ? supabase.from('tasks').select('id', { count: 'exact', head: true })
               .eq('assignee_id', profile.employee_id).neq('status', 'done').lte('deadline', today())
           : Promise.resolve({ count: 0 }),
+        can('shoots')
+          ? supabase.from('shoots').select('id', { count: 'exact', head: true })
+              .eq('shoot_date', today()).neq('status', 'cancelled')
+          : Promise.resolve({ count: 0 }),
       ])
       if (!alive) return
-      setCounts({ '/content': review.count || 0, '/tasks': mine.count || 0 })
+      setCounts({
+        '/content': { count: review.count || 0, kind: 'accent' },
+        '/tasks': { count: mine.count || 0, kind: 'accent' },
+        '/shoots': { count: shootsToday.count || 0, kind: 'warning' },
+      })
     }
     load()
     return () => { alive = false }
   }, [profile, menuOpen])
 
-  const menuCounts = { ...counts, '/settings': pendingCount }
+  const menuBadges = { ...counts, '/settings': { count: pendingCount, kind: 'accent' } }
 
-  // На кнопке меню — сколько спрятанных разделов чего-то ждут. Разделы из
-  // ленты не считаем: их видно и так.
+  // Точка на кнопке меню: что-то из спрятанных разделов ждёт человека.
+  // Разделы, которые и так есть в ленте, не считаем — их видно без меню.
   const hiddenUnread = mobSections
     .filter(x => !mobTabs.includes(x))
-    .filter(x => (menuCounts[x.to] || 0) > 0).length
+    .some(x => (menuBadges[x.to]?.count || 0) > 0)
 
   // ── Sidebar (desktop) ─────────────────────────────────────
   const Sidebar = () => (
@@ -223,7 +234,7 @@ export default function DashboardLayout({ session }) {
             </button>
           )
         })}
-        <MenuButton onClick={() => setMenuOpen(true)} badge={hiddenUnread} />
+        <MenuButton open={menuOpen} onClick={() => setMenuOpen(v => !v)} dot={hiddenUnread} />
       </div>
     )
   }
@@ -265,7 +276,7 @@ export default function DashboardLayout({ session }) {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         sections={mobSections}
-        counts={menuCounts}
+        badges={menuBadges}
         profile={profile}
         session={session}
       />

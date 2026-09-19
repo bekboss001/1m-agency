@@ -1,53 +1,42 @@
-// Бургер-меню телефона: все разделы на одном экране.
+// Меню разделов: стеклянный лист снизу (design_handoff_glass_menu, вариант 2a)
+// и кнопка-пилюля пятой вкладкой (вариант 2b).
 //
-// Разделов стало одиннадцать, в нижнюю ленту влезает четыре. Остальные жили
-// вкладками, которые не помещались по ширине. Теперь внизу четыре главных, а
-// целиком список открывается отсюда.
+// Пришло на смену полноэкранному слою с плитками: тот выезжал сверху, а
+// открывался кнопкой снизу — палец и движение шли навстречу друг другу.
+// Лист выезжает оттуда же, где кнопка, и закрывается тем же движением вниз.
 //
-// Макет — design_handoff_burger. Два сознательных отступления от него:
+// Три отступления от макета, каждое сознательное:
 //
-//   1. Чипов переключения ролей нет. В макете это приём прототипа: показать,
-//      как меню выглядит у админа, СММ и оператора. В работающем приложении
-//      роль приходит из профиля, а доступ решает база, и кнопка «стать
-//      админом» ничего бы не открыла — только сбила с толку. Роль показана
-//      строкой под заголовком.
+//   1. Цвета взяты токенами приложения, а не литералами из спецификации.
+//      Макет нарисован только для тёмной темы, а в приложении есть светлая: на
+//      белом фоне заливки rgba(255,255,255,.07) не видно вовсе. README это
+//      прямо разрешает — «если есть токен с той же ролью, используй токен».
+//      Геометрия, типографика и поведение сделаны по спецификации точно.
 //
-//   2. Макет запрещает скролл внутри меню и считает высоту экрана 860px. На
-//      маленьких телефонах одиннадцать плиток туда не помещаются физически,
-//      поэтому у списка есть overflow: при 860px он не срабатывает, а на
-//      экране пониже даёт доскроллить вместо того, чтобы обрезать разделы.
+//   2. Шрифты — Space Grotesk и IBM Plex Mono вместо Manrope и JetBrains Mono.
+//      Роли те же, а две новые гарнитуры Google — это лишние килобайты на
+//      каждом открытии приложения ради разницы, которой на 390px не видно.
 //
-// Фон меню — тёмный градиент из макета в обеих темах: это отдельный слой
-// поверх приложения, светлого варианта дизайнер не рисовал. Кнопки темы
-// внутри работают и меняют само приложение под ним.
+//   3. Кнопки «Выйти» в листе нет. Это требование макета, а не упущение:
+//      выход живёт на экране профиля, куда ведёт карточка внизу листа.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
 import { useTheme } from '../lib/ThemeContext'
+import { T, SANS, mono, toBody } from './ui'
 
-const MONO = "'IBM Plex Mono', ui-monospace, monospace"
-const SANS = "'Space Grotesk', system-ui, sans-serif"
+// Высота листа из макета: 748 из 844 точек эталонного экрана.
+const SHEET_HEIGHT = '88dvh'
+// Сколько нужно утянуть лист вниз, чтобы он закрылся, — доля его высоты.
+const CLOSE_RATIO = 0.25
+// Либо резкий бросок: точек в секунду.
+const CLOSE_VELOCITY = 800
 
-const LIME = '#cbf34f'
-const ON_LIME = '#14170b'
-const RED = '#ff7159'
-const RED_BORDER = 'rgba(236,48,19,.55)'
-const RED_BG = 'rgba(236,48,19,.16)'
-
-const SURFACE = 'rgba(255,255,255,.055)'
-const BORDER = 'rgba(255,255,255,.08)'
-const PILL_BG = 'rgba(255,255,255,.07)'
-const PILL_BORDER = 'rgba(255,255,255,.14)'
+const GROUPS = ['Работа', 'Аналитика', 'Команда']
 
 const ROLE_LABEL = {
-  admin: 'админ', smm: 'smm', operator: 'оператор', client: 'клиент', viewer: 'наблюдатель',
+  admin: 'АДМИН', smm: 'СММ', operator: 'ОПЕРАТОР', client: 'КЛИЕНТ', viewer: 'НАБЛЮДАТЕЛЬ',
 }
-
-const mono = (size, weight = 700, ls = '.14em') => ({
-  fontFamily: MONO, fontSize: size, fontWeight: weight,
-  letterSpacing: ls, textTransform: 'uppercase',
-})
 
 /**
  * Что человеку вообще доступно. Права те же, что у маршрутов в App.jsx:
@@ -71,260 +60,368 @@ export function tabSections(sections) {
   return sections.filter(x => x.tab || x === slot)
 }
 
-export default function MobileMenu({ open, onClose, sections, counts, profile, session }) {
+// Поиск без учёта регистра и раскладки регистра букв.
+const matches = (section, query) =>
+  !query || section.label.toLowerCase().includes(query.trim().toLowerCase())
+
+export default function MobileMenu({ open, onClose, sections, badges = {}, profile, session }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { setting, setSetting } = useTheme()
 
-  // Пока меню открыто, экран под ним не должен уезжать от случайного свайпа.
+  const [query, setQuery] = useState('')
+  const [pulled, setPulled] = useState(0)     // насколько лист утянут вниз пальцем
+  const listRef = useRef(null)
+  const drag = useRef(null)
+
+  // Запрос живёт только внутри открытого листа: вернувшись, человек ждёт
+  // полный список, а не остатки прошлого поиска.
   useEffect(() => {
-    if (!open) return
-    const prev = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    return () => { document.body.style.overflow = prev }
+    if (!open) { setQuery(''); setPulled(0) }
   }, [open])
 
   useEffect(() => {
     if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
     const onKey = e => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
   }, [open, onClose])
+
+  if (!open) return null
 
   const isActive = s => (s.end ? location.pathname === s.to : location.pathname.startsWith(s.to))
 
-  const go = s => {
-    navigate(s.to)
-    onClose()
-  }
+  // Сначала закрываем лист, потом уходим: если наоборот, виден рывок — новый
+  // экран успевает нарисоваться под ещё открытым листом.
+  const go = to => { onClose(); setTimeout(() => navigate(to), 60) }
 
-  async function logout() {
-    await supabase.auth.signOut()
-    navigate('/login')
-  }
+  // Номера считаем по полному списку, а не по найденному: иначе при поиске
+  // «Съёмки» превращались бы в 01, и номер переставал быть адресом раздела.
+  const numberOf = new Map(sections.map((s, i) => [s.to, String(i + 1).padStart(2, '0')]))
 
-  // Порядок групп задан здесь, а не собирается из разделов: он часть макета.
-  const groups = ['Работа', 'Аналитика', 'Команда']
-    .map(title => ({ title, items: sections.filter(s => s.group === title) }))
+  const groups = GROUPS
+    .map(title => ({ title, items: sections.filter(s => s.group === title && matches(s, query)) }))
     .filter(g => g.items.length)
 
-  const email = session?.user?.email || ''
-  const name = profile?.full_name || email.split('@')[0] || 'Профиль'
-  const initial = (profile?.full_name || email || 'S')[0]?.toUpperCase() || 'S'
+  /* ── Свайп вниз ────────────────────────────────────────────────────── */
 
-  // Нумерация сквозная по всему меню, а не внутри группы: в макете номер
-  // означает «такой-то раздел из всех», и у второй группы он продолжается.
-  let n = 0
+  const onTouchStart = e => {
+    // Тянуть лист можно только когда список прокручен в самый верх, иначе
+    // жест отнимал бы прокрутку у самого списка.
+    if ((listRef.current?.scrollTop || 0) > 0) return
+    drag.current = { y: e.touches[0].clientY, t: Date.now() }
+  }
 
-  return (
+  const onTouchMove = e => {
+    if (!drag.current) return
+    const dy = e.touches[0].clientY - drag.current.y
+    setPulled(dy > 0 ? dy : 0)
+  }
+
+  const onTouchEnd = () => {
+    if (!drag.current) return
+    const height = window.innerHeight * 0.88
+    const speed = pulled / Math.max(Date.now() - drag.current.t, 1) * 1000
+    drag.current = null
+    if (pulled > height * CLOSE_RATIO || speed > CLOSE_VELOCITY) onClose()
+    else setPulled(0)
+  }
+
+  const name = profile?.full_name || session?.user?.email?.split('@')[0] || 'Профиль'
+  const initial = (profile?.full_name || session?.user?.email || 'A')[0]?.toUpperCase() || 'A'
+
+  return toBody(
     <div
-      aria-hidden={!open}
+      className="m-menu-overlay"
+      onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 60,
-        display: 'flex', flexDirection: 'column',
-        background: 'linear-gradient(168deg,#242c0d 0%,#1d2130 34%,#2f2545 64%,#2a1214 100%)',
-        color: '#fff',
-        transform: open ? 'translateY(0)' : 'translateY(-100%)',
-        opacity: open ? 1 : 0,
-        pointerEvents: open ? 'auto' : 'none',
-        transition: 'transform .34s cubic-bezier(.2,.86,.22,1), opacity .22s ease',
-        paddingTop: 'env(safe-area-inset-top, 0px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        position: 'fixed', inset: 0, zIndex: 260,
+        display: 'flex', alignItems: 'flex-end',
+        background: 'rgba(8,10,8,.35)',
+        overscrollBehavior: 'contain',
       }}
     >
-      {/* Шапка */}
-      <div style={{ flex: 'none', padding: '16px 18px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: SANS, fontSize: 20, fontWeight: 800, letterSpacing: '-.015em', lineHeight: 1 }}>
-            Все разделы
-          </div>
-          <div style={{ marginTop: 7, color: 'rgba(255,255,255,.62)', ...mono(10, 500, '.16em') }}>
-            {sections.length} {plural(sections.length, 'раздел', 'раздела', 'разделов')}
-            {profile?.role ? ` · роль: ${ROLE_LABEL[profile.role] || profile.role}` : ''}
-          </div>
+      <div
+        className="g-glass m-menu-sheet"
+        onClick={e => e.stopPropagation()}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        style={{
+          width: '100%', height: SHEET_HEIGHT,
+          display: 'flex', flexDirection: 'column',
+          borderRadius: '34px 34px 0 0',
+          borderTop: `1px solid ${T.line}`,
+          boxShadow: `inset 0 1px 0 ${T.line}, 0 -20px 60px ${T.shadow}`,
+          transform: `translateY(${pulled}px)`,
+          transition: pulled ? 'none' : 'transform 300ms cubic-bezier(.2,.86,.22,1)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Ручка */}
+        <div style={{ padding: '6px 0 4px', flex: 'none' }}>
+          <div style={{ width: 38, height: 4, borderRadius: 2, background: T.soft, margin: '0 auto' }} />
         </div>
-        <button
-          onClick={onClose}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, height: 44, padding: '0 15px',
-            border: `1px solid ${PILL_BORDER}`, borderRadius: 22, background: PILL_BG,
-            color: '#fff', ...mono(10),
-          }}
-        >
-          закрыть ✕
-        </button>
-      </div>
 
-      {/* Разделы. overflow — страховка для низких экранов, см. комментарий вверху. */}
-      <div style={{
-        flex: 1, minHeight: 0, overflowY: 'auto',
-        display: 'flex', flexDirection: 'column', gap: 10, padding: '0 14px 14px',
-      }}>
-        {groups.map(g => (
-          <div key={g.title} style={{
-            flex: 'none', display: 'flex', flexDirection: 'column',
-            borderRadius: 20, background: SURFACE, border: `1px solid ${BORDER}`, padding: 12,
+        {/* Поиск и «Закрыть» */}
+        <div style={{ display: 'flex', gap: 10, padding: '6px 18px 10px', flex: 'none' }}>
+          <div style={{
+            flex: 1, minWidth: 0, height: 42, borderRadius: 21, display: 'flex', alignItems: 'center', gap: 9,
+            padding: '0 14px', background: T.surface2, border: `1px solid ${T.soft}`,
           }}>
-            <div style={{ padding: '0 4px 10px', color: 'rgba(255,255,255,.5)', ...mono(9.5, 700, '.18em') }}>
-              {g.title}
+            <span style={{
+              width: 13, height: 13, borderRadius: '50%', flex: 'none',
+              border: `1.5px solid ${T.muted}`,
+            }} />
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="ПОИСК ПО РАЗДЕЛАМ"
+              style={{
+                flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
+                color: T.text, ...mono(500, 13, '.04em'), textTransform: 'none',
+              }}
+            />
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              height: 42, padding: '0 16px', borderRadius: 21, flex: 'none',
+              background: T.surface2, border: `1px solid ${T.soft}`, color: T.text,
+              ...mono(700, 11, '.06em'),
+            }}
+          >
+            ЗАКРЫТЬ
+          </button>
+        </div>
+
+        {/* Разделы */}
+        <div
+          ref={listRef}
+          className="m-noscroll"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', padding: '0 18px 8px' }}
+        >
+          {groups.length === 0 ? (
+            <div style={{ padding: '28px 4px', textAlign: 'center', color: T.muted, font: `500 14px ${SANS}` }}>
+              Ничего не найдено
             </div>
+          ) : groups.map(g => (
+            <div key={g.title}>
+              <div style={{ margin: '5px 0 4px', color: T.muted, ...mono(700, 10, '.14em') }}>
+                {g.title.toUpperCase()}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                {g.items.map(s => (
+                  <SectionRow
+                    key={s.to}
+                    section={s}
+                    active={isActive(s)}
+                    number={numberOf.get(s.to)}
+                    badge={badges[s.to]}
+                    onPick={() => go(s.to)}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Закреплённый низ: тема и профиль. Выхода здесь нет — он на профиле. */}
+        <div style={{
+          flex: 'none', display: 'flex', flexDirection: 'column', gap: 10,
+          padding: '8px 18px 16px', borderTop: `1px solid ${T.hair}`,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ color: T.muted, ...mono(700, 10, '.14em') }}>ТЕМА</span>
             <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr',
-              gridAutoRows: '70px', alignContent: 'start', gap: 8,
+              marginLeft: 'auto', display: 'flex', gap: 2, padding: 3, borderRadius: 14,
+              background: T.surface2, border: `1px solid ${T.hair}`,
             }}>
-              {g.items.map(s => {
-                const active = isActive(s)
-                const count = counts[s.to] || 0
-                n += 1
+              {[['light', 'СВЕТ'], ['dark', 'НОЧЬ'], ['system', 'СИСТЕМА']].map(([key, label]) => {
+                const on = setting === key
                 return (
                   <button
-                    key={s.to}
-                    onClick={() => go(s)}
+                    key={key}
+                    onClick={() => setSetting(key)}
                     style={{
-                      position: 'relative', display: 'flex', flexDirection: 'column',
-                      justifyContent: 'center', gap: 7, height: 70, padding: '11px 12px',
-                      border: `1px solid ${active ? LIME : BORDER}`, borderRadius: 15,
-                      background: active ? 'rgba(203,243,79,.14)' : 'rgba(255,255,255,.05)',
-                      textAlign: 'left', color: '#fff',
+                      minHeight: 44, padding: '0 11px', borderRadius: 11, border: 'none',
+                      background: on ? T.accent : 'transparent',
+                      color: on ? T.onAccent : T.text2,
+                      ...mono(700, 10, '.06em'),
                     }}
                   >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%' }}>
-                      <span style={{ color: active ? LIME : 'rgba(255,255,255,.45)', ...mono(9, 700, '.06em') }}>
-                        {String(n).padStart(2, '0')}
-                      </span>
-                      {count > 0 && (
-                        <span style={{
-                          marginLeft: 'auto', minWidth: 20, height: 20, padding: '0 6px', borderRadius: 10,
-                          background: LIME, color: ON_LIME,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontFamily: MONO, fontSize: 10, fontWeight: 700,
-                        }}>
-                          {count}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{
-                      fontFamily: SANS, fontSize: 14.5, fontWeight: 800, letterSpacing: '-.015em',
-                      color: active ? LIME : '#fff',
-                    }}>
-                      {s.label}
-                    </div>
+                    {label}
                   </button>
                 )
               })}
             </div>
           </div>
-        ))}
 
-        {/* Тема */}
-        <div style={{
-          flex: 'none', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
-          borderRadius: 20, background: SURFACE, border: `1px solid ${BORDER}`,
-        }}>
-          <div style={{ color: 'rgba(255,255,255,.55)', ...mono(9.5, 700, '.16em') }}>тема</div>
-          <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
-            {[['light', 'свет'], ['dark', 'ночь'], ['system', 'система']].map(([key, label]) => {
-              const on = setting === key
-              return (
-                <button
-                  key={key}
-                  onClick={() => setSetting(key)}
-                  style={{
-                    minHeight: 44, padding: '0 11px', border: 'none', borderRadius: 11,
-                    background: on ? LIME : 'rgba(255,255,255,.07)',
-                    color: on ? ON_LIME : 'rgba(255,255,255,.7)',
-                    ...mono(9.5, 700, '.1em'),
-                  }}
-                >
-                  {label}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Профиль */}
-        <div style={{
-          flex: 'none', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px',
-          borderRadius: 20, background: SURFACE, border: `1px solid ${BORDER}`,
-        }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 17, background: LIME, color: ON_LIME,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontFamily: SANS, fontWeight: 800, fontSize: 14, flex: 'none',
-          }}>
-            {initial}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{
-              fontFamily: SANS, fontSize: 14, fontWeight: 800, letterSpacing: '-.01em',
-              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            }}>
-              {name}
-            </div>
-            <div style={{ marginTop: 3, color: 'rgba(255,255,255,.5)', ...mono(9, 500, '.14em') }}>
-              {ROLE_LABEL[profile?.role] || profile?.role || ''}
-            </div>
-          </div>
           <button
-            onClick={logout}
+            onClick={() => go('/profile')}
             style={{
-              minHeight: 44, padding: '0 13px', border: `1px solid ${RED_BORDER}`, borderRadius: 14,
-              background: RED_BG, color: RED, flex: 'none', ...mono(9.5, 700, '.12em'),
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              minHeight: 50, padding: '0 12px', borderRadius: 18, textAlign: 'left',
+              background: T.surface, border: `1px solid ${T.soft}`, color: T.text,
+              boxShadow: `inset 0 1px 0 ${T.line}`,
             }}
           >
-            выйти
+            <span style={{
+              width: 34, height: 34, borderRadius: '50%', flex: 'none',
+              background: T.accent, color: T.onAccent,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              font: `800 14px ${SANS}`,
+            }}>
+              {initial}
+            </span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{
+                display: 'block', font: `700 14px ${SANS}`, color: T.text,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {name}
+              </span>
+              <span style={{ display: 'block', marginTop: 3, color: T.muted, ...mono(500, 10, '.1em') }}>
+                {ROLE_LABEL[profile?.role] || 'ПРОФИЛЬ'} · ПРОФИЛЬ И ВЫХОД
+              </span>
+            </span>
+            <span style={{ flex: 'none', color: T.muted, font: `400 18px ${SANS}` }}>›</span>
           </button>
         </div>
       </div>
-    </div>
+    </div>,
   )
 }
 
-/**
- * Кнопка, открывающая меню. Живёт в нижней ленте, а не в шапке: общей шапки на
- * телефоне нет — у каждого экрана своя, и одна кнопка в ленте не заставляет
- * править одиннадцать экранов.
- */
-export function MenuButton({ onClick, badge }) {
+/* ─────────────────────────────── Строка раздела ─────────────────────── */
+
+function SectionRow({ section, active, number, badge, onPick }) {
+  const [held, setHeld] = useState(false)
+  const Icon = section.icon
+
   return (
     <button
-      onClick={onClick}
+      onClick={onPick}
+      onPointerDown={() => setHeld(true)}
+      onPointerUp={() => setHeld(false)}
+      onPointerLeave={() => setHeld(false)}
+      onPointerCancel={() => setHeld(false)}
       style={{
-        // flex: 1 — как у вкладок рядом: иначе кнопка сжалась бы по тексту и
-        // лента поехала бы влево.
-        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-        minHeight: 44, border: 'none', background: 'none', padding: '7px 2px 3px',
-        color: 'var(--g-ink-3)', position: 'relative',
+        display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+        minHeight: 44, padding: '0 12px', borderRadius: 15, textAlign: 'left',
+        background: active ? T.accentDim : held ? T.chip : T.surface2,
+        border: `1px solid ${active ? T.accentText : T.hair}`,
+        boxShadow: active ? `inset 0 1px 0 ${T.line}` : 'none',
+        color: active ? T.accentText : T.text,
+        transform: held ? 'scale(.99)' : 'none',
+        transition: 'transform 120ms ease, background 120ms ease',
       }}
     >
-      <span style={{ width: 22, height: 3, borderRadius: 2, background: 'transparent' }} />
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 3, width: 19, height: 19, justifyContent: 'center' }}>
-        <span style={{ display: 'block', height: 2, borderRadius: 2, background: 'currentColor' }} />
-        <span style={{ display: 'block', height: 2, borderRadius: 2, background: 'currentColor' }} />
-        <span style={{ display: 'block', height: 2, width: '66%', borderRadius: 2, background: 'currentColor' }} />
+      <span style={{
+        width: 22, height: 22, borderRadius: 7, flex: 'none',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: active ? 'transparent' : T.chip,
+        color: active ? T.accentText : T.text2,
+      }}>
+        {Icon ? <Icon size={14} strokeWidth={active ? 2.2 : 1.8} /> : null}
       </span>
-      <span style={{ fontFamily: MONO, fontSize: 9, fontWeight: 600, letterSpacing: '.06em', textTransform: 'uppercase' }}>
-        меню
+
+      <span style={{ flex: 1, minWidth: 0, font: `${active ? 700 : 600} 15px ${SANS}` }}>
+        {section.label}
       </span>
-      {badge > 0 && (
-        <span style={{
-          position: 'absolute', top: 2, right: 10, minWidth: 16, height: 16, padding: '0 4px',
-          borderRadius: 8, background: 'var(--g-accent)', color: 'var(--g-accent-ink)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontFamily: MONO, fontSize: 9, fontWeight: 700,
-        }}>
-          {badge}
+
+      {badge?.count ? <Badge count={badge.count} kind={badge.kind} /> : (
+        <span style={{ flex: 'none', color: active ? T.accentText : T.muted, ...mono(500, 10, '.04em') }}>
+          {number}
         </span>
       )}
     </button>
   )
 }
 
-function plural(n, one, few, many) {
-  const m10 = n % 10
-  const m100 = n % 100
-  if (m10 === 1 && m100 !== 11) return one
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few
-  return many
+// Счётчик событий. Лаймовый — то, что ждёт человека; жёлтый — то, о чём
+// стоит знать, но что не требует действия прямо сейчас.
+function Badge({ count, kind }) {
+  const warn = kind === 'warning'
+  return (
+    <span style={{
+      flex: 'none', padding: '3px 8px', borderRadius: 8,
+      background: warn ? T.warnDot : T.accent,
+      color: warn ? T.onAccent : T.onAccent,
+      ...mono(700, 10, '.02em'),
+    }}>
+      {count}
+    </span>
+  )
+}
+
+/* ─────────────────────────────── Кнопка в ленте ─────────────────────── */
+
+/**
+ * Пятая вкладка. Четыре состояния из макета: покой, нажатие, открыто и
+ * «есть событие» — точка в правом верхнем углу, которая гаснет, как только
+ * лист открыли.
+ */
+export function MenuButton({ open, onClick, dot }) {
+  const [held, setHeld] = useState(false)
+
+  const glyph = open ? T.accentText : held ? T.text : T.text2
+  const line = { display: 'block', height: 2.5, borderRadius: 2, background: glyph, transition: 'all 200ms ease' }
+
+  return (
+    <button
+      onClick={onClick}
+      aria-expanded={open}
+      onPointerDown={() => setHeld(true)}
+      onPointerUp={() => setHeld(false)}
+      onPointerLeave={() => setHeld(false)}
+      onPointerCancel={() => setHeld(false)}
+      style={{
+        flex: 1, position: 'relative', alignSelf: 'stretch', margin: '6px 0',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
+        minHeight: 44, borderRadius: 20, padding: '4px 2px',
+        background: open ? T.accentDim : held ? T.chip : T.surface2,
+        border: `1px solid ${open ? T.accentText : T.soft}`,
+        boxShadow: held ? `0 0 0 6px ${T.hair}` : `inset 0 1px 0 ${T.line}`,
+        color: glyph,
+        transform: held ? 'scale(.96)' : 'none',
+        transition: 'transform 140ms ease, background 140ms ease, border-color 140ms ease',
+      }}
+    >
+      {/* Три линии складываются в крест поворотом, а не подменой картинки:
+          так переход видно, и кнопка читается как «то же самое, но открыто». */}
+      <span style={{
+        width: 20, height: 14, flex: 'none', position: 'relative',
+        display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 4,
+      }}>
+        <span style={{
+          ...line, width: 20,
+          transform: open ? 'translateY(6px) rotate(45deg)' : 'none',
+        }} />
+        <span style={{ ...line, width: 20, opacity: open ? 0 : 1 }} />
+        <span style={{
+          ...line, width: open ? 20 : held ? 13 : 14,
+          transform: open ? 'translateY(-6px) rotate(-45deg)' : 'none',
+        }} />
+      </span>
+
+      <span style={{ ...mono(700, 9, '.08em'), color: glyph }}>
+        {open ? 'ЗАКРЫТЬ' : 'МЕНЮ'}
+      </span>
+
+      {dot && !open && (
+        <span style={{
+          position: 'absolute', top: 6, right: 12,
+          width: 8, height: 8, borderRadius: '50%',
+          background: T.accent, boxShadow: `0 0 0 3px ${T.glass}`,
+        }} />
+      )}
+    </button>
+  )
 }

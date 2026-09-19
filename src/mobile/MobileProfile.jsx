@@ -414,11 +414,19 @@ export default function MobileProfile() {
       {/* Настройки — доступы прежние */}
       <Settings navigate={navigate} can={can} isAdmin={isAdmin} />
 
+      {/* Единственный выход из приложения: в меню разделов его намеренно нет —
+          там он стоял рядом с навигацией и нажимался по ошибке.
+          Спрашиваем подтверждение: после выхода придётся вводить пароль. */}
       <button
-        onClick={async () => { await supabase.auth.signOut(); navigate('/login') }}
+        onClick={async () => {
+          const ok = window.confirm('Выйти из приложения?\n\nЧтобы вернуться, понадобится почта и пароль.')
+          if (!ok) return
+          await supabase.auth.signOut()
+          navigate('/login')
+        }}
         style={{
-          minHeight: 48, borderRadius: 14, background: 'none',
-          border: T.hair, color: T.hot,
+          minHeight: 48, borderRadius: 14, background: 'transparent',
+          border: `1px solid ${T.hot}`, color: T.hot,
           ...mono(600, 12, '.08em'),
         }}
       >
