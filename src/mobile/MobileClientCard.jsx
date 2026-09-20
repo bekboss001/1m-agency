@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
-import { ymd, today } from '../lib/tz'
+import { today } from '../lib/tz'
 import { adMetrics } from '../lib/insights'
 import {
   T, SANS, OSW, mono, useToast, Toast, SectionTitle,
@@ -13,9 +13,8 @@ import {
 } from './ui'
 import ClientStats from './ClientStats'
 import { planStateRow } from '../lib/postPlan'
+import { planWindow, windowTitle, lastDayOf } from '../lib/planWindow'
 import DebtRow from './DebtRow'
-
-const MONTHS = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
 
 // Склонение: 1 съёмка, 2 съёмки, 5 съёмок.
 function plural(n, one, few, many) {
@@ -38,18 +37,21 @@ export default function MobileClientCard() {
   const [ads, setAds] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  const now = new Date()
-  const monthName = MONTHS[now.getMonth()]
-
+  // Посты берутся за период договора, а не за календарный месяц: счётчик
+  // «7 из 12» над ними считается именно по периоду, и месяц под ним показывал
+  // бы другие публикации. Границы даёт lib/planWindow.js.
+  //
+  // Клиента поэтому читаем первым: пока не известна дата договора, неизвестны
+  // и границы. Съёмка ближайшая, от периода не зависит и идёт параллельно.
   const load = useCallback(async () => {
     setLoading(true)
-    const first = ymd(new Date(now.getFullYear(), now.getMonth(), 1))
-    const last = ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+    const cRes = await supabase.from('clients').select('*').eq('id', id).single()
+    const period = planWindow(cRes.data?.contract_end, today())
 
-    const [cRes, pRes, sRes] = await Promise.all([
-      supabase.from('clients').select('*').eq('id', id).single(),
+    const [pRes, sRes] = await Promise.all([
       supabase.from('posts').select('id, title, status, post_type, publish_date')
-        .eq('client_id', id).gte('publish_date', first).lte('publish_date', last)
+        .eq('client_id', id)
+        .gte('publish_date', period.startsOn).lte('publish_date', lastDayOf(period))
         .order('publish_date', { ascending: false }),
       supabase.from('shoots').select('id, shoot_date, time_start, location, status')
         .eq('client_id', id).gte('shoot_date', today()).neq('status', 'cancelled')
@@ -112,6 +114,7 @@ export default function MobileClientCard() {
   // сохранённое число, а не подсчёт записей в контент-плане.
   // План месяца и долг раздельно: «0 из 12 постов» и отдельно «3/4 долг».
   const plan = planStateRow(client)
+  const periodTitle = windowTitle(planWindow(client.contract_end, today())).toUpperCase()
   const total = plan.plan
   const done = plan.planDone
   const pct = total ? Math.min(Math.round((done / total) * 100), 100) : 0
@@ -144,7 +147,7 @@ export default function MobileClientCard() {
         <div>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 }}>
             <span style={{ opacity: .7, ...mono(500, 10.5, '.12em') }}>
-              {done} ИЗ {total} ПОСТОВ · {monthName}
+              {done} ИЗ {total} ПОСТОВ · {periodTitle}
               {plan.extra > 0 ? ` · +${plan.extra}` : ''}
             </span>
             <span style={{ font: `700 20px ${OSW}` }}>{pct}%</span>
@@ -231,7 +234,7 @@ export default function MobileClientCard() {
               </div>
             ))}
             {posts.length === 0 && (
-              <div style={{ color: T.muted, font: `400 12px ${SANS}` }}>В этом месяце постов ещё нет.</div>
+              <div style={{ color: T.muted, font: `400 12px ${SANS}` }}>В этом периоде постов ещё нет.</div>
             )}
           </div>
         </div>

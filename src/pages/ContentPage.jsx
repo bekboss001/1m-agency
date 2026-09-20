@@ -5,6 +5,7 @@ import { useMediaQuery } from '../lib/useMediaQuery'
 import { Plus, X, Video, Image, AlignLeft, Layers, ChevronLeft, ChevronRight, Trash2, FileDown } from 'lucide-react'
 import { logAction } from '../lib/auditLog'
 import { ymd, today as tzToday, nowAstana } from '../lib/tz'
+import { monthWindow } from '../lib/planWindow'
 
 const STATUS_LABELS = { idea: 'Идея', in_progress: 'В работе', review: 'На проверке', published: 'Опубликован' }
 const STATUS_COLORS = { idea: 'badge-dim', in_progress: 'badge-red', review: 'badge-orange', published: 'badge-green' }
@@ -89,7 +90,7 @@ export default function ContentPage() {
     setPdfBusy(true)
     try {
       const { exportContentPlanPdf } = await import('../lib/contentPlanPdf')
-      await exportContentPlanPdf({ clientId: selectedClient, year: calYear, month: calMonth })
+      await exportContentPlanPdf({ clientId: selectedClient, period: monthWindow(calYear, calMonth) })
     } catch (e) {
       window.alert('Не удалось собрать PDF: ' + (e?.message || e))
     }

@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { today, parseYmd } from '../lib/tz'
 import { planState } from '../lib/postPlan'
+import { planWindow, windowTitle } from '../lib/planWindow'
 import { D, ARCHIVO, GROTESK, NUM, POST_STATUS, POST_TYPES } from './tokens'
 import { Icon, LimeButton } from './ui'
 import {
@@ -17,33 +18,9 @@ import {
 const COLS = '34px minmax(0,1fr) 148px 150px 152px 132px 36px'
 const dayDiff = iso => (iso ? Math.round((parseYmd(iso) - parseYmd(today())) / 86400000) : null)
 
-const MON_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
-
-// Дата в месяце с обрезкой по его длине: 31-е число в феврале превратилось бы
-// в 3 марта, и границы периодов поехали бы.
-function atDay(year, month, day) {
-  const last = new Date(year, month + 1, 0).getDate()
-  return new Date(year, month, Math.min(day, last))
-}
-
-const ymdOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-
-// Период контент-плана: месяц, привязанный ко дню окончания договора, а не к
-// календарному. Договор до 15 числа — значит план идёт с 15-го по 15-е, и
-// делить список по календарным месяцам было бы неверно.
-function periodOf(iso, anchorDay) {
-  const d = parseYmd(iso)
-  let end = atDay(d.getFullYear(), d.getMonth(), anchorDay)
-  if (d >= end) end = atDay(d.getFullYear(), d.getMonth() + 1, anchorDay)
-  const start = atDay(end.getFullYear(), end.getMonth() - 1, anchorDay)
-  return { start, end, key: ymdOf(start) }
-}
-
-function periodLabel(start, end) {
-  const sameYear = start.getFullYear() === end.getFullYear()
-  const y = sameYear ? '' : ` ${String(start.getFullYear()).slice(2)}`
-  return `${start.getDate()} ${MON_SHORT[start.getMonth()]}${y} — ${end.getDate()} ${MON_SHORT[end.getMonth()]} ${end.getFullYear()}`
-}
+// Периоды плана считает общий модуль lib/planWindow.js: то же определение
+// работает на телефоне и в выгрузке PDF, поэтому документ у клиента и этот
+// экран всегда показывают одни и те же публикации.
 
 export default function ScreenPlan() {
   const [clients, setClients] = useState([])
@@ -136,10 +113,10 @@ export default function ScreenPlan() {
     work: posts.filter(p => p.status === 'in_progress').length,
   }), [posts])
 
-  // День привязки периодов: берём из даты окончания договора. Если она не
-  // задана, откатываемся на календарные месяцы — это лучше, чем ничего.
-  const anchorDay = active?.end ? parseYmd(active.end).getDate() : 1
-  const currentKey = periodOf(today(), anchorDay).key
+  // Границы периодов берёт дата окончания договора. Если она не задана,
+  // planWindow откатывается на календарные месяцы — это лучше, чем ничего.
+  const contractEnd = active?.end || null
+  const currentKey = planWindow(contractEnd, today()).startsOn
 
   const groups = useMemo(() => {
     const map = new Map()
@@ -147,15 +124,31 @@ export default function ScreenPlan() {
 
     for (const p of posts) {
       if (!p.publish_date) { undated.push(p); continue }
-      const per = periodOf(p.publish_date, anchorDay)
-      if (!map.has(per.key)) map.set(per.key, { ...per, items: [] })
-      map.get(per.key).items.push(p)
+      const per = planWindow(contractEnd, p.publish_date)
+      if (!map.has(per.startsOn)) map.set(per.startsOn, { key: per.startsOn, period: per, items: [] })
+      map.get(per.startsOn).items.push(p)
     }
 
     const list = [...map.values()].sort((a, b) => b.key.localeCompare(a.key))
-    if (undated.length) list.push({ key: 'none', start: null, end: null, items: undated })
+    if (undated.length) list.push({ key: 'none', period: null, items: undated })
     return list
-  }, [posts, anchorDay])
+  }, [posts, contractEnd])
+
+  // Выгрузка идёт ровно за тот период, у заголовка которого нажали кнопку:
+  // окно то же самое, по которому здесь разложены строки.
+  const [pdfKey, setPdfKey] = useState(null)
+
+  async function exportPeriod(period) {
+    if (!activeId || pdfKey) return
+    setPdfKey(period.startsOn)
+    try {
+      const { exportContentPlanPdf } = await import('../lib/contentPlanPdf')
+      await exportContentPlanPdf({ clientId: activeId, period })
+    } catch (e) {
+      fail('Не удалось собрать PDF: ' + String(e?.message || e))
+    }
+    setPdfKey(null)
+  }
 
   // Свёрнуты все периоды, кроме текущего: прошлые нужны редко, а разворачивать
   // их всем сразу — та же каша, только с заголовками.
@@ -261,13 +254,15 @@ export default function ScreenPlan() {
             return (
               <div key={g.key} style={{ marginBottom: 14 }}>
                 <PeriodHeader
-                  label={g.start ? periodLabel(g.start, g.end) : 'Без даты публикации'}
+                  label={g.period ? windowTitle(g.period) : 'Без даты публикации'}
                   count={g.items.length}
                   published={published}
                   plan={current ? active?.total : null}
                   current={current}
                   open={open}
                   onToggle={() => setCollapsed(c => ({ ...c, [g.key]: open }))}
+                  onExport={g.period ? () => exportPeriod(g.period) : null}
+                  exporting={pdfKey === g.key}
                 />
 
                 {open && (
@@ -301,55 +296,78 @@ export default function ScreenPlan() {
 
 // Заголовок периода: он же граница между планами и он же переключатель
 // сворачивания. Текущий период выделен лаймовой полосой слева.
-function PeriodHeader({ label, count, published, plan, current, open, onToggle }) {
+function PeriodHeader({ label, count, published, plan, current, open, onToggle, onExport, exporting }) {
   const [h, setH] = useState(false)
   return (
-    <button
-      onClick={onToggle}
+    <div
+      style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}
       onMouseEnter={() => setH(true)}
       onMouseLeave={() => setH(false)}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-        height: 38, padding: '0 12px', marginBottom: 8, borderRadius: 9, border: 'none',
-        background: h ? D.ctrl : 'transparent',
-        boxShadow: current ? `inset 2px 0 0 ${D.lime}` : `inset 2px 0 0 ${D.b6}`,
-        textAlign: 'left', transition: 'background 120ms ease',
-      }}
     >
-      <span style={{
-        display: 'inline-flex', color: D.mut, flex: 'none',
-        transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 120ms ease',
-      }}>
-        <Icon name="chevron" size={12} />
-      </span>
-
-      <span style={{
-        fontFamily: ARCHIVO, fontWeight: 800, fontSize: 13.5,
-        color: current ? D.t1 : D.t4, letterSpacing: '-0.01em',
-      }}>
-        {label}
-      </span>
-
-      {current && (
+      <button
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0,
+          height: 38, padding: '0 12px', borderRadius: 9, border: 'none',
+          background: h ? D.ctrl : 'transparent',
+          boxShadow: current ? `inset 2px 0 0 ${D.lime}` : `inset 2px 0 0 ${D.b6}`,
+          textAlign: 'left', transition: 'background 120ms ease',
+        }}
+      >
         <span style={{
-          fontFamily: GROTESK, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
-          padding: '3px 7px', borderRadius: 5, background: D.limeBg, color: D.lime, flex: 'none',
+          display: 'inline-flex', color: D.mut, flex: 'none',
+          transform: open ? 'rotate(0deg)' : 'rotate(-90deg)', transition: 'transform 120ms ease',
         }}>
-          ТЕКУЩИЙ
+          <Icon name="chevron" size={12} />
         </span>
-      )}
 
-      <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 6, flex: 'none' }}>
-        <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, ...NUM }}>
-          {published} опубл. из {count}
+        <span style={{
+          fontFamily: ARCHIVO, fontWeight: 800, fontSize: 13.5,
+          color: current ? D.t1 : D.t4, letterSpacing: '-0.01em',
+        }}>
+          {label}
         </span>
-        {plan ? (
-          <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: count < plan ? D.warn : D.mut2, ...NUM }}>
-            · план {plan}
+
+        {current && (
+          <span style={{
+            fontFamily: GROTESK, fontSize: 9, fontWeight: 700, letterSpacing: '0.1em',
+            padding: '3px 7px', borderRadius: 5, background: D.limeBg, color: D.lime, flex: 'none',
+          }}>
+            ТЕКУЩИЙ
           </span>
-        ) : null}
-      </span>
-    </button>
+        )}
+
+        <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'baseline', gap: 6, flex: 'none' }}>
+          <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, ...NUM }}>
+            {published} опубл. из {count}
+          </span>
+          {plan ? (
+            <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: count < plan ? D.warn : D.mut2, ...NUM }}>
+              · план {plan}
+            </span>
+          ) : null}
+        </span>
+      </button>
+
+      {/* Кнопка живёт у периода, а не в шапке экрана: документ всегда про один
+          период, и выбирать его отдельным полем было бы лишним шагом. */}
+      {onExport && (
+        <button
+          onClick={onExport}
+          disabled={exporting}
+          title={`Выгрузить период «${label}» в PDF`}
+          style={{
+            flex: 'none', height: 38, padding: '0 12px', borderRadius: 9,
+            border: `1px solid ${D.b6}`, background: h ? D.ctrl : 'transparent',
+            color: exporting ? D.mut2 : D.t4,
+            fontFamily: GROTESK, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.1em',
+            transition: 'background 120ms ease, color 120ms ease',
+          }}
+        >
+          {exporting ? '…' : 'PDF'}
+        </button>
+      )}
+    </div>
   )
 }
 

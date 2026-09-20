@@ -11,6 +11,7 @@
 
 import { supabase } from './supabase'
 import { embedPdfFont } from './pdfFont'
+import { windowTitle, windowFileTag, weekInWindow } from './planWindow'
 
 const PAGE_W = 794          // A4 портрет при 96dpi: 210×297мм
 const PAD_X = 46
@@ -28,8 +29,6 @@ const HAIR = '#d7d3d3'
 const ACCENT = '#ec3013'
 const ACCENT_700 = '#ae1800'
 
-const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 const MONTHS_OF = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
 const WEEKDAYS = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб']
@@ -144,13 +143,9 @@ function makePen(doc) {
 
 const dd = iso => iso.slice(8, 10) + '.' + iso.slice(5, 7)
 
-function weekOf(iso) {
-  const day = Number(iso.slice(8, 10))
-  const first = new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, 1)
-  // Понедельник первым: у getDay() воскресенье нулевое.
-  const offset = (first.getDay() + 6) % 7
-  return Math.floor((day - 1 + offset) / 7) + 1
-}
+// Недели нумеруются внутри окна плана, см. src/lib/planWindow.js. По
+// календарю счёт сбрасывался бы первого числа, и в периоде с 14 сентября по
+// 13 октября «НЕДЕЛЯ 1» встретилась бы дважды.
 
 function weekdayOf(iso) {
   const d = new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10)))
@@ -296,7 +291,7 @@ function drawCover(pen, d) {
   const rightW = BAND - rightX
 
   pen.font(700, 11, MUTED).tracking(0.14)
-  pen.text('ФОКУС МЕСЯЦА', 0, y)
+  pen.text('ФОКУС ПЕРИОДА', 0, y)
   pen.text('СОГЛАСОВАНИЕ', rightX, y)
   pen.tracking(0)
 
@@ -424,21 +419,23 @@ function drawSummary(pen, topY, d) {
 
 /* ─────────────────────────────── Экспорт ───────────────────────────────── */
 
-const pad2 = n => String(n).padStart(2, '0')
-
 /**
- * Собирает и отдаёт PDF контент-плана одного клиента за один месяц.
+ * Собирает и отдаёт PDF контент-плана одного клиента за одно окно плана.
  *
  * Данные тянем здесь, а не берём из экрана: списку постов в интерфейсе не
  * нужны ни заметки, ни ответственные, и грузить их в каждом открытии вкладки
- * ради кнопки, которую нажимают раз в месяц, незачем.
+ * ради кнопки, которую нажимают раз в период, незачем.
+ *
+ * Окно приходит готовым из planWindow: у клиента с договором до 14-го это
+ * период с 14-го по 14-е, у клиента без даты договора — календарный месяц.
+ * Раньше здесь считался календарный месяц независимо от договора, и документ
+ * расходился с цифрами плана на экране.
  *
  * @param clientId  клиент плана
- * @param year, month  месяц плана, month с нуля
+ * @param period    окно плана { anchor, startsOn, endsOn }, конец не входит
  */
-export async function exportContentPlanPdf({ clientId, year, month }) {
-  const first = `${year}-${pad2(month + 1)}-01`
-  const last = `${year}-${pad2(month + 1)}-${pad2(new Date(year, month + 1, 0).getDate())}`
+export async function exportContentPlanPdf({ clientId, period }) {
+  const { startsOn, endsOn } = period
 
   const [cRes, pRes, sRes, eRes] = await Promise.all([
     supabase.from('clients')
@@ -446,11 +443,11 @@ export async function exportContentPlanPdf({ clientId, year, month }) {
       .eq('id', clientId).single(),
     supabase.from('posts')
       .select('id, title, post_type, publish_date, status, notes, smm_id')
-      .eq('client_id', clientId).gte('publish_date', first).lte('publish_date', last)
+      .eq('client_id', clientId).gte('publish_date', startsOn).lt('publish_date', endsOn)
       .order('publish_date'),
     supabase.from('shoots')
       .select('id')
-      .eq('client_id', clientId).gte('shoot_date', first).lte('shoot_date', last)
+      .eq('client_id', clientId).gte('shoot_date', startsOn).lt('shoot_date', endsOn)
       .neq('status', 'cancelled'),
     supabase.from('employees').select('id, name'),
   ])
@@ -460,15 +457,14 @@ export async function exportContentPlanPdf({ clientId, year, month }) {
 
   return renderPdf({
     client: cRes.data,
-    year,
-    month,
+    period,
     posts: pRes.data || [],
     names: Object.fromEntries((eRes.data || []).map(e => [e.id, e.name])),
     shoots: (sRes.data || []).length,
   })
 }
 
-async function renderPdf({ client, year, month, posts, names, shoots }) {
+async function renderPdf({ client, period, posts, names, shoots }) {
   const { jsPDF } = await import('jspdf')
   const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true })
   await embedPdfFont(doc)
@@ -493,7 +489,7 @@ async function renderPdf({ client, year, month, posts, names, shoots }) {
   const d = {
     agency: '1M.AGENCY',
     clientName: client?.name || 'Клиент',
-    periodTitle: `${MONTHS[month].charAt(0).toUpperCase() + MONTHS[month].slice(1)} ${year}`,
+    periodTitle: windowTitle(period),
     exportedAt: `${String(now.getDate()).padStart(2, '0')} ${MONTHS_OF[now.getMonth()]} ${now.getFullYear()}`,
     summary: [
       { value: String(rows.length), label: 'публикаций' },
@@ -502,7 +498,7 @@ async function renderPdf({ client, year, month, posts, names, shoots }) {
       { value: String(published), label: 'опубликовано' },
     ],
     focus: (client?.brief_data?.goal || client?.brief || '').trim()
-      || 'Фокус месяца не задан. Заполните бриф клиента в карточке проекта, и он попадёт в документ.',
+      || 'Фокус периода не задан. Заполните бриф клиента в карточке проекта, и он попадёт в документ.',
     approval: [
       { key: 'СММ', value: names[client?.smm_id] || 'не назначен' },
       { key: 'Оператор', value: names[client?.operator_id] || 'не назначен' },
@@ -520,7 +516,7 @@ async function renderPdf({ client, year, month, posts, names, shoots }) {
   const blocks = []
   let week = null
   measured.forEach(m => {
-    const w = weekOf(m.post.publish_date)
+    const w = weekInWindow(period, m.post.publish_date)
     if (w !== week) {
       week = w
       blocks.push({ kind: 'week', week: w, cont: false, h: blocks.length ? 44 : 30 })
@@ -539,7 +535,7 @@ async function renderPdf({ client, year, month, posts, names, shoots }) {
     doc.addPage()
     const ctx = i === 0
       ? d.periodTitle
-      : i === pages.length - 1 ? 'Завершение месяца' : 'Продолжение'
+      : i === pages.length - 1 ? 'Завершение периода' : 'Продолжение'
     const endY = drawTablePage(pen, blocksOfPage, ctx, d, i + 2)
     if (hasSummary && !summaryOnOwnPage && i === pages.length - 1) drawSummary(pen, endY, d)
   })
@@ -547,7 +543,7 @@ async function renderPdf({ client, year, month, posts, names, shoots }) {
   if (pages.length === 0) {
     doc.addPage()
     pen.font(600, 13, MUTED)
-    pen.text('В этом месяце публикаций нет.', 0, 0)
+    pen.text('В этом периоде публикаций нет.', 0, 0)
     drawFooter(pen, `${d.clientName} · контент-план · ${d.periodTitle}`, `Стр. 2 / ${d.total}`)
   }
 
@@ -558,5 +554,5 @@ async function renderPdf({ client, year, month, posts, names, shoots }) {
   }
 
   const safe = d.clientName.replace(/[\s/\\:*?"<>|]+/g, '-')
-  doc.save(`Контент-план-${safe}-${MONTHS[month]}-${year}.pdf`)
+  doc.save(`Контент-план-${safe}-${windowFileTag(period)}.pdf`)
 }

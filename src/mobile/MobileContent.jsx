@@ -7,7 +7,8 @@ import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
 import { planStateRow, PLAN_COLUMNS } from '../lib/postPlan'
 import { planPeriod } from '../lib/instagram'
-import { ymd, parseYmd, today } from '../lib/tz'
+import { planWindow, shiftWindow, windowTitle, windowDays, lastDayOf } from '../lib/planWindow'
+import { parseYmd, today } from '../lib/tz'
 import {
   T, SANS, OSW, mono, useToast, Toast, Sheet, SheetRow, ClientSelector,
   StatusChip, Fab, EmptyState, nextStatus, FLOW, STATUS_LABEL, TYPE_MARK,
@@ -37,17 +38,32 @@ export default function MobileContent() {
   const [pdfBusy, setPdfBusy] = useState(false)
 
   const isClient = profile?.role === 'client'
-  // Месяц, который смотрим: 0 — текущий, -1 — прошлый и так далее.
-  const [monthShift, setMonthShift] = useState(0)
-  const today0 = new Date()
-  const now = new Date(today0.getFullYear(), today0.getMonth() + monthShift, 1)
-  const first = ymd(new Date(now.getFullYear(), now.getMonth(), 1))
-  const last = ymd(new Date(now.getFullYear(), now.getMonth() + 1, 0))
+  // Окно плана, которое смотрим: 0 — текущее, -1 — предыдущее.
+  //
+  // Границы задаёт договор выбранного клиента: «договор до 14-го» означает
+  // план с 14-го по 14-е. Раньше здесь был календарный месяц, и выгрузка для
+  // клиента расходилась с планом, который ему считают. См. lib/planWindow.js.
+  //
+  // У «всех клиентов» общего договора нет, поэтому там окно остаётся
+  // календарным месяцем: это свод, а не чей-то план.
+  const [shift, setShift] = useState(0)
 
   // Пользователь-клиент видит только свою компанию и не может её сменить.
   useEffect(() => {
     if (isClient && profile?.client_id) setClient(profile.client_id)
   }, [isClient, profile?.client_id])
+
+  // Клиент приходит из той же загрузки, поэтому первое окно считается без
+  // договора — календарным месяцем, а как только список пришёл, окно
+  // пересчитывается и посты перечитываются по его границам.
+  const active = clients.find(c => c.id === client) || null
+  const period = useMemo(
+    () => shiftWindow(planWindow(active?.contract_end, today()), shift),
+    [active?.contract_end, shift],
+  )
+  // last — последний день окна включительно: в запросах ниже стоит lte.
+  const first = period.startsOn
+  const last = lastDayOf(period)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -127,15 +143,15 @@ export default function MobileContent() {
     load()
   }
 
-  // Документ уходит клиенту, поэтому он всегда про одного клиента и один
-  // месяц: свод по всем пятнадцати согласовывать не с кем.
+  // Документ уходит клиенту, поэтому он всегда про одного клиента и одно
+  // окно плана: свод по всем пятнадцати согласовывать не с кем.
   async function exportPdf() {
     if (pdfBusy) return
     if (client === 'all') { flash('СНАЧАЛА ВЫБЕРИТЕ КЛИЕНТА'); return }
     setPdfBusy(true)
     try {
       const { exportContentPlanPdf } = await import('../lib/contentPlanPdf')
-      await exportContentPlanPdf({ clientId: client, year: now.getFullYear(), month: now.getMonth() })
+      await exportContentPlanPdf({ clientId: client, period })
       flash('PDF СОБРАН')
     } catch (e) {
       flash('НЕ УДАЛОСЬ: ' + String(e?.message || e).toUpperCase().slice(0, 40))
@@ -143,13 +159,13 @@ export default function MobileContent() {
     setPdfBusy(false)
   }
 
-  const active = clients.find(c => c.id === client)
   // Считаем по сохранённому published_posts, как во вкладке «Клиенты»:
   // контент-план заполнен не для всех, и подсчёт записей давал бы 0 из 12
   // там, где план на деле закрыт.
+  const periodTitle = windowTitle(period).toUpperCase()
   const selMeta = client === 'all'
-    ? `${clients.length} КЛИЕНТОВ · ${MONTHS[now.getMonth()]}`
-    : `${planStateRow(active).planDone} ИЗ ${planStateRow(active).plan} ПОСТОВ${planStateRow(active).debt ? ` · ДОЛГ ${planStateRow(active).debtDone}/${planStateRow(active).debt}` : ''} · ${MONTHS[now.getMonth()]}`
+    ? `${clients.length} КЛИЕНТОВ · ${periodTitle}`
+    : `${planStateRow(active).planDone} ИЗ ${planStateRow(active).plan} ПОСТОВ${planStateRow(active).debt ? ` · ДОЛГ ${planStateRow(active).debtDone}/${planStateRow(active).debt}` : ''} · ${periodTitle}`
 
   function dayTitle(dateStr) {
     const d = parseYmd(dateStr)
@@ -195,20 +211,20 @@ export default function MobileContent() {
           />
         )}
 
-        {/* Переключение месяцев */}
+        {/* Переключение периодов плана */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <MonthArrow label="‹" onClick={() => setMonthShift(m => m - 1)} title="Предыдущий месяц" />
+          <MonthArrow label="‹" onClick={() => setShift(m => m - 1)} title="Предыдущий период" />
           <button
-            onClick={() => setMonthShift(0)}
+            onClick={() => setShift(0)}
             style={{
               flex: 1, minHeight: 36, borderRadius: 11, border: 'none', background: 'none',
-              color: monthShift === 0 ? T.muted : T.accent, ...mono(600, 10.5, '.12em'),
+              color: shift === 0 ? T.muted : T.accent, ...mono(600, 10.5, '.12em'),
             }}
           >
-            {MONTHS[now.getMonth()]} {now.getFullYear()}
-            {monthShift !== 0 && ' · К ТЕКУЩЕМУ'}
+            {periodTitle}
+            {shift !== 0 && ' · К ТЕКУЩЕМУ'}
           </button>
-          <MonthArrow label="›" onClick={() => setMonthShift(m => m + 1)} title="Следующий месяц" />
+          <MonthArrow label="›" onClick={() => setShift(m => m + 1)} title="Следующий период" />
           <button
             onClick={exportPdf}
             aria-label="Экспорт плана в PDF"
@@ -258,12 +274,12 @@ export default function MobileContent() {
           <CalendarGrid
             posts={scoped}
             shoots={client === 'all' ? shoots : shoots.filter(s => s.client_id === client)}
-            month={now}
+            period={period}
           />
         ) : groups.length === 0 ? (
           <EmptyState
             title="Здесь пусто"
-            hint={statusFilter === 'all' ? 'В этом месяце постов нет.' : 'Нет постов с таким статусом — смените фильтр.'}
+            hint={statusFilter === 'all' ? 'В этом периоде постов нет.' : 'Нет постов с таким статусом — смените фильтр.'}
           />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -459,12 +475,14 @@ function Field({ label, children }) {
 }
 
 // Вид «Календарь»: сетка 7×N, под числом — точки постов.
-function CalendarGrid({ posts, shoots = [], month }) {
-  const y = month.getFullYear()
-  const m = month.getMonth()
-  const daysIn = new Date(y, m + 1, 0).getDate()
-  const lead = (new Date(y, m, 1).getDay() + 6) % 7
-  const cells = [...Array(lead).fill(null), ...Array.from({ length: daysIn }, (_, i) => i + 1)]
+//
+// Дни идут сплошь от начала окна до его конца, поэтому период с 14 сентября
+// по 13 октября рисуется одной сеткой. Первое число месяца подписано: иначе
+// в такой сетке не видно, где сентябрь кончился.
+function CalendarGrid({ posts, shoots = [], period }) {
+  const days = windowDays(period)
+  const lead = (parseYmd(days[0]).getDay() + 6) % 7
+  const cells = [...Array(lead).fill(null), ...days]
   const todayStr = today()
 
   return (
@@ -475,9 +493,9 @@ function CalendarGrid({ posts, shoots = [], month }) {
         ))}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 5 }}>
-        {cells.map((day, i) => {
-          if (day === null) return <span key={`e${i}`} />
-          const key = ymd(new Date(y, m, day))
+        {cells.map((key, i) => {
+          if (key === null) return <span key={`e${i}`} />
+          const day = Number(key.slice(8, 10))
           const dayPosts = posts.filter(p => p.publish_date === key)
           const dayShoots = shoots.filter(s => s.shoot_date === key)
           const isToday = key === todayStr
@@ -487,7 +505,14 @@ function CalendarGrid({ posts, shoots = [], month }) {
               background: isToday ? T.accent : T.surface,
               display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
             }}>
-              <span style={{ color: isToday ? T.onAccent : T.text, ...mono(500, 11, '.02em') }}>{day}</span>
+              <span style={{ color: isToday ? T.onAccent : T.text, ...mono(500, 11, '.02em') }}>
+                {day}
+                {day === 1 && key !== period.startsOn && (
+                  <span style={{ opacity: .55, ...mono(500, 8, '.04em') }}>
+                    {' ' + MONTHS[Number(key.slice(5, 7)) - 1].slice(0, 3)}
+                  </span>
+                )}
+              </span>
               <span style={{ display: 'flex', gap: 2 }}>
                 {dayPosts.slice(0, 3).map(p => (
                   <span key={p.id} style={{
