@@ -2,6 +2,8 @@
 //
 // Общая для отчёта и для записи: если бы каждая выбирала публикации по-своему,
 // отчёт показывал бы одно, а в базу записывалось другое.
+//
+// Сторис живут отдельным краем Graph API (fetchStories) и в /media не приходят.
 
 import { astanaDate, parseIgTime } from './contractPeriod.js'
 import { mediaKind } from './matchPosts.js'
@@ -33,6 +35,36 @@ export function graphError(error) {
   return error.code === 190
     ? 'Токен Meta не принят. Проверьте META_ACCESS_TOKEN в настройках Vercel.'
     : error.message
+}
+
+/**
+ * Сторис, активные прямо сейчас: { id, ms, date, permalink }.
+ *
+ * Край /stories отдаёт только живые сторис, то есть выложенные за последние
+ * сутки, — истории задним числом Graph API не помнит. Зато у каждой есть точное
+ * время публикации, и по нему вызывающая сторона отрезает нужное окно. Без
+ * такого отреза утром в ленте лежал бы двойной объём: вчерашние сторис ещё не
+ * истекли, а сегодняшние уже вышли.
+ *
+ * Обход без stopAt: живых сторис у аккаунта единицы, это одна страница.
+ */
+export async function fetchStories(accountId, token) {
+  const { out, error } = await collect(
+    `${GRAPH}/${accountId}/stories?fields=id,timestamp,permalink&limit=100&access_token=${token}`,
+  )
+  if (error) return { stories: null, error: graphError(error) }
+
+  const stories = out
+    .filter(m => m.timestamp)
+    .map(m => ({
+      id: m.id,
+      ms: parseIgTime(m.timestamp),
+      date: astanaDate(m.timestamp),
+      permalink: m.permalink || null,
+    }))
+    .sort((a, b) => a.ms - b.ms)
+
+  return { stories, error: null }
 }
 
 /**

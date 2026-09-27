@@ -10,6 +10,7 @@
 import { supabase } from '../lib/supabase'
 import { logAction } from '../lib/auditLog'
 import { nextAdjust, debtToCarry } from '../lib/postPlan'
+import { DEFAULT_PACKAGE } from '../lib/packages'
 import { today } from '../lib/tz'
 
 /* ─────────────────────────────── Клиенты ─────────────────────────────── */
@@ -18,7 +19,7 @@ import { today } from '../lib/tz'
 export async function fetchClients() {
   const { data, error } = await supabase
     .from('clients')
-    .select('id, number, name, color, total_posts, published_posts, carry_posts, posts_adjust, period_plan, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief, brief_data')
+    .select('id, number, name, color, package, total_posts, published_posts, carry_posts, posts_adjust, period_plan, last_post_date, contract_end, smm_id, operator_id, meta_account_id, instagram_account_id, instagram_username, instagram_synced_at, brief, brief_data')
     .eq('is_active', true)
     .order('number')
 
@@ -29,6 +30,8 @@ export async function fetchClients() {
       number: c.number,
       name: c.name,
       color: c.color || '#3a3a3a',
+      // package — зарезервированное слово, поэтому в приложении оно pkg.
+      pkg: c.package || DEFAULT_PACKAGE,
       total: c.total_posts || 0,
       done: c.published_posts || 0,
       // Долг или аванс на входе в период и план периода ведёт сверка.
@@ -51,6 +54,7 @@ export async function fetchClients() {
 }
 
 const CLIENT_FIELDS = {
+  pkg: 'package',
   total: 'total_posts',
   done: 'published_posts',
   carry: 'carry_posts',

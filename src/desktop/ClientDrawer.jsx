@@ -17,6 +17,8 @@ import { runSync, planPeriod, SYNC_EVENT } from '../lib/instagram'
 import { planState, carryToDebt } from '../lib/postPlan'
 import { issueText } from '../lib/syncIssues'
 import { BRIEF_GROUPS, BRIEF_KEYS } from '../../server/briefFields.js'
+import { PACKAGE_KEYS, PACKAGES, packageLabel, postsLabel, postsOffPackage, storiesPlan }
+  from '../lib/packages'
 
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 
@@ -127,6 +129,23 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
 
           {/* Параметры */}
           <Section title="Параметры">
+            <Row label="ПАКЕТ">
+              <select value={client.pkg} onChange={e => onPatch(client.id, { pkg: e.target.value })} style={field}>
+                {PACKAGE_KEYS.map(k => (
+                  <option key={k} value={k}>
+                    {PACKAGES[k].label} · {postsLabel(k)} постов
+                    {PACKAGES[k].stories === null ? ' · без сторис' : ` · ${PACKAGES[k].stories} сторис в день`}
+                  </option>
+                ))}
+              </select>
+            </Row>
+            {/* Норма сторис нигде не задаётся руками: её даёт пакет, и по ней
+                бот считает сводку в 10:30 и 12:00. */}
+            <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.5, marginTop: -4 }}>
+              {storiesPlan(client.pkg) === null
+                ? `${packageLabel(client.pkg)} — сторис не входят, в сводке бота клиент идёт прочерком.`
+                : `${packageLabel(client.pkg)} — ${storiesPlan(client.pkg)} сторис в день, по этой норме бот считает сводку.`}
+            </div>
             <Row label="ПЛАН ПОСТОВ НА МЕСЯЦ">
               <input
                 type="number" min="0"
@@ -135,6 +154,11 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
                 style={field}
               />
             </Row>
+            {postsOffPackage(client.pkg, client.total) && (
+              <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.warn, lineHeight: 1.5, marginTop: -4 }}>
+                В пакете {packageLabel(client.pkg)} это {postsLabel(client.pkg)} постов.
+              </div>
+            )}
             {client.periodPlan !== null && client.periodPlan !== client.total && (
               <div style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.5, marginTop: -4 }}>
                 Текущий период считается по плану {client.periodPlan}, новый план {client.total} начнёт действовать с {dm(client.end)}.

@@ -12,12 +12,14 @@
 // Что и когда отправляется — в server/tgSchedule.js, как выглядит сообщение —
 // в server/tgFormat.js. Здесь только запросы к базе, отправка и учёт.
 
-import { astanaClock, dueFixed, dueShoots, JOBS, SHOOT_LEAD_HOURS } from '../server/tgSchedule.js'
+import { astanaClock, dueFixed, dueShoots, storiesWindow, JOBS, SHOOT_LEAD_HOURS, STORIES_START }
+  from '../server/tgSchedule.js'
 import * as F from '../server/tgFormat.js'
 import { sendMessage, editMessageText, answerCallback, yesNoKeyboard, parseCallback, tg }
   from '../server/telegram.js'
 import { planStateRow, PLAN_COLUMNS } from '../src/lib/postPlan.js'
-import { fetchFeed } from '../server/igMedia.js'
+import { fetchFeed, fetchStories } from '../server/igMedia.js'
+import { storiesPlan, packageLabel } from '../src/lib/packages.js'
 
 const SHOOT_FIELDS = 'id,shoot_date,time_start,location,status,' +
   'client:client_id(name),operator:operator_id(name),smm:smm_id(name)'
@@ -38,6 +40,7 @@ const COMMANDS = {
   shoots: 'shoots', съёмки: 'shoots', съемки: 'shoots',
   plan: 'plan', план: 'plan',
   posted: 'posted', выложено: 'posted', выложили: 'posted',
+  stories: 'stories', сторис: 'stories', сториз: 'stories',
   ask: 'ask', вопрос: 'ask',
 }
 
@@ -47,6 +50,7 @@ const SWITCH = {
   // Сводка выкладки и вечерняя проверка — про одно и то же, про посты дня.
   // Поэтому их гасит один тумблер, а не два похожих.
   posted: 'notif_deadline',
+  stories: 'notif_stories',
   ask: 'notif_reminders',
   deadline: 'notif_deadline',
   shoot: 'notif_shoot',
@@ -147,6 +151,7 @@ export default async function handler(req, res) {
           { command: 'shoots', description: 'Съёмки сегодня и завтра' },
           { command: 'plan', description: 'План и долг по клиентам' },
           { command: 'posted', description: 'Кто выложил пост сегодня' },
+          { command: 'stories', description: 'Сколько сторис вышло с 09:00' },
           { command: 'ask', description: 'Задать чату вопрос' },
           { command: 'help', description: 'Что я умею' },
         ],
@@ -268,6 +273,8 @@ async function handleMessage(msg, token, rest) {
   if (cmd === 'plan') return sendMessage(token, chatId, await buildPlan(rest))
 
   if (cmd === 'posted') return sendMessage(token, chatId, await buildPosted(rest, day))
+
+  if (cmd === 'stories') return sendMessage(token, chatId, await buildStories(rest))
 }
 
 async function handleCallback(q, token, rest) {
@@ -368,7 +375,7 @@ async function tick(token, rest, now = Date.now()) {
       if (!claim) continue
 
       try {
-        const msg = await runJob(job, token, rest, chat.chat_id, clock, shootRows)
+        const msg = await runJob(job, token, rest, chat.chat_id, clock, shootRows, now)
         if (msg) {
           await rest('PATCH', `telegram_jobs?id=eq.${claim.id}`,
             { sent_at: new Date().toISOString(), message_id: msg.message_id })
@@ -393,10 +400,14 @@ async function tick(token, rest, now = Date.now()) {
 }
 
 // Возвращает отправленное сообщение или null, если отправлять нечего.
-async function runJob(job, token, rest, chatId, clock, shootRows) {
+async function runJob(job, token, rest, chatId, clock, shootRows, now) {
   if (job.kind === 'digest') {
     const digest = await buildDigest(rest, clock.date)
     return digest ? sendMessage(token, chatId, digest) : null
+  }
+
+  if (job.kind === 'stories') {
+    return sendMessage(token, chatId, await buildStories(rest, job.label, now))
   }
 
   if (job.kind === 'posted') {
@@ -519,6 +530,73 @@ async function buildPosted(rest, date) {
   for (const e of errors) notes.push('Instagram не ответил: ' + e)
 
   return F.postedText({ date, rows, notes })
+}
+
+/**
+ * Сколько сторис вышло у каждого клиента с начала выкладки и сходится ли это с
+ * его нормой.
+ *
+ * Край /stories отдаёт только живые сторис — за последние сутки, — и задним
+ * числом их не получить. Но у каждой есть точное время, поэтому окно режется по
+ * нему: с 09:00 и до сейчас. Иначе утром считались бы и вчерашние, которые ещё
+ * висят в истории, и объём выходил бы двойным.
+ *
+ * Норма сторис берётся из пакета клиента (src/lib/packages.js): Mini — 3,
+ * Standart — 5, Ultra — 7. В пакете TikTok сторис нет вовсе, и такой клиент в
+ * счёт не идёт. Клиента без подключённого Instagram посчитать нечем: отдельные
+ * сторис в контент-плане не ведутся, поэтому он тоже показан прочерком, а не
+ * нулём.
+ */
+async function buildStories(rest, label = null, now = Date.now()) {
+  const { date, from } = storiesWindow(now)
+  const clients = await rest('GET',
+    'clients?select=id,name,package,instagram_account_id&is_active=is.true&order=number')
+
+  const rows = (clients || []).map(c => ({
+    name: c.name,
+    account: c.instagram_account_id || null,
+    pkg: packageLabel(c.package),
+    plan: storiesPlan(c.package),
+    done: 0,
+    failed: false,
+    noIg: !c.instagram_account_id,
+  }))
+
+  const token = metaToken()
+  const notes = []
+  const errors = new Set()
+
+  if (!token) {
+    for (const r of rows) { r.noIg = false; r.failed = true }
+    notes.push('Instagram не опрошен: не задан META_ACCESS_TOKEN.')
+  } else {
+    // TikTok спрашивать незачем: сторис в этот пакет не входят.
+    const queue = rows.filter(r => r.account && r.plan !== null)
+    const worker = async () => {
+      while (queue.length) {
+        const r = queue.shift()
+        const { stories, error } = await fetchStories(r.account, token)
+        if (error) {
+          r.failed = true
+          errors.add(error)
+          continue
+        }
+        r.done = stories.filter(s => s.ms >= from && s.ms <= now).length
+      }
+    }
+    await Promise.all(Array.from({ length: FEED_PARALLEL }, worker))
+  }
+
+  for (const e of errors) notes.push('Instagram не ответил: ' + e)
+
+  return F.storiesText({
+    date,
+    label,
+    from: STORIES_START,
+    at: astanaClock(now).hhmm,
+    rows,
+    notes,
+  })
 }
 
 async function buildDigest(rest, date) {

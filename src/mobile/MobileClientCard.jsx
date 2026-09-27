@@ -14,6 +14,7 @@ import {
 import ClientStats from './ClientStats'
 import { planStateRow } from '../lib/postPlan'
 import { planWindow, windowTitle, lastDayOf } from '../lib/planWindow'
+import { packageLabel, storiesPlan } from '../lib/packages'
 import DebtRow from './DebtRow'
 
 // Склонение: 1 съёмка, 2 съёмки, 5 съёмок.
@@ -139,7 +140,11 @@ export default function MobileClientCard() {
           >
             ← НАЗАД
           </button>
-          <span style={{ opacity: .65, ...mono(600, 11, '.1em') }}>КАРТОЧКА КЛИЕНТА</span>
+          {/* Пакет виден сразу: от него зависит и план постов, и норма сторис,
+              по которой бот считает сводку. */}
+          <span style={{ opacity: .65, ...mono(600, 11, '.1em') }}>
+            ПАКЕТ {packageLabel(client.package).toUpperCase()}
+          </span>
         </div>
 
         <div style={{ font: `700 40px/.92 ${OSW}`, textTransform: 'uppercase' }}>{client.name}</div>
@@ -160,6 +165,12 @@ export default function MobileClientCard() {
       </div>
 
       <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: 22 }}>
+
+        <div style={{ color: T.muted, font: `400 12px/1.45 ${SANS}` }}>
+          {storiesPlan(client.package) === null
+            ? `Пакет ${packageLabel(client.package)}: сторис не входят — в сводке бота клиент идёт прочерком.`
+            : `Пакет ${packageLabel(client.package)}: ${storiesPlan(client.package)} сторис в день, по этой норме бот считает сводку в 10:30 и 12:00.`}
+        </div>
 
         {/* Плитки */}
         <div style={{ display: 'flex', gap: 8 }}>

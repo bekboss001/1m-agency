@@ -13,6 +13,8 @@ import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
 import { logAction } from '../lib/auditLog'
 import { planStateRow, nextAdjust, debtToCarry, carryToDebt } from '../lib/postPlan'
+import { PACKAGE_KEYS, PACKAGES, DEFAULT_PACKAGE, packageLabel, postsLabel, postsOffPackage, postsRange }
+  from '../lib/packages'
 import DebtRow from './DebtRow'
 import { SYNC_EVENT } from '../lib/instagram'
 import { parseYmd, today } from '../lib/tz'
@@ -55,7 +57,7 @@ export default function MobileClients() {
   const [edit, setEdit] = useState({})
   const [creating, setCreating] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', color: '#7B9FE8', total_posts: 12, smm_id: '', operator_id: '' })
+  const [form, setForm] = useState({ name: '', color: '#7B9FE8', package: DEFAULT_PACKAGE, total_posts: 12, smm_id: '', operator_id: '' })
 
   const isAdmin = profile?.role === 'admin'
 
@@ -90,6 +92,7 @@ export default function MobileClients() {
 
   function openEdit(c) {
     setEdit({
+      package: c.package || DEFAULT_PACKAGE,
       total_posts: c.total_posts ?? 0,
       published_posts: c.published_posts ?? 0,
       debt: carryToDebt(c.carry_posts ?? 0),
@@ -113,6 +116,7 @@ export default function MobileClients() {
       done,
     )
     const payload = {
+      package: edit.package,
       total_posts: parseInt(edit.total_posts) || 0,
       published_posts: done,
       ...(adjust === null ? {} : { posts_adjust: adjust }),
@@ -145,6 +149,7 @@ export default function MobileClients() {
       number: maxNum + 1,
       name: form.name.trim(),
       color: form.color,
+      package: form.package || DEFAULT_PACKAGE,
       total_posts: parseInt(form.total_posts) || 0,
       published_posts: 0,
       is_active: true,
@@ -157,7 +162,7 @@ export default function MobileClients() {
     if (error) { flash('НЕ УДАЛОСЬ: ' + error.message.toUpperCase()); return }
     await logAction(supabase, 'created', 'client', payload.name)
     setCreating(false)
-    setForm({ name: '', color: '#7B9FE8', total_posts: 12, smm_id: '', operator_id: '' })
+    setForm({ name: '', color: '#7B9FE8', package: DEFAULT_PACKAGE, total_posts: 12, smm_id: '', operator_id: '' })
     flash('КЛИЕНТ ДОБАВЛЕН')
     load()
   }
@@ -228,7 +233,9 @@ export default function MobileClients() {
                     <span style={{ flex: 1, minWidth: 0, font: `600 14px ${SANS}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {c.name}
                     </span>
-                    <span style={{ color: T.faint, flex: 'none', ...mono(500, 10, '.06em') }}>№{c.number}</span>
+                    <span style={{ color: T.faint, flex: 'none', ...mono(500, 10, '.06em') }}>
+                      {packageLabel(c.package).toUpperCase()} · №{c.number}
+                    </span>
                   </button>
 
                   {/* Публикации */}
@@ -298,6 +305,23 @@ export default function MobileClients() {
       <Sheet open={!!editing} title={editing?.name || 'Клиент'} onClose={() => setEditing(null)}>
         {editing && (
           <form onSubmit={saveEdit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Норма сторис руками не задаётся: её даёт пакет, и по ней бот
+                считает сводку в 10:30 и 12:00. */}
+            <Field label="ПАКЕТ">
+              <select value={edit.package} onChange={e => setEdit({ ...edit, package: e.target.value })} style={inputStyle}>
+                {PACKAGE_KEYS.map(k => (
+                  <option key={k} value={k}>
+                    {PACKAGES[k].label} · {postsLabel(k)} постов
+                    {PACKAGES[k].stories === null ? ' · без сторис' : ` · ${PACKAGES[k].stories} сторис`}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            {postsOffPackage(edit.package, edit.total_posts) && (
+              <div style={{ color: T.hot, font: `400 12px/1.45 ${SANS}` }}>
+                В пакете {packageLabel(edit.package)} это {postsLabel(edit.package)} постов.
+              </div>
+            )}
             <div style={{ display: 'flex', gap: 10 }}>
               <Field label="ВСЕГО ПОСТОВ" style={{ flex: 1 }}>
                 <input
@@ -381,6 +405,22 @@ export default function MobileClients() {
           <Field label="ЦВЕТОВАЯ МЕТКА">
             <input type="color" value={form.color} onChange={e => setForm({ ...form, color: e.target.value })}
               style={{ ...inputStyle, padding: 4, height: 44 }} />
+          </Field>
+          {/* Пакет сразу подставляет свой план постов: у нового клиента это
+              почти всегда он, а поправить число можно тут же. */}
+          <Field label="ПАКЕТ">
+            <select
+              value={form.package || DEFAULT_PACKAGE}
+              onChange={e => setForm({ ...form, package: e.target.value, total_posts: postsRange(e.target.value)[0] })}
+              style={inputStyle}
+            >
+              {PACKAGE_KEYS.map(k => (
+                <option key={k} value={k}>
+                  {PACKAGES[k].label} · {postsLabel(k)} постов
+                  {PACKAGES[k].stories === null ? ' · без сторис' : ` · ${PACKAGES[k].stories} сторис`}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="ПОСТОВ В МЕСЯЦ">
             <input type="number" min="0" inputMode="numeric" value={form.total_posts}

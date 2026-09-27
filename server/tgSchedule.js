@@ -22,6 +22,11 @@ export const SHOOT_LEAD_HOURS = 12
 // нет, а знать о ней всё равно нужно заранее.
 const NO_TIME_REMIND_AT = '19:00'
 
+// С какого часа считаются сегодняшние сторис. Выкладка начинается в 9 утра, а
+// вчерашние сторис висят в истории ещё сутки: без этой границы сводка в 10:30
+// показывала бы вчерашний объём вместе с сегодняшним.
+export const STORIES_START = '09:00'
+
 const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6]
 const EXCEPT_WED = [0, 1, 2, 4, 5, 6]
 const MON_THU_SAT = [1, 4, 6]
@@ -35,6 +40,7 @@ const TUE_FRI_SUN = [2, 5, 0]
 //   digest   — утренняя сводка дня;
 //   ask      — напоминание с кнопками «Да / Ещё нет»;
 //   posted   — сводка выкладки: у кого пост вышел, у кого нет;
+//   stories  — сводка сторис: сколько вышло с 09:00 против нормы клиента;
 //   deadline — вечерняя проверка, что посты дня вышли.
 // `needs` — условие, которое проверяется по базе уже перед отправкой.
 export const JOBS = [
@@ -44,6 +50,17 @@ export const JOBS = [
   {
     key: 'stories_post', at: '10:30', days: EXCEPT_WED, kind: 'ask',
     title: 'Выложить сторис', question: 'Сторис на сегодня выложили?',
+  },
+  {
+    // Первый отчёт по сторис — сразу с напоминанием «выложили?». К 10:30 видно,
+    // кто ещё не начал: считается с 09:00, значит за спиной полтора часа.
+    key: 'stories_count', at: '10:30', days: EXCEPT_WED, kind: 'stories',
+    label: 'первый отчёт',
+  },
+  {
+    // Контрольный: к полудню норма должна быть закрыта.
+    key: 'stories_check', at: '12:00', days: EXCEPT_WED, kind: 'stories',
+    label: 'контрольный',
   },
   {
     key: 'stories_approve', at: '14:00', days: EXCEPT_WED, kind: 'ask',
@@ -89,6 +106,23 @@ export function astanaClock(now = Date.now()) {
 // Момент времени UTC для календарного дня и часа по Астане.
 export const astanaMs = (dayIso, hhmm = '00:00') =>
   Date.parse(`${dayIso}T${hhmm.slice(0, 5)}:00Z`) - ASTANA_MS
+
+/**
+ * Сутки выкладки сторис: с 09:00 и до сейчас.
+ *
+ * До 09:00 идут ещё прошлые сутки — иначе сводка, запрошенная утром по команде,
+ * вернула бы ноль у всех, хотя вчерашняя выкладка была.
+ *
+ * @returns { date, from } date — день, за который считаем; from — момент UTC,
+ *   раньше которого сторис не наши.
+ */
+export function storiesWindow(now = Date.now()) {
+  const c = astanaClock(now)
+  const date = c.minutes >= toMinutes(STORIES_START)
+    ? c.date
+    : new Date(Date.parse(c.date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10)
+  return { date, from: astanaMs(date, STORIES_START) }
+}
 
 /**
  * Задания с постоянным временем, чей срок наступил и ещё не просрочен.

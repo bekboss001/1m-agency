@@ -44,6 +44,7 @@ insert into public.app_settings (key, value) values
   ('default_plan',      '12'::jsonb),
   ('notif_shoot',       'true'::jsonb),
   ('notif_deadline',    'true'::jsonb),
+  ('notif_stories',     'true'::jsonb),
   ('notif_digest',      'false'::jsonb),
   ('notif_target',      'true'::jsonb),
   ('integration_ig',    'true'::jsonb),
