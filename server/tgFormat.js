@@ -8,10 +8,12 @@
 // через esc(): в именах клиентов и заголовках постов бывают < и &.
 
 import { esc } from './telegram.js'
+import { astanaClock } from './tgSchedule.js'
 
 const DOW = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
   'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+const MON_SHORT = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек']
 
 const POST_TYPE = { reels: 'рилс', post: 'пост', carousel: 'карусель', story: 'сторис' }
 
@@ -24,6 +26,14 @@ export function dayLabel(dayIso) {
 }
 
 const hhmm = t => (t || '').slice(0, 5)
+
+// Момент времени → «27 сен 09:14» по Астане. Часовой пояс один на весь бот и
+// живёт в tgSchedule.js, поэтому время сверки и время рассылки не разъедутся.
+function stampLabel(iso) {
+  const c = astanaClock(Date.parse(iso))
+  const [, m, d] = c.date.split('-').map(Number)
+  return `${d} ${MON_SHORT[m - 1]} ${c.hhmm}`
+}
 const block = (title, lines) => (lines.length ? [`<b>${title}</b>`, ...lines].join('\n') : '')
 const join = parts => parts.filter(Boolean).join('\n\n')
 
@@ -102,17 +112,70 @@ export function askText({ question, answers = [], closed = false }) {
   return `❓ <b>${esc(question)}</b>\n\n${tail}${closed ? '\n\n<i>Вопрос закрыт</i>' : ''}`
 }
 
-/** Ответ на /план: план, выпущено и долг по каждому клиенту. */
-export function planText({ rows = [] }) {
+/**
+ * Ответ на /план: план, выпущено и долг по каждому клиенту.
+ *
+ * Цифры те же, что в таблице «Клиенты», потому что и там и здесь их считает
+ * planState из src/lib/postPlan.js. Раньше бот печатал сырое «выпущено» из
+ * базы, а таблица — только то, что зачлось в план месяца: у клиента с долгом
+ * 6 и восемью публикациями бот говорил «8/12 · долг 0», а таблица «2 из 12 ·
+ * долг 6/6». Публикации сначала гасят долг, поэтому в план идёт planDone.
+ *
+ * syncedAt — самая свежая сверка по этим клиентам. Печатается, чтобы было
+ * видно, на какой момент цифры верны: столбец «выпущено» пересчитывает сверка
+ * по ленте Instagram, и пост, отмеченный в контент-плане час назад, попадёт в
+ * него только следующим прогоном.
+ */
+export function planText({ rows = [], syncedAt = null }) {
   if (!rows.length) return 'Ни у одного клиента не настроен счёт публикаций.'
   const line = r => {
-    const bits = [`${r.done}/${r.plan}`]
-    if (r.debt) bits.push(`долг ${r.debt - r.debtDone}`)
+    const bits = [`${r.planDone}/${r.plan}`]
+    if (r.debt) bits.push(`долг ${r.debtDone}/${r.debt}`)
     else if (r.advance) bits.push(`аванс ${r.advance}`)
+    if (r.extra) bits.push(`+${r.extra} авансом`)
     if (r.closed) bits.push('план закрыт')
     return `• <b>${esc(r.name)}</b> — ${bits.join(' · ')}`
   }
-  return `📊 <b>План публикаций</b>\n\n${rows.map(line).join('\n')}`
+  const foot = syncedAt
+    ? `<i>Выпущенное — по сверке с Instagram на ${stampLabel(syncedAt)}.</i>`
+    : ''
+  return join([`📊 <b>План публикаций</b>`, rows.map(line).join('\n'), foot])
+}
+
+/**
+ * Сводка выкладки за день: у кого пост вышел, у кого нет.
+ *
+ * Идёт в чат в 18:30 по вторникам, пятницам и воскресеньям — в дни выкладки, —
+ * и по команде /posted в любой момент. Порядок клиентов тот же, что в таблице:
+ * по номеру.
+ *
+ * Сторис не считаются: в план публикаций они тоже не идут, иначе у клиента со
+ * сторис день выглядел бы закрытым без поста.
+ *
+ * @param rows     { name, done, total } — клиенты, у которых на сегодня есть посты
+ * @param skipped  имена клиентов, у которых на сегодня постов в плане нет
+ */
+export function postedText({ date, rows = [], skipped = [] }) {
+  if (!rows.length && !skipped.length) return `На ${dayLabel(date)} публикаций не запланировано.`
+
+  const out = rows.filter(r => r.done >= r.total).length
+  const lines = rows.map(r => {
+    const all = r.done >= r.total
+    const state = r.total > 1
+      ? (all ? `опубликованы все ${r.total}` : `опубликовано ${r.done} из ${r.total}`)
+      : (all ? 'опубликован' : 'не опубликован')
+    return `${all ? '✅' : '❌'} <b>${esc(r.name)}</b> — ${state}`
+  })
+
+  const tail = skipped.length
+    ? `<i>На сегодня постов в плане нет: ${skipped.map(esc).join(', ')}.</i>`
+    : ''
+
+  return join([
+    `📋 <b>Выкладка ${dayLabel(date)}</b>` + (rows.length ? `\nВышло у ${out} из ${rows.length}.` : ''),
+    lines.join('\n'),
+    tail,
+  ])
 }
 
 /** Ответ на /съёмки: сегодня и завтра. */
@@ -130,10 +193,11 @@ export const HELP = [
   '/today — сводка на сегодня',
   '/shoots — съёмки сегодня и завтра',
   '/plan — план и долг по клиентам',
+  '/posted — кто выложил пост сегодня, а кто нет',
   '/ask вопрос — задать чату вопрос с кнопками «Да / Ещё нет»',
   '/help — это сообщение',
   '',
-  '<i>Команды понимаю и по-русски: /сегодня, /съёмки, /план, /вопрос, /помощь.</i>',
+  '<i>Команды понимаю и по-русски: /сегодня, /съёмки, /план, /выложено, /вопрос, /помощь.</i>',
   '',
-  'Сам пишу сюда утреннюю сводку, напоминания по расписанию, предупреждение о съёмке за 12 часов и список постов, которые не вышли в свой день.',
+  'Сам пишу сюда утреннюю сводку, напоминания по расписанию, предупреждение о съёмке за 12 часов, сводку выкладки в 18:30 по вторникам, пятницам и воскресеньям и список постов, которые не вышли в свой день.',
 ].join('\n')

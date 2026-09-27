@@ -31,12 +31,16 @@ const COMMANDS = {
   today: 'today', сегодня: 'today',
   shoots: 'shoots', съёмки: 'shoots', съемки: 'shoots',
   plan: 'plan', план: 'plan',
+  posted: 'posted', выложено: 'posted', выложили: 'posted',
   ask: 'ask', вопрос: 'ask',
 }
 
 // Какой тумблер в «Настройках» отвечает за какой вид рассылки.
 const SWITCH = {
   digest: 'notif_digest',
+  // Сводка выкладки и вечерняя проверка — про одно и то же, про посты дня.
+  // Поэтому их гасит один тумблер, а не два похожих.
+  posted: 'notif_deadline',
   ask: 'notif_reminders',
   deadline: 'notif_deadline',
   shoot: 'notif_shoot',
@@ -136,6 +140,7 @@ export default async function handler(req, res) {
           { command: 'today', description: 'Сводка на сегодня' },
           { command: 'shoots', description: 'Съёмки сегодня и завтра' },
           { command: 'plan', description: 'План и долг по клиентам' },
+          { command: 'posted', description: 'Кто выложил пост сегодня' },
           { command: 'ask', description: 'Задать чату вопрос' },
           { command: 'help', description: 'Что я умею' },
         ],
@@ -254,14 +259,9 @@ async function handleMessage(msg, token, rest) {
     }))
   }
 
-  if (cmd === 'plan') {
-    const cols = PLAN_COLUMNS.replace(/\s/g, '')
-    const rows = await rest('GET',
-      `clients?select=${enc('name,' + cols)}&is_active=is.true&order=number`)
-    return sendMessage(token, chatId, F.planText({
-      rows: rows.map(r => ({ name: r.name, ...planStateRow(r) })),
-    }))
-  }
+  if (cmd === 'plan') return sendMessage(token, chatId, await buildPlan(rest))
+
+  if (cmd === 'posted') return sendMessage(token, chatId, await buildPosted(rest, day))
 }
 
 async function handleCallback(q, token, rest) {
@@ -393,6 +393,12 @@ async function runJob(job, token, rest, chatId, clock, shootRows) {
     return digest ? sendMessage(token, chatId, digest) : null
   }
 
+  if (job.kind === 'posted') {
+    // Отправляем всегда, даже если выложили все: сводка за день нужна и
+    // хорошая. Молчание здесь читалось бы как «бот сломался».
+    return sendMessage(token, chatId, await buildPosted(rest, clock.date))
+  }
+
   if (job.kind === 'deadline') {
     const posts = await rest('GET',
       `posts?select=${enc(POST_FIELDS)}&publish_date=eq.${clock.date}&status=neq.published&order=client_id`)
@@ -414,6 +420,65 @@ async function runJob(job, token, rest, chatId, clock, shootRows) {
   }
 
   return null
+}
+
+/**
+ * План публикаций по клиентам — теми же цифрами, что в таблице «Клиенты».
+ *
+ * Считает planStateRow, общая с приложением: план периода, погашенный долг и
+ * аванс. Время последней сверки идёт в подпись — по нему видно, на какой
+ * момент цифры верны.
+ */
+async function buildPlan(rest) {
+  const cols = PLAN_COLUMNS.replace(/\s/g, '')
+  const rows = await rest('GET',
+    `clients?select=${enc('name,instagram_synced_at,' + cols)}&is_active=is.true&order=number`)
+  const syncedAt = (rows || [])
+    .map(r => r.instagram_synced_at)
+    .filter(Boolean)
+    .sort()
+    .pop() || null
+  return F.planText({
+    rows: (rows || []).map(r => ({ name: r.name, ...planStateRow(r) })),
+    syncedAt,
+  })
+}
+
+/**
+ * Кто выложил пост на указанный день, а кто нет.
+ *
+ * Берётся статус постов контент-плана, тот же, по которому в 20:00 уходит
+ * «не опубликовано»: два сообщения про один день не должны противоречить друг
+ * другу. Сторис не считаются — они и в план публикаций не входят.
+ *
+ * Клиенты, у которых на этот день постов в плане нет, попадают в отдельный
+ * список: в день выкладки это само по себе повод спросить, а смешивать их с
+ * теми, кто пост не выложил, неправильно.
+ */
+async function buildPosted(rest, date) {
+  const [clients, posts] = await Promise.all([
+    rest('GET', 'clients?select=id,name&is_active=is.true&order=number'),
+    rest('GET', `posts?select=client_id,status,post_type&publish_date=eq.${date}`),
+  ])
+
+  const counts = new Map()
+  for (const p of posts || []) {
+    if (!p.client_id || isStory(p.post_type)) continue
+    const c = counts.get(p.client_id) || { done: 0, total: 0 }
+    c.total += 1
+    if (p.status === 'published') c.done += 1
+    counts.set(p.client_id, c)
+  }
+
+  const rows = []
+  const skipped = []
+  for (const c of clients || []) {
+    const n = counts.get(c.id)
+    if (n) rows.push({ name: c.name, ...n })
+    else skipped.push(c.name)
+  }
+
+  return F.postedText({ date, rows, skipped })
 }
 
 async function buildDigest(rest, date) {
@@ -443,5 +508,7 @@ async function buildDigest(rest, date) {
 /* ══ Мелочи ══════════════════════════════════════════════════════════ */
 
 const enc = s => encodeURIComponent(s)
+// В базе встречаются оба написания — 'story' и 'stories'.
+const isStory = t => String(t || '').startsWith('stor')
 const addDays = (iso, n) =>
   new Date(Date.parse(iso + 'T00:00:00Z') + n * 86400000).toISOString().slice(0, 10)
