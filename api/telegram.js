@@ -17,11 +17,17 @@ import * as F from '../server/tgFormat.js'
 import { sendMessage, editMessageText, answerCallback, yesNoKeyboard, parseCallback, tg }
   from '../server/telegram.js'
 import { planStateRow, PLAN_COLUMNS } from '../src/lib/postPlan.js'
+import { fetchFeed } from '../server/igMedia.js'
 
 const SHOOT_FIELDS = 'id,shoot_date,time_start,location,status,' +
   'client:client_id(name),operator:operator_id(name),smm:smm_id(name)'
 const POST_FIELDS = 'id,title,post_type,publish_date,status,client:client_id(name)'
 const TASK_FIELDS = 'id,title,assignee:assignee_id(name),client:client_id(name)'
+
+// Сколько лент Instagram опрашиваем разом. Клиентов десятки, запрос к Meta
+// один на клиента, а у функции есть предел времени: последовательно сводка
+// собиралась бы дольше, чем живёт запрос.
+const FEED_PARALLEL = 6
 
 // Команды бота. Telegram считает командой только латиницу, поэтому в группе
 // работают левые написания; русские — в личной переписке с ботом.
@@ -445,40 +451,74 @@ async function buildPlan(rest) {
 }
 
 /**
- * Кто выложил пост на указанный день, а кто нет.
+ * Кто выложил пост на указанный день, а кто нет — по всем активным проектам.
  *
- * Берётся статус постов контент-плана, тот же, по которому в 20:00 уходит
- * «не опубликовано»: два сообщения про один день не должны противоречить друг
- * другу. Сторис не считаются — они и в план публикаций не входят.
+ * Считается по живой ленте Instagram, а не по статусу в контент-плане. Статус
+ * там ставят руками, и к 18:30 он обычно не расставлен: сводка по нему
+ * сообщала бы «не опубликован» о посте, который вышел час назад. Сверка с
+ * лентой идёт раз в сутки и для этого тоже не годится. Лента же отвечает на
+ * момент отправки, а это единственное, что здесь имеет смысл.
  *
- * Клиенты, у которых на этот день постов в плане нет, попадают в отдельный
- * список: в день выкладки это само по себе повод спросить, а смешивать их с
- * теми, кто пост не выложил, неправильно.
+ * Лента берётся тем же fetchFeed, которым считает сверка: сторис отброшены,
+ * reels, карусели и обычные посты считаются.
+ *
+ * Клиент без подключённого Instagram проверяется по контент-плану — это всё,
+ * что о нём известно; в сноске сказано, о ком речь. Если Meta не ответил,
+ * у клиента стоит ⚠️, а не крест: «не проверили» и «не выложил» — разное.
  */
 async function buildPosted(rest, date) {
-  const [clients, posts] = await Promise.all([
-    rest('GET', 'clients?select=id,name&is_active=is.true&order=number'),
-    rest('GET', `posts?select=client_id,status,post_type&publish_date=eq.${date}`),
-  ])
+  const clients = await rest('GET',
+    'clients?select=id,name,instagram_account_id&is_active=is.true&order=number')
 
-  const counts = new Map()
-  for (const p of posts || []) {
-    if (!p.client_id || isStory(p.post_type)) continue
-    const c = counts.get(p.client_id) || { done: 0, total: 0 }
-    c.total += 1
-    if (p.status === 'published') c.done += 1
-    counts.set(p.client_id, c)
+  const rows = (clients || []).map(c => ({
+    id: c.id,
+    name: c.name,
+    account: c.instagram_account_id || null,
+    done: 0,
+    failed: false,
+  }))
+
+  const token = metaToken()
+  const live = token ? rows.filter(r => r.account) : []
+  const fromPlan = rows.filter(r => !live.includes(r))
+  const errors = new Set()
+
+  const queue = [...live]
+  const worker = async () => {
+    while (queue.length) {
+      const r = queue.shift()
+      const { media, error } = await fetchFeed(r.account, date, token)
+      if (error) {
+        r.failed = true
+        errors.add(error)
+        continue
+      }
+      r.done = media.filter(m => m.date === date).length
+    }
+  }
+  await Promise.all(Array.from({ length: FEED_PARALLEL }, worker))
+
+  if (fromPlan.length) {
+    const posts = await rest('GET',
+      `posts?select=client_id,post_type&publish_date=eq.${date}&status=eq.published`)
+    const counts = new Map()
+    for (const p of posts || []) {
+      if (!p.client_id || isStory(p.post_type)) continue
+      counts.set(p.client_id, (counts.get(p.client_id) || 0) + 1)
+    }
+    for (const r of fromPlan) r.done = counts.get(r.id) || 0
   }
 
-  const rows = []
-  const skipped = []
-  for (const c of clients || []) {
-    const n = counts.get(c.id)
-    if (n) rows.push({ name: c.name, ...n })
-    else skipped.push(c.name)
+  const notes = []
+  if (!token) {
+    notes.push('Instagram не опрошен: не задан META_ACCESS_TOKEN. Считано по контент-плану.')
+  } else if (fromPlan.length) {
+    notes.push('Instagram не подключён, считано по контент-плану: '
+      + fromPlan.map(r => r.name).join(', ') + '.')
   }
+  for (const e of errors) notes.push('Instagram не ответил: ' + e)
 
-  return F.postedText({ date, rows, skipped })
+  return F.postedText({ date, rows, notes })
 }
 
 async function buildDigest(rest, date) {
@@ -508,6 +548,9 @@ async function buildDigest(rest, date) {
 /* ══ Мелочи ══════════════════════════════════════════════════════════ */
 
 const enc = s => encodeURIComponent(s)
+// Токен Meta читается здесь, а не в handler: через него он прошёл бы четырьмя
+// параметрами сквозь обработку обновлений и тик, нужен же он одной сводке.
+const metaToken = () => (process.env.META_ACCESS_TOKEN || '').trim().replace(/^["']|["']$/g, '')
 // В базе встречаются оба написания — 'story' и 'stories'.
 const isStory = t => String(t || '').startsWith('stor')
 const addDays = (iso, n) =>

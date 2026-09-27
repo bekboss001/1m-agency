@@ -27,6 +27,14 @@ export function dayLabel(dayIso) {
 
 const hhmm = t => (t || '').slice(0, 5)
 
+const plural = (n, one, few, many) => {
+  const t = n % 10
+  const h = n % 100
+  if (t === 1 && h !== 11) return one
+  if (t >= 2 && t <= 4 && (h < 12 || h > 14)) return few
+  return many
+}
+
 // Момент времени → «27 сен 09:14» по Астане. Часовой пояс один на весь бот и
 // живёт в tgSchedule.js, поэтому время сверки и время рассылки не разъедутся.
 function stampLabel(iso) {
@@ -146,35 +154,36 @@ export function planText({ rows = [], syncedAt = null }) {
  * Сводка выкладки за день: у кого пост вышел, у кого нет.
  *
  * Идёт в чат в 18:30 по вторникам, пятницам и воскресеньям — в дни выкладки, —
- * и по команде /posted в любой момент. Порядок клиентов тот же, что в таблице:
- * по номеру.
+ * и по команде /posted в любой момент. В списке все активные проекты, по
+ * порядку из таблицы: посты в эти дни выходят у всех, независимо от того,
+ * заведены ли они в контент-плане, поэтому пропускать кого-то нельзя.
  *
  * Сторис не считаются: в план публикаций они тоже не идут, иначе у клиента со
  * сторис день выглядел бы закрытым без поста.
  *
- * @param rows     { name, done, total } — клиенты, у которых на сегодня есть посты
- * @param skipped  имена клиентов, у которых на сегодня постов в плане нет
+ * @param rows   { name, done, failed } — done это число публикаций за день,
+ *               failed — проверить не удалось
+ * @param notes  строки сносок: у кого не подключён Instagram, что ответил Meta
  */
-export function postedText({ date, rows = [], skipped = [] }) {
-  if (!rows.length && !skipped.length) return `На ${dayLabel(date)} публикаций не запланировано.`
+export function postedText({ date, rows = [], notes = [] }) {
+  if (!rows.length) return 'Ни одного активного проекта в таблице.'
 
-  const out = rows.filter(r => r.done >= r.total).length
+  const known = rows.filter(r => !r.failed)
+  const out = known.filter(r => r.done > 0).length
   const lines = rows.map(r => {
-    const all = r.done >= r.total
-    const state = r.total > 1
-      ? (all ? `опубликованы все ${r.total}` : `опубликовано ${r.done} из ${r.total}`)
-      : (all ? 'опубликован' : 'не опубликован')
-    return `${all ? '✅' : '❌'} <b>${esc(r.name)}</b> — ${state}`
+    if (r.failed) return `⚠️ <b>${esc(r.name)}</b> — проверить не удалось`
+    if (!r.done) return `❌ <b>${esc(r.name)}</b> — не опубликован`
+    const many = r.done > 1
+      ? ` · ${r.done} ${plural(r.done, 'публикация', 'публикации', 'публикаций')}`
+      : ''
+    return `✅ <b>${esc(r.name)}</b> — опубликован${many}`
   })
 
-  const tail = skipped.length
-    ? `<i>На сегодня постов в плане нет: ${skipped.map(esc).join(', ')}.</i>`
-    : ''
-
+  const count = known.length ? `\nВышло у ${out} из ${known.length}.` : ''
   return join([
-    `📋 <b>Выкладка ${dayLabel(date)}</b>` + (rows.length ? `\nВышло у ${out} из ${rows.length}.` : ''),
+    `📋 <b>Выкладка ${dayLabel(date)}</b>` + count,
     lines.join('\n'),
-    tail,
+    notes.length ? notes.map(n => `<i>${n}</i>`).join('\n') : '',
   ])
 }
 
