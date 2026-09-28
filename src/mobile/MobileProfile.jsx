@@ -1,27 +1,41 @@
-// Профиль — личный кабинет сотрудника (хендофф profile 2a).
+// Профиль — рабочий кабинет сотрудника.
 //
-// Смысл экрана: инструмент, а не витрина. Человек видит свой объём работы,
-// сроки, своих клиентов и правит безобидные личные данные.
+// Сверху то, что требует действия: клиенты, которых пора снимать, и открытые
+// задачи. Ниже KPI месяца, ближайшие съёмки и свои клиенты. Счёт KPI — в
+// lib/staffKpi.js, данные — в lib/useStaffProfile.js: те же цифры показывает
+// профиль на компьютере.
+//
+// Владелец в своём профиле видит всё агентство и KPI команды, а по нажатию на
+// человека — его профиль (?emp=id) только для чтения.
 //
 // Роль, доступы и распределение клиентов сотрудник не меняет — это остаётся за
 // владельцем, и запрещено не только в интерфейсе: правка идёт через функцию
 // update_my_profile с фиксированным набором полей (db/profile_2a.sql).
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useProfile } from '../lib/useProfile'
-import { ymd } from '../lib/tz'
-import { planStateRow, PLAN_COLUMNS } from '../lib/postPlan'
-import { weekDays, todayDate } from './todayTasks'
+import { nowAstana, parseYmd } from '../lib/tz'
+import { planStateRow } from '../lib/postPlan'
+import { duties, dutyLabel, packageLabel } from '../lib/packages'
+import {
+  staffKpi, shootGaps, openTasks, upcomingShoots, monthBounds, daysBetween, grade,
+  SHOOT_GAP_DAYS, SHOOT_LOOKBACK_DAYS,
+} from '../lib/staffKpi'
+import { useStaffProfile } from '../lib/useStaffProfile'
 import { useTheme } from '../lib/ThemeContext'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, SectionTitle } from './ui'
 
-const COLLAPSED_CLIENTS = 3
+const COLLAPSED_CLIENTS = 5
+const COLLAPSED_TASKS = 5
 
 const ROLE_LABEL = { admin: 'ВЛАДЕЛЕЦ', smm: 'SMM-МЕНЕДЖЕР', operator: 'ОПЕРАТОР', client: 'КЛИЕНТ' }
-const MONTHS_SHORT = ['ЯНВ', 'ФЕВ', 'МАР', 'АПР', 'МАЯ', 'ИЮН', 'ИЮЛ', 'АВГ', 'СЕН', 'ОКТ', 'НОЯ', 'ДЕК']
+const MONTHS = ['ЯНВАРЬ', 'ФЕВРАЛЬ', 'МАРТ', 'АПРЕЛЬ', 'МАЙ', 'ИЮНЬ', 'ИЮЛЬ', 'АВГУСТ', 'СЕНТЯБРЬ', 'ОКТЯБРЬ', 'НОЯБРЬ', 'ДЕКАБРЬ']
 const MONTHS_PREP = ['ЯНВАРЯ', 'ФЕВРАЛЯ', 'МАРТА', 'АПРЕЛЯ', 'МАЯ', 'ИЮНЯ', 'ИЮЛЯ', 'АВГУСТА', 'СЕНТЯБРЯ', 'ОКТЯБРЯ', 'НОЯБРЯ', 'ДЕКАБРЯ']
+const DOW = ['ВС', 'ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ']
+
+const GRADE_COLOR = { ok: T.accentText, warn: T.warn, bad: T.hot, none: T.muted }
 
 function initials(name) {
   if (!name) return '—'
@@ -36,114 +50,88 @@ function plural(n, one, few, many) {
   return many
 }
 
+const dm = iso => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}` : '')
+const dowOf = iso => DOW[parseYmd(iso).getDay()]
+
 export default function MobileProfile() {
   const navigate = useNavigate()
+  const [params, setParams] = useSearchParams()
   const { profile, can } = useProfile()
   const [toast, flash] = useToast()
 
+  const isAdmin = profile?.role === 'admin'
+  // Чужой профиль открывает только владелец; у остальных параметр игнорируется.
+  const viewing = isAdmin ? params.get('emp') : null
+  const own = !viewing
+  const empId = viewing || profile?.employee_id || null
+  // Владелец в своём профиле видит всё агентство: его клиенты — все клиенты.
+  const seeAll = own && isAdmin
+
+  const [ym, setYm] = useState(() => {
+    const n = nowAstana()
+    return [n.getFullYear(), n.getMonth()]
+  })
+  const month = useMemo(() => monthBounds(ym[0], ym[1]), [ym])
+  const { base, monthData, reload } = useStaffProfile(month)
+
   const [uid, setUid] = useState(null)
-  const [me, setMe] = useState(null)          // строка из employees
-  const [clients, setClients] = useState([])
-  const [posts, setPosts] = useState([])
-  const [shoots, setShoots] = useState([])
-  const [tasks, setTasks] = useState([])
-  const [team, setTeam] = useState([])
-  const [loading, setLoading] = useState(true)
+  useEffect(() => { supabase.auth.getUser().then(({ data }) => setUid(data?.user?.id || null)) }, [])
 
   const [editing, setEditing] = useState(null)  // сейчас только 'name'
   const [draft, setDraft] = useState({})
   const [saving, setSaving] = useState(false)
-
-  const isAdmin = profile?.role === 'admin'
-  const days = useMemo(() => weekDays(), [])
-  const weekFrom = ymd(days[0].date)
-  const weekTo = ymd(days[6].date)
-
-  const load = useCallback(async () => {
-    setLoading(true)
-    const { data: userData } = await supabase.auth.getUser()
-    const userId = userData?.user?.id || null
-    setUid(userId)
-
-    const empId = profile?.employee_id || null
-
-    const [empRes, cRes, pRes, sRes, tRes, teamRes] = await Promise.all([
-      empId ? supabase.from('employees').select('*').eq('id', empId).single() : Promise.resolve({ data: null }),
-      supabase.from('clients').select(`id, name, color, ${PLAN_COLUMNS}, smm_id, operator_id`).eq('is_active', true).order('number'),
-      empId
-        ? supabase.from('posts').select('id, publish_date, status').eq('smm_id', empId)
-            .eq('status', 'published').gte('publish_date', weekFrom).lte('publish_date', weekTo)
-        : Promise.resolve({ data: [] }),
-      empId
-        ? supabase.from('shoots').select('id, shoot_date, status').eq('operator_id', empId)
-            .gte('shoot_date', weekFrom).lte('shoot_date', weekTo).neq('status', 'cancelled')
-        : Promise.resolve({ data: [] }),
-      empId
-        ? supabase.from('tasks').select('id, status, deadline').eq('assignee_id', empId)
-            .gte('deadline', weekFrom).lte('deadline', weekTo)
-        : Promise.resolve({ data: [] }),
-      isAdmin ? supabase.from('employees').select('id, name, role').order('role').order('name') : Promise.resolve({ data: [] }),
-    ])
-
-    setMe(empRes.data || null)
-    setClients(cRes.data || [])
-    setPosts(pRes.data || [])
-    setShoots(sRes.data || [])
-    setTasks(tRes.data || [])
-    setTeam(teamRes.data || [])
-    setLoading(false)
-  }, [profile?.employee_id, isAdmin, weekFrom, weekTo])
-
-  useEffect(() => { load() }, [load])
-
-  // ── Метрики недели ────────────────────────────────────────────────────────
-  const week = useMemo(() => {
-    const byDay = days.map(d => {
-      const key = ymd(d.date)
-      return posts.filter(p => p.publish_date === key).length + shoots.filter(s => s.shoot_date === key).length
-    })
-
-    const tasksTotal = tasks.length
-    const tasksDone = tasks.filter(t => t.status === 'done').length
-
-    // «Прошло» — день съёмки уже наступил либо она отмечена снятой.
-    // Запланированные на конец недели в это число не попадают.
-    const todayKey = ymd(todayDate())
-    const shootsPassed = shoots.filter(s => s.status === 'done' || s.shoot_date <= todayKey).length
-
-    return {
-      postsDone: posts.length,
-      shootsPassed,
-      byDay,
-      tasksDone,
-      tasksTotal,
-    }
-  }, [days, posts, shoots, tasks])
-
-  // Сколько проектов видно, пока список свёрнут. Больше трёх — и карточка
-  // профиля превращается в список клиентов, ради которого есть свой экран.
+  const [open, setOpen] = useState(null)        // раскрытый KPI
   const [allClients, setAllClients] = useState(false)
+  const [allTasks, setAllTasks] = useState(false)
+
+  const today = base?.today
+  const me = base?.employees.find(e => e.id === empId) || null
+  const role = viewing ? me?.role : profile?.role
 
   const myClients = useMemo(() => {
-    const empId = profile?.employee_id
-    const mine = isAdmin
-      ? clients
-      : empId ? clients.filter(c => c.smm_id === empId || c.operator_id === empId) : []
-    return mine
-      .map(c => {
-        const { due: total, done } = planStateRow(c)
-        return { ...c, total, done, pct: total ? Math.min(Math.round((done / total) * 100), 100) : 0 }
-      })
-      .sort((a, b) => a.pct - b.pct)
-  }, [clients, profile?.employee_id, isAdmin])
+    if (!base) return []
+    return seeAll ? base.clients : base.clients.filter(c => duties(c, empId).any)
+  }, [base, seeAll, empId])
+
+  const kpi = useMemo(() => {
+    if (!base || !monthData || !empId || seeAll) return null
+    return staffKpi({ emp: empId, clients: base.clients, month, today, firstMedia: base.firstMedia, ...monthData })
+  }, [base, monthData, empId, seeAll, month, today])
+
+  const gaps = useMemo(
+    () => (base ? shootGaps({ clients: myClients, shoots: base.shoots, today }) : []),
+    [base, myClients, today],
+  )
+  const alarm = gaps.filter(g => g.needs)
+  const soon = gaps.filter(g => g.planned)
+
+  const tasks = useMemo(() => (base && empId ? openTasks(base.tasks, empId, today) : []), [base, empId, today])
+  const shoots = useMemo(
+    () => (base ? upcomingShoots(base.shoots, empId, today, { all: seeAll }) : []),
+    [base, empId, today, seeAll],
+  )
+
+  // KPI команды — только в профиле владельца.
+  const team = useMemo(() => {
+    if (!seeAll || !base || !monthData) return []
+    return base.employees
+      .filter(e => e.role === 'smm' || e.role === 'operator')
+      .map(e => ({
+        ...e,
+        clients: base.clients.filter(c => duties(c, e.id).any).length,
+        kpi: staffKpi({ emp: e.id, clients: base.clients, month, today, firstMedia: base.firstMedia, ...monthData }),
+      }))
+  }, [seeAll, base, monthData, month, today])
+
+  const clientRow = useMemo(() => new Map((base?.clients || []).map(c => [c.id, c])), [base])
 
   // ── Правка своих данных ───────────────────────────────────────────────────
   async function savePersonal(patch) {
     setSaving(true)
-    const { data, error } = await supabase.rpc('update_my_profile', patch)
+    const { error } = await supabase.rpc('update_my_profile', patch)
     setSaving(false)
     if (error) { flash(error.message.toUpperCase()); return false }
-    if (data) setMe(data)
+    await reload()
     setEditing(null)
     flash('СОХРАНЕНО')
     return true
@@ -164,12 +152,16 @@ export default function MobileProfile() {
     await savePersonal({ p_avatar_url: `${pub.publicUrl}?v=${Date.now()}` })
   }
 
-  const name = me?.name || profile?.full_name || profile?.email?.split('@')[0] || ''
-  const joined = me?.created_at ? new Date(me.created_at) : null
-  const maxBar = Math.max(...week.byDay, 1)
-  const loadPct = week.tasksTotal ? Math.round((week.tasksDone / week.tasksTotal) * 100) : 0
+  function shiftMonth(delta) {
+    const d = new Date(ym[0], ym[1] + delta, 1)
+    setYm([d.getFullYear(), d.getMonth()])
+    setOpen(null)
+  }
 
-  if (loading) {
+  const now = nowAstana()
+  const isCurrentMonth = ym[0] === now.getFullYear() && ym[1] === now.getMonth()
+
+  if (!base) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
         <div className="spinner" style={{ width: 28, height: 28 }} />
@@ -177,15 +169,28 @@ export default function MobileProfile() {
     )
   }
 
+  const name = me?.name || (own ? profile?.full_name || profile?.email?.split('@')[0] : '') || ''
+  const joined = me?.created_at ? new Date(me.created_at) : null
+  const linked = Boolean(empId) || seeAll
+
   return (
     <div className="g-safe-top" style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '8px 20px 24px' }}>
 
       {/* Хедер */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ font: `700 15px ${OSW}`, letterSpacing: '.06em', color: T.text }}>
-          1M<span style={{ color: T.accentText }}>.</span>AGENCY
-        </span>
-        <span style={{ color: T.muted, ...mono(500, 11, '.08em') }}>МОЙ ПРОФИЛЬ</span>
+        {own ? (
+          <span style={{ font: `700 15px ${OSW}`, letterSpacing: '.06em', color: T.text }}>
+            1M<span style={{ color: T.accentText }}>.</span>AGENCY
+          </span>
+        ) : (
+          <button
+            onClick={() => setParams({}, { replace: true })}
+            style={{ background: 'none', border: 'none', padding: 0, color: T.accentText, ...mono(700, 11, '.08em') }}
+          >
+            ← МОЙ ПРОФИЛЬ
+          </button>
+        )}
+        <span style={{ color: T.muted, ...mono(500, 11, '.08em') }}>{own ? 'МОЙ ПРОФИЛЬ' : 'ПРОФИЛЬ СОТРУДНИКА'}</span>
       </div>
 
       {/* Идентификация */}
@@ -207,7 +212,7 @@ export default function MobileProfile() {
               {initials(name)}
             </span>
           )}
-          {me && (
+          {own && me && (
             <label style={{
               position: 'absolute', right: -4, bottom: -4,
               width: 30, height: 30, borderRadius: 11,
@@ -231,7 +236,7 @@ export default function MobileProfile() {
             {name}
           </span>
           <span style={{ color: T.muted, ...mono(500, 10.5, '.1em') }}>
-            {ROLE_LABEL[profile?.role] || '—'}
+            {ROLE_LABEL[role] || '—'}
             {myClients.length > 0 && ` · ${myClients.length} ${plural(myClients.length, 'КЛИЕНТ', 'КЛИЕНТА', 'КЛИЕНТОВ')}`}
           </span>
           {joined && (
@@ -242,125 +247,304 @@ export default function MobileProfile() {
         </div>
       </div>
 
-      {/* Моя неделя */}
-      <div style={{
-        background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 20,
-        padding: 18, display: 'flex', flexDirection: 'column', gap: 15,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-          <span style={{ color: T.muted, ...mono(600, 10.5, '.14em') }}>МОЯ НЕДЕЛЯ</span>
-          <span style={{ color: T.faint, ...mono(500, 10, '.06em') }}>
-            {days[0].num}–{days[6].num} {MONTHS_SHORT[days[6].date.getMonth()]}
-          </span>
-        </div>
-
-        {!profile?.employee_id ? (
-          <div style={{ font: `400 12px/1.5 ${SANS}`, color: T.muted }}>
-            Профиль не связан с карточкой сотрудника, поэтому статистика не считается.
+      {!linked && (
+        <Card>
+          <div style={{ font: `400 12.5px/1.5 ${SANS}`, color: T.muted }}>
+            Профиль не связан с карточкой сотрудника, поэтому задачи, съёмки и KPI не считаются.
             Это делает владелец в настройках.
           </div>
-        ) : (
-          <>
-            <div style={{ display: 'flex', gap: 12 }}>
-              {[
-                ['ПОСТОВ ВЫПУЩЕНО', week.postsDone, false],
-                ['СЪЁМОК ПРОШЛО', week.shootsPassed, false],
-                ['МОИХ ПРОЕКТОВ', myClients.length, true],
-              ].map(([label, value, accent]) => (
-                <div key={label} style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ font: `700 30px ${OSW}`, color: accent ? T.accentText : T.text }}>{value}</div>
-                  <div style={{ marginTop: 2, color: T.muted, ...mono(500, 8.5, '.09em') }}>{label}</div>
-                </div>
-              ))}
-            </div>
+        </Card>
+      )}
 
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 34 }}>
-              {week.byDay.map((v, i) => (
-                <span
-                  key={i}
-                  style={{
-                    flex: 1, borderRadius: 3, minHeight: 3,
-                    height: `${Math.max((v / maxBar) * 100, 8)}%`,
-                    background: days[i].isToday || (v === maxBar && v > 0) ? T.accent : T.track,
-                  }}
-                />
-              ))}
-            </div>
-
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 12,
-              borderTop: '1px solid var(--g-line-2)', paddingTop: 13,
-            }}>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ font: `600 12.5px ${SANS}`, color: T.text }}>Загрузка на неделю</div>
-                <div style={{ marginTop: 3, color: T.muted, ...mono(500, 10, '.06em') }}>
-                  {week.tasksTotal === 0
-                    ? 'ЗАДАЧ НА НЕДЕЛЮ НЕТ'
-                    : `${week.tasksDone} ИЗ ${week.tasksTotal} ${plural(week.tasksTotal, 'ЗАДАЧИ', 'ЗАДАЧ', 'ЗАДАЧ')}` +
-                      (week.tasksDone === week.tasksTotal ? ' · ВСЁ ЗАКРЫТО' : ` · ОСТАЛОСЬ ${week.tasksTotal - week.tasksDone}`)}
-                </div>
-              </div>
-              <span style={{ width: 74, height: 6, flex: 'none', borderRadius: 3, background: T.track, overflow: 'hidden' }}>
-                <span style={{ display: 'block', width: `${loadPct}%`, height: '100%', borderRadius: 3, background: T.accent }} />
+      {/* Нужна съёмка */}
+      {alarm.length > 0 && (
+        <div style={{
+          background: T.surface, borderRadius: 18, overflow: 'hidden',
+          border: `1px solid ${T.hotDot}`,
+        }}>
+          <div style={{ padding: '14px 15px 4px', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ color: T.hot, ...mono(700, 11, '.12em') }}>НУЖНА СЪЁМКА · {alarm.length}</span>
+            <span style={{ color: T.faint, ...mono(500, 9.5, '.06em') }}>БЕЗ СЪЁМКИ БОЛЬШЕ {SHOOT_GAP_DAYS} ДН.</span>
+          </div>
+          {alarm.map((g, i) => (
+            <button
+              key={g.client.id}
+              onClick={() => navigate('/shoots')}
+              style={{ ...rowStyle(i === 0), width: '100%', background: 'none', textAlign: 'left', gap: 11 }}
+            >
+              <Dot color={g.client.color} />
+              <span style={{ flex: 1, minWidth: 0, font: `600 13.5px ${SANS}`, color: T.text, ...ellipsis }}>
+                {g.client.name}
               </span>
-            </div>
-          </>
-        )}
-      </div>
+              <span style={{ flex: 'none', color: T.hot, ...mono(700, 10.5, '.04em') }}>
+                {g.gap === null ? `${SHOOT_LOOKBACK_DAYS}+ ДН.` : `${g.gap} ДН.`}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
-      {/* Мои клиенты */}
-      {myClients.length > 0 && (
+      {/* KPI месяца */}
+      {kpi && (kpi.stories || kpi.plan || kpi.onTime) && (
+        <Card>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span style={{ color: T.muted, ...mono(600, 10.5, '.14em') }}>KPI</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <MonthButton onClick={() => shiftMonth(-1)} label="‹" aria="Предыдущий месяц" />
+              <span style={{ minWidth: 118, textAlign: 'center', color: T.text, ...mono(700, 10.5, '.08em') }}>
+                {MONTHS[ym[1]]} {ym[0]}
+              </span>
+              <MonthButton onClick={() => shiftMonth(1)} label="›" aria="Следующий месяц" disabled={isCurrentMonth} />
+            </div>
+          </div>
+
+          {!monthData ? (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: 14 }}>
+              <div className="spinner" style={{ width: 20, height: 20 }} />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {kpi.stories && (
+                <KpiRow
+                  first
+                  label="Норма сторис"
+                  value={kpi.stories.pct}
+                  sub={kpi.stories.total
+                    ? `${kpi.stories.hit} из ${kpi.stories.total} ${plural(kpi.stories.total, 'дня', 'дней', 'дней')} норма закрыта к 12:00`
+                    : monthData.storiesMissing
+                      ? 'Замеры ещё не включены'
+                      : 'Замеров за месяц нет: бот делает их в 12:00'}
+                  open={open === 'stories'}
+                  onToggle={() => setOpen(open === 'stories' ? null : 'stories')}
+                >
+                  {kpi.stories.byClient.map(c => (
+                    <Detail key={c.id} color={c.color} name={c.name} value={`${c.hit}/${c.total}`}
+                      note={c.missed.slice(-4).map(m => `${dm(m.day)} — ${m.done} из ${m.plan}`).join(' · ')} />
+                  ))}
+                </KpiRow>
+              )}
+
+              {kpi.plan && (
+                <KpiRow
+                  first={!kpi.stories}
+                  label="План постов"
+                  value={kpi.plan.pct}
+                  sub={`${kpi.plan.done} из ${kpi.plan.plan}` +
+                    (isCurrentMonth ? ` · по графику к сегодня ${kpi.plan.expected}` : '')}
+                  open={open === 'plan'}
+                  onToggle={() => setOpen(open === 'plan' ? null : 'plan')}
+                >
+                  {kpi.plan.byClient.map(c => (
+                    <Detail key={c.id} color={c.color} name={c.name} value={`${c.done}/${c.plan}`}
+                      note={c.source === 'plan' ? 'Instagram не подключён, по контент-плану' : ''} />
+                  ))}
+                </KpiRow>
+              )}
+
+              {kpi.onTime && (
+                <KpiRow
+                  first={!kpi.stories && !kpi.plan}
+                  label="Выкладка в срок"
+                  value={kpi.onTime.pct}
+                  sub={kpi.onTime.total
+                    ? `${kpi.onTime.hit} из ${kpi.onTime.total} · вт, пт, вс`
+                    : 'Дней выкладки в месяце ещё не было'}
+                  open={open === 'onTime'}
+                  onToggle={() => setOpen(open === 'onTime' ? null : 'onTime')}
+                >
+                  {kpi.onTime.byClient.map(c => (
+                    <Detail key={c.id} color={c.color} name={c.name} value={`${c.hit}/${c.total}`}
+                      note={c.missed.length ? 'нет поста: ' + c.missed.slice(-5).map(dm).join(', ') : ''} />
+                  ))}
+                </KpiRow>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/* Задачи */}
+      {empId && (
         <div>
-          {/* Список раскрывается здесь же, а не уводит на «Клиентов»: у
-              оператора того раздела нет, и кнопка его просто разворачивала.
-              Заодно это единственное место, где он видит все свои проекты, —
-              на «Клиентах» список общий, а не его. */}
           <SectionTitle
-            action={myClients.length > COLLAPSED_CLIENTS
-              ? (allClients ? 'СВЕРНУТЬ' : `ВСЕ ${myClients.length} →`)
-              : null}
-            onAction={() => setAllClients(v => !v)}
+            action={can('tasks') ? 'ДОСКА →' : null}
+            onAction={() => navigate('/tasks')}
           >
-            МОИ КЛИЕНТЫ · {myClients.length}
+            ЗАДАЧИ · {tasks.length}
           </SectionTitle>
-          <div style={{ background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16, overflow: 'hidden' }}>
-            {(allClients ? myClients : myClients.slice(0, COLLAPSED_CLIENTS)).map((c, i) => {
-              const hot = c.pct < 40
+          <List>
+            {tasks.length === 0 && <Empty>Открытых задач нет</Empty>}
+            {(allTasks ? tasks : tasks.slice(0, COLLAPSED_TASKS)).map((t, i) => (
+              <div key={t.id} style={{ ...rowStyle(i === 0), gap: 11 }}>
+                <Dot color={t.client?.color} />
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', font: `600 13.5px ${SANS}`, color: T.text, ...ellipsis }}>{t.title}</span>
+                  {t.client?.name && (
+                    <span style={{ display: 'block', marginTop: 2, color: T.muted, ...mono(500, 9.5, '.08em') }}>
+                      {t.client.name.toUpperCase()}
+                    </span>
+                  )}
+                </span>
+                <span style={{ flex: 'none', color: t.overdue ? T.hot : T.muted, ...mono(t.overdue ? 700 : 500, 10, '.04em') }}>
+                  {!t.deadline
+                    ? 'БЕЗ СРОКА'
+                    : t.overdue
+                      ? `ПРОСРОЧЕНО ${daysBetween(t.deadline, today)} ДН.`
+                      : t.deadline === today ? 'СЕГОДНЯ' : `ДО ${dm(t.deadline)}`}
+                </span>
+              </div>
+            ))}
+            {tasks.length > COLLAPSED_TASKS && (
+              <MoreButton onClick={() => setAllTasks(v => !v)}>
+                {allTasks ? 'СВЕРНУТЬ' : `ЕЩЁ ${tasks.length - COLLAPSED_TASKS}`}
+              </MoreButton>
+            )}
+          </List>
+        </div>
+      )}
+
+      {/* Съёмки */}
+      {linked && (
+        <div>
+          <SectionTitle action="РАСПИСАНИЕ →" onAction={() => navigate('/shoots')}>
+            СЪЁМКИ · 2 НЕДЕЛИ
+          </SectionTitle>
+          <List>
+            {shoots.length === 0 && <Empty>Съёмок в ближайшие две недели нет</Empty>}
+            {shoots.map((s, i) => {
+              const c = clientRow.get(s.client_id)
+              const as = s.operator_id === empId ? 'ОПЕРАТОР' : s.smm_id === empId ? 'SMM' : ''
               return (
                 <button
-                  key={c.id}
-                  onClick={() => navigate(`/client/${c.id}`)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 11, width: '100%',
-                    padding: '13px 15px', background: 'none', color: T.text, textAlign: 'left',
-                    border: 'none', borderTop: i === 0 ? 'none' : '1px solid var(--g-line-2)',
-                  }}
+                  key={s.id}
+                  onClick={() => navigate(`/shoots?date=${s.shoot_date}`)}
+                  style={{ ...rowStyle(i === 0), width: '100%', background: 'none', textAlign: 'left', gap: 12 }}
                 >
-                  <span style={{ width: 10, height: 10, borderRadius: 3, background: c.color || T.muted, flex: 'none' }} />
-                  <span style={{ flex: 1, minWidth: 0, font: `600 13.5px ${SANS}`, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {c.name}
+                  <span style={{ width: 44, flex: 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <span style={{ color: s.shoot_date === today ? T.accentText : T.muted, ...mono(700, 9.5, '.08em') }}>
+                      {s.shoot_date === today ? 'СЕГОДНЯ' : dowOf(s.shoot_date)}
+                    </span>
+                    <span style={{ color: T.text, ...mono(700, 12, '.02em') }}>{dm(s.shoot_date)}</span>
                   </span>
-                  <span style={{ width: 62, height: 5, flex: 'none', borderRadius: 3, background: T.track, overflow: 'hidden' }}>
-                    <span style={{ display: 'block', width: `${c.pct}%`, height: '100%', borderRadius: 3, background: hot ? T.hot : T.accent }} />
-                  </span>
-                  <span style={{ minWidth: 32, textAlign: 'right', flex: 'none', color: hot ? T.hot : T.text2, ...mono(600, 11, '.02em') }}>
-                    {c.pct}%
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <Dot color={c?.color} />
+                      <span style={{ font: `600 13.5px ${SANS}`, color: T.text, ...ellipsis }}>{c?.name || 'Без клиента'}</span>
+                    </span>
+                    <span style={{ display: 'block', marginTop: 3, color: T.muted, ...mono(500, 9.5, '.06em'), ...ellipsis }}>
+                      {[(s.time_start || '').slice(0, 5), (s.location || '').toUpperCase(), as].filter(Boolean).join(' · ') || 'ВРЕМЯ НЕ НАЗНАЧЕНО'}
+                    </span>
                   </span>
                 </button>
               )
             })}
+          </List>
+        </div>
+      )}
+
+      {/* Клиенты */}
+      {myClients.length > 0 && (
+        <div>
+          <SectionTitle
+            action={myClients.length > COLLAPSED_CLIENTS ? (allClients ? 'СВЕРНУТЬ' : `ВСЕ ${myClients.length} →`) : null}
+            onAction={() => setAllClients(v => !v)}
+          >
+            {seeAll ? 'КЛИЕНТЫ' : 'МОИ КЛИЕНТЫ'} · {myClients.length}
+          </SectionTitle>
+          <List>
+            {(allClients ? myClients : myClients.slice(0, COLLAPSED_CLIENTS)).map((c, i) => {
+              const st = planStateRow(c)
+              const p = st.plan ? Math.min(Math.round((st.planDone / st.plan) * 100), 100) : 0
+              const g = gaps.find(x => x.client.id === c.id)
+              const duty = seeAll ? '' : dutyLabel(duties(c, empId))
+              return (
+                <button
+                  key={c.id}
+                  onClick={() => navigate(`/client/${c.id}`)}
+                  style={{ ...rowStyle(i === 0), width: '100%', background: 'none', textAlign: 'left', gap: 11 }}
+                >
+                  <Dot color={c.color} />
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: 'block', font: `600 13.5px ${SANS}`, color: T.text, ...ellipsis }}>{c.name}</span>
+                    <span style={{ display: 'block', marginTop: 3, color: T.muted, ...mono(500, 9.5, '.06em'), ...ellipsis }}>
+                      {[packageLabel(c.package).toUpperCase(), duty, shootNote(g)].filter(Boolean).join(' · ')}
+                    </span>
+                    {st.debt > st.debtDone && (
+                      <span style={{ display: 'block', marginTop: 2, color: T.hot, ...mono(600, 9.5, '.06em') }}>
+                        ДОЛГ {st.debt - st.debtDone}
+                      </span>
+                    )}
+                  </span>
+                  <span style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                    <span style={{ color: T.text2, ...mono(600, 11, '.02em') }}>
+                      {st.planDone}/{st.plan}
+                    </span>
+                    <span style={{ width: 56, height: 4, borderRadius: 2, background: T.track, overflow: 'hidden' }}>
+                      <span style={{ display: 'block', width: `${p}%`, height: '100%', background: p < 40 ? T.hot : T.accent }} />
+                    </span>
+                  </span>
+                </button>
+              )
+            })}
+          </List>
+          {soon.length > 0 && (
+            <div style={{ marginTop: 8, font: `400 11px/1.5 ${SANS}`, color: T.faint }}>
+              Давно без съёмки, но уже назначена: {soon.map(g => `${g.client.name} (${dm(g.next)})`).join(', ')}.
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* KPI команды — только у владельца */}
+      {seeAll && team.length > 0 && (
+        <div>
+          <SectionTitle>КОМАНДА · {MONTHS[ym[1]]}</SectionTitle>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4, marginTop: -4, marginBottom: 8 }}>
+            <MonthButton onClick={() => shiftMonth(-1)} label="‹" aria="Предыдущий месяц" />
+            <MonthButton onClick={() => shiftMonth(1)} label="›" aria="Следующий месяц" disabled={isCurrentMonth} />
+          </div>
+          <List>
+            {team.map((e, i) => (
+              <button
+                key={e.id}
+                onClick={() => setParams({ emp: e.id })}
+                style={{ ...rowStyle(i === 0), width: '100%', background: 'none', textAlign: 'left', gap: 11 }}
+              >
+                <span style={{
+                  width: 32, height: 32, borderRadius: 11, flex: 'none', background: T.avatar,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: T.text2, ...mono(600, 10, '.02em'),
+                }}>
+                  {initials(e.name)}
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', font: `600 13px ${SANS}`, color: T.text, ...ellipsis }}>{e.name}</span>
+                  <span style={{ display: 'block', marginTop: 2, color: T.muted, ...mono(500, 9.5, '.08em') }}>
+                    {ROLE_LABEL[e.role] || e.role} · {e.clients} {plural(e.clients, 'КЛИЕНТ', 'КЛИЕНТА', 'КЛИЕНТОВ')}
+                  </span>
+                </span>
+                <span style={{ flex: 'none', display: 'flex', gap: 8 }}>
+                  <MiniKpi label="С" k={e.kpi.stories} />
+                  <MiniKpi label="П" k={e.kpi.plan} />
+                  <MiniKpi label="В" k={e.kpi.onTime} />
+                </span>
+              </button>
+            ))}
+          </List>
+          <div style={{ marginTop: 8, font: `400 11px/1.5 ${SANS}`, color: T.faint }}>
+            С — норма сторис, П — план постов, В — выкладка в срок.
           </div>
         </div>
       )}
 
       {/* Личные данные */}
-      {me && (
+      {own && me && (
         <div>
           <SectionTitle>ЛИЧНЫЕ ДАННЫЕ</SectionTitle>
           <div style={{ background: T.surface, borderRadius: 16, overflow: 'hidden' }}>
             <label style={{ ...rowStyle(true), cursor: 'pointer' }}>
               <span style={{ font: `500 13.5px ${SANS}`, color: T.text }}>Фото профиля</span>
-              <span style={{ color: T.accentText, ...mono(600, 10.5, '.06em') }}>
+              <span style={{ marginLeft: 'auto', color: T.accentText, ...mono(600, 10.5, '.06em') }}>
                 {me.avatar_url ? 'ЗАМЕНИТЬ' : 'ЗАГРУЗИТЬ'}
               </span>
               <input
@@ -383,55 +567,28 @@ export default function MobileProfile() {
         </div>
       )}
 
-      {/* Команда — только у владельца */}
-      {isAdmin && team.length > 0 && (
-        <div>
-          <SectionTitle>КОМАНДА</SectionTitle>
-          <div style={{ background: T.surface, borderRadius: 16, overflow: 'hidden' }}>
-            {team.map((e, i) => (
-              <div key={e.id} style={{ ...rowStyle(i === 0), gap: 11 }}>
-                <span style={{
-                  width: 32, height: 32, borderRadius: 11, flex: 'none', background: T.avatar,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: T.text2, ...mono(600, 10, '.02em'),
-                }}>
-                  {initials(e.name)}
-                </span>
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <span style={{ display: 'block', font: `600 13px ${SANS}`, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {e.name}
-                  </span>
-                  <span style={{ display: 'block', marginTop: 2, color: T.muted, ...mono(500, 10, '.08em') }}>
-                    {ROLE_LABEL[e.role] || e.role}
-                  </span>
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Настройки — доступы прежние */}
-      <Settings navigate={navigate} can={can} isAdmin={isAdmin} />
+      {own && <Settings navigate={navigate} can={can} isAdmin={isAdmin} />}
 
       {/* Единственный выход из приложения: в меню разделов его намеренно нет —
           там он стоял рядом с навигацией и нажимался по ошибке.
           Спрашиваем подтверждение: после выхода придётся вводить пароль. */}
-      <button
-        onClick={async () => {
-          const ok = window.confirm('Выйти из приложения?\n\nЧтобы вернуться, понадобится почта и пароль.')
-          if (!ok) return
-          await supabase.auth.signOut()
-          navigate('/login')
-        }}
-        style={{
-          minHeight: 48, borderRadius: 14, background: 'transparent',
-          border: `1px solid ${T.hot}`, color: T.hot,
-          ...mono(600, 12, '.08em'),
-        }}
-      >
-        ВЫЙТИ
-      </button>
+      {own && (
+        <button
+          onClick={async () => {
+            const ok = window.confirm('Выйти из приложения?\n\nЧтобы вернуться, понадобится почта и пароль.')
+            if (!ok) return
+            await supabase.auth.signOut()
+            navigate('/login')
+          }}
+          style={{
+            minHeight: 48, borderRadius: 14, background: 'transparent',
+            border: `1px solid ${T.hot}`, color: T.hot,
+            ...mono(600, 12, '.08em'),
+          }}
+        >
+          ВЫЙТИ
+        </button>
+      )}
 
       {/* Шторки правки */}
       <Sheet open={editing === 'name'} title="Имя в приложении" onClose={() => setEditing(null)}>
@@ -452,6 +609,125 @@ export default function MobileProfile() {
 
       <Toast text={toast} />
     </div>
+  )
+}
+
+// Подпись о съёмках в строке клиента.
+function shootNote(g) {
+  if (!g) return ''
+  if (g.next) return `СЪЁМКА ${dm(g.next)}`
+  if (g.gap === null) return 'СЪЁМОК НЕ БЫЛО'
+  if (g.gap === 0) return 'СНИМАЛИ СЕГОДНЯ'
+  return `СЪЁМКА ${g.gap} ДН. НАЗАД`
+}
+
+/* ── Мелкие части ──────────────────────────────────────────────────────── */
+
+function Card({ children }) {
+  return (
+    <div style={{
+      background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 20,
+      padding: 18, display: 'flex', flexDirection: 'column', gap: 12,
+    }}>
+      {children}
+    </div>
+  )
+}
+
+function List({ children }) {
+  return (
+    <div style={{ background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16, overflow: 'hidden' }}>
+      {children}
+    </div>
+  )
+}
+
+function Empty({ children }) {
+  return <div style={{ padding: '14px 15px', font: `400 12.5px/1.5 ${SANS}`, color: T.muted }}>{children}</div>
+}
+
+function MoreButton({ onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      ...rowStyle(false), width: '100%', justifyContent: 'center', background: 'none',
+      color: T.accentText, ...mono(700, 10, '.08em'),
+    }}>
+      {children}
+    </button>
+  )
+}
+
+function Dot({ color }) {
+  return <span style={{ width: 10, height: 10, borderRadius: 3, background: color || T.muted, flex: 'none' }} />
+}
+
+function MonthButton({ onClick, label, aria, disabled }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={aria}
+      style={{
+        width: 30, height: 30, borderRadius: 10, border: 'none',
+        background: T.surface2, color: disabled ? T.faint : T.text,
+        opacity: disabled ? 0.5 : 1, ...mono(700, 14, '0'),
+      }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function KpiRow({ first, label, value, sub, open, onToggle, children }) {
+  const color = GRADE_COLOR[grade(value)]
+  const hasDetail = Array.isArray(children) ? children.length > 0 : Boolean(children)
+  return (
+    <div style={{ borderTop: first ? 'none' : '1px solid var(--g-line-2)' }}>
+      <button
+        onClick={hasDetail ? onToggle : undefined}
+        style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 0', background: 'none', border: 'none', textAlign: 'left',
+        }}
+      >
+        <span style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ display: 'block', font: `600 13.5px ${SANS}`, color: T.text }}>{label}</span>
+          <span style={{ display: 'block', marginTop: 3, color: T.muted, font: `400 11.5px/1.4 ${SANS}` }}>{sub}</span>
+        </span>
+        <span style={{ flex: 'none', font: `700 28px ${OSW}`, color }}>
+          {value === null ? '—' : `${value}%`}
+        </span>
+        {hasDetail && (
+          <span style={{ flex: 'none', color: T.muted, ...mono(600, 11, '0'), transform: open ? 'rotate(180deg)' : 'none' }}>▾</span>
+        )}
+      </button>
+      {open && hasDetail && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 12 }}>{children}</div>
+      )}
+    </div>
+  )
+}
+
+function Detail({ color, name, value, note }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 9 }}>
+      <span style={{ marginTop: 4 }}><Dot color={color} /></span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: 'block', font: `500 12.5px ${SANS}`, color: T.text2, ...ellipsis }}>{name}</span>
+        {note && <span style={{ display: 'block', marginTop: 2, font: `400 11px/1.4 ${SANS}`, color: T.faint }}>{note}</span>}
+      </span>
+      <span style={{ flex: 'none', color: T.text2, ...mono(600, 11, '.02em') }}>{value}</span>
+    </div>
+  )
+}
+
+function MiniKpi({ label, k }) {
+  if (!k) return <span style={{ width: 34, textAlign: 'center', color: T.faint, ...mono(500, 10, '0') }}>{label} —</span>
+  return (
+    <span style={{ width: 34, textAlign: 'center', display: 'flex', flexDirection: 'column', gap: 1 }}>
+      <span style={{ color: T.faint, ...mono(500, 8.5, '.06em') }}>{label}</span>
+      <span style={{ color: GRADE_COLOR[grade(k.pct)], ...mono(700, 11, '0') }}>{k.pct === null ? '—' : k.pct}</span>
+    </span>
   )
 }
 
@@ -542,6 +818,8 @@ function EditForm({ children, hint, saving, onSubmit }) {
     </form>
   )
 }
+
+const ellipsis = { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }
 
 const rowStyle = first => ({
   display: 'flex', alignItems: 'center', gap: 10,

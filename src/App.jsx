@@ -13,7 +13,6 @@ import CalendarPage from './pages/CalendarPage'
 import TargetPage from './pages/TargetPage'
 import SettingsPage from './pages/SettingsPage'
 import TasksPage from './pages/TasksPage'
-import ProfilePage from './pages/ProfilePage'
 import { useMediaQuery } from './lib/useMediaQuery'
 import MobileHome from './mobile/MobileHome'
 import MobileContent from './mobile/MobileContent'
@@ -31,6 +30,7 @@ import ScreenPlan from './desktop/ScreenPlan'
 import ScreenShoots from './desktop/ScreenShoots'
 import ScreenTarget from './desktop/ScreenTarget'
 import ScreenSettings from './desktop/ScreenSettings'
+import ScreenProfile from './desktop/ScreenProfile'
 
 // Редизайн 1a пока только для телефонов: на широких экранах остаётся прежний
 // интерфейс, поэтому выбор делается здесь, а не внутри самих страниц —
@@ -89,7 +89,7 @@ export default function App() {
           <Route path="tasks"    element={<GuardedRoute perm="tasks"><Responsive mobile={MobileTasks} desktop={TasksPage} /></GuardedRoute>} />
           <Route path="settings" element={<GuardedRoute adminOnly><Responsive mobile={MobileSettings} desktop={ScreenSettings} /></GuardedRoute>} />
           <Route path="sync-check" element={<GuardedRoute adminOnly><SyncCheck /></GuardedRoute>} />
-          <Route path="profile"  element={<Responsive mobile={MobileProfile} desktop={ProfilePage} />} />
+          <Route path="profile"  element={<Responsive mobile={MobileProfile} desktop={ScreenProfile} />} />
         </Route>
       </Routes>
     </ThemeProvider>

@@ -35,7 +35,10 @@ export default function ScreenTable() {
   const [smmFilter, setSmmFilter] = useState('all')
   const [opFilter, setOpFilter] = useState('all')
   const [rowsMode, setRowsMode] = useState('all')
-  const [openId, setOpenId] = useState(null)
+  // ?client=id открывает панель клиента сразу: так сюда ведёт профиль, а на
+  // компьютере карточка клиента — это она, а не экран телефона.
+  const [openId, setOpenId] = useState(() =>
+    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('client'))
 
   useEffect(() => {
     Promise.all([fetchClients(), fetchEmployees()]).then(([c, e]) => {

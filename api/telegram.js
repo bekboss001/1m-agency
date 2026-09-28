@@ -12,7 +12,7 @@
 // Что и когда отправляется — в server/tgSchedule.js, как выглядит сообщение —
 // в server/tgFormat.js. Здесь только запросы к базе, отправка и учёт.
 
-import { astanaClock, dueFixed, dueShoots, storiesWindow, JOBS, SHOOT_LEAD_HOURS, STORIES_START }
+import { astanaClock, dueFixed, dueShoots, storiesWindow, storiesRecordDue, JOBS, SHOOT_LEAD_HOURS, STORIES_START }
   from '../server/tgSchedule.js'
 import * as F from '../server/tgFormat.js'
 import { sendMessage, editMessageText, answerCallback, yesNoKeyboard, parseCallback, tg }
@@ -334,14 +334,25 @@ async function ask(token, rest, chatId, question, job) {
 /* ══ Тик расписания ══════════════════════════════════════════════════ */
 
 async function tick(token, rest, now = Date.now()) {
+  // Замер сторис для KPI — до всех проверок Telegram: это учёт, и выключенная
+  // рассылка не должна оставлять месяц без данных. Его сбой (например, ещё не
+  // выполнена миграция stories_daily) рассылку тоже не останавливает.
+  let stories = null
+  try {
+    stories = await recordStories(rest, now)
+  } catch (e) {
+    console.error('stories record:', e)
+    stories = { error: e.message }
+  }
+
   const settings = Object.fromEntries(
     ((await rest('GET', 'app_settings?select=key,value')) || []).map(r => [r.key, r.value]))
   if (settings.integration_tg === false) {
-    return { skipped: 'интеграция Telegram выключена в настройках' }
+    return { skipped: 'интеграция Telegram выключена в настройках', stories }
   }
 
   const chats = await rest('GET', 'telegram_chats?select=chat_id&is_active=is.true')
-  if (!chats?.length) return { skipped: 'бот ещё не добавлен ни в один чат' }
+  if (!chats?.length) return { skipped: 'бот ещё не добавлен ни в один чат', stories }
 
   const clock = astanaClock(now)
   const jobs = dueFixed(now)
@@ -353,7 +364,7 @@ async function tick(token, rest, now = Date.now()) {
     `&shoot_date=lte.${addDays(clock.date, 3)}&status=neq.cancelled&order=shoot_date,time_start`)
   jobs.push(...dueShoots(now, shootRows))
 
-  const stats = { date: clock.date, time: clock.hhmm, sent: [], quiet: [], failed: [] }
+  const stats = { date: clock.date, time: clock.hhmm, sent: [], quiet: [], failed: [], stories }
 
   for (const job of jobs) {
     if (settings[SWITCH[job.kind]] === false) {
@@ -549,45 +560,16 @@ async function buildPosted(rest, date) {
  */
 async function buildStories(rest, label = null, now = Date.now()) {
   const { date, from } = storiesWindow(now)
-  const clients = await rest('GET',
-    'clients?select=id,name,package,instagram_account_id&is_active=is.true&order=number')
+  const rows = storyRows(await rest('GET', `clients?select=${STORY_CLIENT_FIELDS}&is_active=is.true&order=number`))
 
-  const rows = (clients || []).map(c => ({
-    name: c.name,
-    account: c.instagram_account_id || null,
-    pkg: packageLabel(c.package),
-    plan: storiesPlan(c.package),
-    done: 0,
-    failed: false,
-    noIg: !c.instagram_account_id,
-  }))
-
-  const token = metaToken()
   const notes = []
-  const errors = new Set()
-
+  const token = metaToken()
   if (!token) {
     for (const r of rows) { r.noIg = false; r.failed = true }
     notes.push('Instagram не опрошен: не задан META_ACCESS_TOKEN.')
   } else {
-    // TikTok спрашивать незачем: сторис в этот пакет не входят.
-    const queue = rows.filter(r => r.account && r.plan !== null)
-    const worker = async () => {
-      while (queue.length) {
-        const r = queue.shift()
-        const { stories, error } = await fetchStories(r.account, token)
-        if (error) {
-          r.failed = true
-          errors.add(error)
-          continue
-        }
-        r.done = stories.filter(s => s.ms >= from && s.ms <= now).length
-      }
-    }
-    await Promise.all(Array.from({ length: FEED_PARALLEL }, worker))
+    for (const e of await pollStories(rows, token, from, now)) notes.push('Instagram не ответил: ' + e)
   }
-
-  for (const e of errors) notes.push('Instagram не ответил: ' + e)
 
   return F.storiesText({
     date,
@@ -597,6 +579,94 @@ async function buildStories(rest, label = null, now = Date.now()) {
     rows,
     notes,
   })
+}
+
+const STORY_CLIENT_FIELDS = 'id,name,package,smm_id,operator_id,instagram_account_id'
+
+// Строки сводки сторис из клиентов. Норма — из пакета; у TikTok она null.
+function storyRows(clients) {
+  return (clients || []).map(c => ({
+    id: c.id,
+    name: c.name,
+    account: c.instagram_account_id || null,
+    package: c.package || null,
+    smmId: c.smm_id || null,
+    operatorId: c.operator_id || null,
+    pkg: packageLabel(c.package),
+    plan: storiesPlan(c.package),
+    done: 0,
+    failed: false,
+    noIg: !c.instagram_account_id,
+  }))
+}
+
+/**
+ * Считает сторис каждого клиента в окне [from, until] и пишет в строки done
+ * или failed. TikTok не спрашиваем: сторис в этот пакет не входят.
+ *
+ * @returns ошибки Meta без повторов — для сноски
+ */
+async function pollStories(rows, token, from, until) {
+  const errors = new Set()
+  const queue = rows.filter(r => r.account && r.plan !== null)
+  const worker = async () => {
+    while (queue.length) {
+      const r = queue.shift()
+      const { stories, error } = await fetchStories(r.account, token)
+      if (error) {
+        r.failed = true
+        errors.add(error)
+        continue
+      }
+      r.done = stories.filter(s => s.ms >= from && s.ms <= until).length
+    }
+  }
+  await Promise.all(Array.from({ length: FEED_PARALLEL }, worker))
+  return [...errors]
+}
+
+/**
+ * Дневной замер сторис для KPI: сколько вышло с 09:00 до 12:00.
+ *
+ * Пишется в stories_daily первым тиком после полудня. Клиенты, которых Meta в
+ * этот раз не отдала, остаются без строки, и следующий тик спросит только их:
+ * одна неудача не должна стоить человеку проваленного дня, а уже записанных
+ * опрашивать заново незачем.
+ *
+ * Вместе с числом записаны пакет и люди на клиенте: KPI за прошлые дни
+ * засчитывается тем, кто вёл клиента тогда, а не сейчас.
+ *
+ * Не зависит от тумблеров Telegram: это учёт, а не рассылка.
+ */
+async function recordStories(rest, now = Date.now()) {
+  const due = storiesRecordDue(now)
+  if (!due) return null
+  const token = metaToken()
+  if (!token) return { error: 'не задан META_ACCESS_TOKEN' }
+
+  const [clients, have] = await Promise.all([
+    rest('GET', `clients?select=${STORY_CLIENT_FIELDS}&is_active=is.true&order=number`),
+    rest('GET', `stories_daily?select=client_id&day=eq.${due.date}`),
+  ])
+  const recorded = new Set((have || []).map(r => r.client_id))
+  const rows = storyRows(clients).filter(r => r.account && r.plan !== null && !recorded.has(r.id))
+  if (!rows.length) return null
+
+  const errors = await pollStories(rows, token, due.from, due.until)
+  const out = rows.filter(r => !r.failed).map(r => ({
+    client_id: r.id,
+    day: due.date,
+    plan: r.plan,
+    done: r.done,
+    package: r.package,
+    smm_id: r.smmId,
+    operator_id: r.operatorId,
+    checked_at: new Date(now).toISOString(),
+  }))
+  if (out.length) {
+    await rest('POST', 'stories_daily?on_conflict=client_id,day', out, 'resolution=merge-duplicates,return=minimal')
+  }
+  return { date: due.date, recorded: out.length, failed: rows.length - out.length, errors }
 }
 
 async function buildDigest(rest, date) {

@@ -27,6 +27,16 @@ const NO_TIME_REMIND_AT = '19:00'
 // показывала бы вчерашний объём вместе с сегодняшним.
 export const STORIES_START = '09:00'
 
+// К этому часу норма сторис должна быть закрыта. По нему считается KPI «Норма
+// сторис»: бот записывает, сколько вышло с 09:00 до 12:00 (db/stories_daily.sql).
+export const STORIES_DEADLINE = '12:00'
+
+// До какого часа бот пробует записать замер, если в полдень не вышло: Meta не
+// ответила или сервер молчал. Окно режется по времени самих сторис, а живут
+// они сутки, поэтому поздний замер считает то же самое. Предел нужен только,
+// чтобы не опрашивать Meta до ночи, если она лежит.
+const STORIES_RECORD_UNTIL = '20:00'
+
 const EVERY_DAY = [0, 1, 2, 3, 4, 5, 6]
 const EXCEPT_WED = [0, 1, 2, 4, 5, 6]
 const MON_THU_SAT = [1, 4, 6]
@@ -122,6 +132,26 @@ export function storiesWindow(now = Date.now()) {
     ? c.date
     : new Date(Date.parse(c.date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10)
   return { date, from: astanaMs(date, STORIES_START) }
+}
+
+/**
+ * Пора ли записать дневной замер сторис.
+ *
+ * В среду сторис не выкладывают, и замера нет: иначе среда шла бы в KPI
+ * проваленным днём.
+ *
+ * @returns null или { date, from, until } — день и окно, в котором сторис
+ *   засчитываются: с 09:00 до 12:00 по Астане
+ */
+export function storiesRecordDue(now = Date.now()) {
+  const c = astanaClock(now)
+  if (!EXCEPT_WED.includes(c.dow)) return null
+  if (c.minutes < toMinutes(STORIES_DEADLINE) || c.minutes > toMinutes(STORIES_RECORD_UNTIL)) return null
+  return {
+    date: c.date,
+    from: astanaMs(c.date, STORIES_START),
+    until: astanaMs(c.date, STORIES_DEADLINE),
+  }
 }
 
 /**
