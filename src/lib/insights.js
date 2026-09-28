@@ -52,12 +52,50 @@ export function adMetrics(stats) {
   }
 }
 
+// REELS сервер выделяет из VIDEO по media_product_type. Старые ответы его не
+// знали, и reels там шли как VIDEO — поэтому VIDEO тоже читается как reels.
 const TYPE_NAME = {
+  REELS: ['reels', 'reels'],
   IMAGE: ['фото', 'фото'],
   VIDEO: ['reels', 'reels'],
   CAROUSEL_ALBUM: ['карусель', 'карусели'],
 }
 const typeName = (t, plural2) => (TYPE_NAME[t] ? TYPE_NAME[t][plural2 ? 1 : 0] : 'посты')
+
+/**
+ * Вторая метрика в сетке статистики.
+ *
+ * Просмотры профиля Meta отдаёт не каждому аккаунту и не в каждой версии API.
+ * Пустая плитка с прочерком ничего не говорит, поэтому, если просмотров нет,
+ * на её месте встаёт следующая по смыслу метрика: все взаимодействия с
+ * аккаунтом, а если нет и их — комментарии к публикациям периода.
+ *
+ * @returns { key, value, label }
+ */
+export function secondMetric(analytics) {
+  const ins = analytics?.insights || {}
+  if (ins.profile_views) return { key: 'profile_views', value: ins.profile_views.total, label: 'просмотров профиля' }
+  if (ins.total_interactions) return { key: 'total_interactions', value: ins.total_interactions.total, label: 'взаимодействий' }
+  if (ins.accounts_engaged) return { key: 'accounts_engaged', value: ins.accounts_engaged.total, label: 'вовлечённых аккаунтов' }
+  return { key: 'comments', value: analytics?.posts?.comments ?? null, label: 'комментариев' }
+}
+
+/**
+ * Лайки по форматам строкой: «reels 1 240 · карусели 380 · фото 95».
+ * Сначала формат, собравший больше всего.
+ */
+export function likesByFormat(posts) {
+  const merged = {}
+  for (const [t, b] of Object.entries(posts?.byType || {})) {
+    const name = typeName(t, true)
+    merged[name] = (merged[name] || 0) + (b.likes || 0)
+  }
+  return Object.entries(merged)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, v]) => `${name} ${num(v)}`)
+    .join(' · ')
+}
 
 /* ────────────────────────────── Сами правила ───────────────────────────── */
 

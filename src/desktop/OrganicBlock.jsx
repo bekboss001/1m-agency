@@ -8,9 +8,9 @@ import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import {
   fetchInstagramAnalytics, saveInstagramSnapshot, fetchInstagramSnapshots,
 } from './data'
-import { buildInsights } from '../lib/insights'
+import { buildInsights, secondMetric, likesByFormat } from '../lib/insights'
 
-const TYPE_LABEL = { IMAGE: 'фото', VIDEO: 'видео', CAROUSEL_ALBUM: 'карусель' }
+const TYPE_LABEL = { IMAGE: 'фото', VIDEO: 'видео', REELS: 'reels', CAROUSEL_ALBUM: 'карусель' }
 const dm = iso => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}` : '—')
 const compact = n => (n == null ? '—' : n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(Math.round(n)))
 
@@ -48,6 +48,8 @@ export default function OrganicBlock({ accountId, since, until, days, plan }) {
 
   if (!accountId) return null
 
+  const second = secondMetric(data)
+
   const first = history[0]
   const last = history[history.length - 1]
   const growth = first && last && history.length > 1 ? last.followers - first.followers : null
@@ -78,10 +80,17 @@ export default function OrganicBlock({ accountId, since, until, days, plan }) {
               hintColor={growth > 0 ? D.lime : growth < 0 ? D.alert : D.mut2}
             />
             <Stat value={compact(data.insights.reach?.total)} label="охват за период" />
-            <Stat value={compact(data.insights.profile_views?.total)} label="просмотров профиля" />
+            <Stat value={compact(second.value)} label={second.label} />
             <Stat value={data.posts.count} label="публикаций за период" />
-            <Stat value={data.posts.avgLikes} label="лайков на пост" />
-            <Stat value={data.posts.avgComments} label="комментариев на пост" />
+            <Stat
+              value={compact(data.posts.likes)}
+              label="лайков за период"
+              hint={`в среднем ${data.posts.avgLikes} на публикацию` +
+                (data.posts.likesHidden > 0 ? ` · у ${data.posts.likesHidden} скрыты` : '')}
+              hintColor={data.posts.likesHidden > 0 ? D.warn : undefined}
+            />
+            <Stat value={data.posts.comments} label="комментариев за период" hint={`в среднем ${data.posts.avgComments}`} />
+            <Stat value={likesByFormat(data.posts) || '—'} label="лайки по форматам" small />
           </div>
 
           <Insights
@@ -164,10 +173,10 @@ function Insights({ items }) {
   )
 }
 
-function Stat({ value, label, hint, hintColor }) {
+function Stat({ value, label, hint, hintColor, small }) {
   return (
     <div>
-      <div style={{ fontFamily: ARCHIVO, fontWeight: 800, fontSize: 20, color: D.white, lineHeight: 1.1, ...NUM }}>
+      <div style={{ fontFamily: small ? GROTESK : ARCHIVO, fontWeight: small ? 600 : 800, fontSize: small ? 12.5 : 20, color: D.white, lineHeight: small ? 1.4 : 1.1, ...NUM }}>
         {value ?? '—'}
       </div>
       <div style={{ fontFamily: GROTESK, fontSize: 10.5, color: D.mut2, marginTop: 3 }}>{label}</div>

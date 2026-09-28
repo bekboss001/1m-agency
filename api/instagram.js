@@ -209,25 +209,54 @@ export default async function handler(req, res) {
       // Каждую метрику запрашиваем отдельно: в одном запросе достаточно одного
       // неизвестного имени, чтобы Meta отклонила весь вызов, а состав метрик у
       // неё периодически меняется между версиями API.
+      //
+      // Два вида ответа. Ряд по дням (values) Meta отдаёт уже не для всех
+      // метрик: profile_views, accounts_engaged, total_interactions теперь
+      // только одним числом за период (metric_type=total_value), а старый
+      // запрос по ним возвращает ошибку. Поэтому для каждой метрики свой
+      // порядок попыток: охвату нужен ряд — по нему считается тренд, — прочим
+      // хватает суммы.
       const from = Math.floor(Date.parse(since + 'T00:00:00Z') / 1000)
       const to = Math.floor(Date.parse(until + 'T23:59:59Z') / 1000)
-      const insights = {}
+      const base = `${GRAPH}/${accountId}/insights?period=day&since=${from}&until=${to}&access_token=${metaToken}`
 
-      for (const metric of ['reach', 'profile_views', 'accounts_engaged']) {
-        const r = await getJson(
-          `${GRAPH}/${accountId}/insights?metric=${metric}&period=day&since=${from}&until=${to}&access_token=${metaToken}`,
-        )
-        if (r.error || !r.data?.length) continue
-        const values = r.data[0].values || []
-        insights[metric] = {
+      const asSeries = async metric => {
+        const r = await getJson(`${base}&metric=${metric}`)
+        const values = !r.error && r.data?.[0]?.values
+        if (!values?.length) return null
+        return {
           total: values.reduce((s, v) => s + (v.value || 0), 0),
           series: values.map(v => ({ date: v.end_time.slice(0, 10), value: v.value || 0 })),
         }
       }
+      const asTotal = async metric => {
+        const r = await getJson(`${base}&metric=${metric}&metric_type=total_value`)
+        const tv = !r.error && r.data?.[0]?.total_value
+        return tv && typeof tv.value === 'number' ? { total: tv.value } : null
+      }
+      const metric = async (name, order) => {
+        for (const get of order) {
+          const v = await get(name)
+          if (v) return v
+        }
+        return null
+      }
+
+      const METRICS = {
+        reach: [asSeries, asTotal],
+        profile_views: [asTotal, asSeries],
+        total_interactions: [asTotal],
+        accounts_engaged: [asTotal, asSeries],
+      }
+      const insights = {}
+      await Promise.all(Object.entries(METRICS).map(async ([name, order]) => {
+        const v = await metric(name, order)
+        if (v) insights[name] = v
+      }))
 
       // Лента за период — обход прерывается, как только записи стали старше начала.
       const media = await collect(
-        `${GRAPH}/${accountId}/media?fields=id,timestamp,media_type,like_count,comments_count,permalink,caption&limit=100&access_token=${metaToken}`,
+        `${GRAPH}/${accountId}/media?fields=id,timestamp,media_type,media_product_type,like_count,comments_count,permalink,caption&limit=100&access_token=${metaToken}`,
         items => {
           const last = items[items.length - 1]
           return last && last.timestamp.slice(0, 10) < since
@@ -239,14 +268,28 @@ export default async function handler(req, res) {
         return d >= since && d <= until
       })
 
+      // Если у публикации скрыт счётчик лайков (так часто делают с reels),
+      // лента не отдаёт like_count вовсе, и такая публикация считалась бы
+      // нулём. Владельцу аккаунта лайки при этом видны в статистике самой
+      // публикации — добираем их оттуда.
+      await Promise.all(posts.filter(p => typeof p.like_count !== 'number').map(async p => {
+        const r = await getJson(`${GRAPH}/${p.id}/insights?metric=likes&access_token=${metaToken}`)
+        const row = !r.error && r.data?.[0]
+        const v = row?.total_value?.value ?? row?.values?.[0]?.value
+        if (typeof v === 'number') p.like_count = v
+        else p.likesHidden = true
+      }))
+
       const likes = posts.reduce((s, p) => s + (p.like_count || 0), 0)
       const comments = posts.reduce((s, p) => s + (p.comments_count || 0), 0)
 
       // Разбивка по форматам: без неё нельзя ответить на главный вопрос
-      // контент-плана — что снимать больше, а что не окупает съёмку.
+      // контент-плана — что снимать больше, а что не окупает съёмку. Reels
+      // отделены от прочего видео по media_product_type: media_type у них
+      // тот же VIDEO.
       const byType = {}
       for (const p of posts) {
-        const t = p.media_type || 'OTHER'
+        const t = p.media_product_type === 'REELS' ? 'REELS' : (p.media_type || 'OTHER')
         const b = byType[t] || (byType[t] = { count: 0, likes: 0, comments: 0 })
         b.count++
         b.likes += p.like_count || 0
@@ -261,7 +304,7 @@ export default async function handler(req, res) {
         .slice(0, 3)
         .map(p => ({
           date: p.timestamp.slice(0, 10),
-          type: p.media_type,
+          type: p.media_product_type === 'REELS' ? 'REELS' : p.media_type,
           likes: p.like_count || 0,
           comments: p.comments_count || 0,
           permalink: p.permalink,
@@ -280,6 +323,9 @@ export default async function handler(req, res) {
           likes,
           comments,
           avgLikes: posts.length ? Math.round(likes / posts.length) : 0,
+          // Публикации, чьих лайков не отдали ни лента, ни статистика: они
+          // в сумме нулём, и интерфейс об этом предупреждает.
+          likesHidden: posts.filter(p => p.likesHidden).length,
           avgComments: posts.length ? Math.round((comments / posts.length) * 10) / 10 : 0,
           lastPost: media.out?.[0]?.timestamp.slice(0, 10) || null,
           byType,

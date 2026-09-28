@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react'
 import { today, parseYmd } from '../lib/tz'
 import { fetchInstagramAnalytics, saveInstagramSnapshot, fetchInstagramSnapshots } from '../lib/instagram'
-import { buildInsights } from '../lib/insights'
+import { buildInsights, secondMetric, likesByFormat } from '../lib/insights'
 import { T, SANS, OSW, mono, SectionTitle } from './ui'
 
 const PERIODS = [7, 14, 30]
@@ -65,6 +65,8 @@ export default function ClientStats({ client, ads }) {
   const insights = data
     ? buildInsights({ analytics: data, snapshots: history, ads, client, days })
     : []
+
+  const second = secondMetric(data)
 
   const first = history[0]
   const last = history[history.length - 1]
@@ -140,10 +142,19 @@ export default function ClientStats({ client, ads }) {
           {/* Четыре метрики */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <Tile value={compact(data.insights.reach?.total)} label="ОХВАТ ЗА ПЕРИОД" />
-            <Tile value={compact(data.insights.profile_views?.total)} label="ПРОСМОТРОВ ПРОФИЛЯ" />
+            <Tile value={compact(second.value)} label={second.label.toUpperCase()} />
             <Tile value={data.posts.count} label="ПУБЛИКАЦИЙ" />
-            <Tile value={num(data.posts.avgLikes)} label="ЛАЙКОВ НА ПОСТ" accent />
+            <Tile value={compact(data.posts.likes)} label="ЛАЙКОВ ЗА ПЕРИОД" accent />
           </div>
+
+          {/* Откуда лайки: все форматы вместе, reels тоже */}
+          {data.posts.count > 0 && (
+            <div style={{ color: T.muted, font: `400 11.5px/1.5 ${SANS}`, padding: '0 4px' }}>
+              {[likesByFormat(data.posts), `в среднем ${num(data.posts.avgLikes)} на публикацию`].filter(Boolean).join(' · ')}
+              {data.posts.likesHidden > 0 &&
+                `. У ${data.posts.likesHidden} публ. лайки скрыты, Instagram их не отдаёт — в сумме их нет.`}
+            </div>
+          )}
 
           {/* Выводы */}
           {insights.length > 0 && (
