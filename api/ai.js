@@ -11,6 +11,7 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { ASK_TOOL, renderAsk, validAsk } from '../server/askTool.js'
 import { renderBrief } from '../server/briefFields.js'
+import { isStaff } from '../server/authz.js'
 import { TARGET_SYSTEM, renderTargetData } from '../server/targetPrompt.js'
 import {
   buildScriptTool, buildScriptSystem, parseBlocks, validScript,
@@ -236,6 +237,13 @@ export default async function handler(req, res) {
   const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: sb })
   if (!userRes.ok) return res.status(401).json({ error: 'Сессия недействительна' })
   const user = await userRes.json()
+
+  // Модель стоит денег, а зарегистрироваться может кто угодно: пускаем
+  // только сотрудников, одобренных администратором (server/authz.js).
+  const [me] = (await sbGet(
+    `${supabaseUrl}/rest/v1/profiles?select=role,is_approved&id=eq.${encodeURIComponent(user.id)}`, sb,
+  )) || []
+  if (!isStaff(me)) return res.status(403).json({ error: 'Недостаточно прав' })
 
   if (req.body?.action === 'prompt') {
     return res.status(200).json({

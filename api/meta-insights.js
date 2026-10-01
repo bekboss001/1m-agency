@@ -7,6 +7,8 @@
 // параметры которых валидируются ниже. Записать что-либо в рекламный кабинет
 // через эту функцию нельзя.
 
+import { isAdmin } from '../server/authz.js'
+
 const GRAPH = 'https://graph.facebook.com/v19.0'
 const FIELDS = 'reach,impressions,clicks,ctr,spend,actions,cost_per_action_type'
 const DATE_PRESETS = new Set(['yesterday', 'today', 'last_7d', 'last_30d', 'this_month'])
@@ -51,11 +53,11 @@ export default async function handler(req, res) {
 
   // Та же проверка роли, что и на самой странице «Таргет».
   const profileRes = await fetch(
-    `${supabaseUrl}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(user.id)}`,
+    `${supabaseUrl}/rest/v1/profiles?select=role,is_approved&id=eq.${encodeURIComponent(user.id)}`,
     { headers: sbHeaders },
   )
   const [profile] = profileRes.ok ? await profileRes.json() : []
-  if (profile?.role !== 'admin') return res.status(403).json({ error: 'Недостаточно прав' })
+  if (!isAdmin(profile)) return res.status(403).json({ error: 'Недостаточно прав' })
 
   const { accountId, datePreset, since, until } = req.body || {}
   // Мобильному экрану кампании не нужны, зато нужен ряд по дням для спарклайна;

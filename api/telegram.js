@@ -21,6 +21,7 @@ import { planStateRow, PLAN_COLUMNS } from '../src/lib/postPlan.js'
 import { fetchFeed, fetchStories } from '../server/igMedia.js'
 import { storiesPlan, packageLabel } from '../src/lib/packages.js'
 import { pushTick } from '../server/push.js'
+import { isAdmin } from '../server/authz.js'
 import { chatHas, topicLabel } from '../src/lib/tgTopics.js'
 import { parseTargetArgs, buildTargetReport, reportMessages } from '../server/targetReport.js'
 
@@ -142,8 +143,8 @@ export default async function handler(req, res) {
   const userRes = await fetch(`${supabaseUrl}/auth/v1/user`, { headers: userHeaders })
   if (!userRes.ok) return res.status(401).json({ error: 'Сессия недействительна' })
   const user = await userRes.json()
-  const [profile] = await rest('GET', `profiles?select=role&id=eq.${encodeURIComponent(user.id)}`)
-  if (profile?.role !== 'admin') return res.status(403).json({ error: 'Недостаточно прав' })
+  const [profile] = await rest('GET', `profiles?select=role,is_approved&id=eq.${encodeURIComponent(user.id)}`)
+  if (!isAdmin(profile)) return res.status(403).json({ error: 'Недостаточно прав' })
 
   try {
     const action = req.body?.action || 'status'

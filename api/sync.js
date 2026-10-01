@@ -17,6 +17,7 @@ import { astanaToday } from '../server/contractPeriod.js'
 import { fetchFeed } from '../server/igMedia.js'
 import { computeSync, rowIssues, feedStart } from '../server/syncEngine.js'
 import { contentWindow, planContentSync, createdPostTitle } from '../server/contentSync.js'
+import { isAdmin } from '../server/authz.js'
 
 const CLIENT_COLUMNS = [
   'id', 'name', 'total_posts', 'published_posts', 'carry_posts', 'period_plan', 'period_day', 'posts_adjust',
@@ -63,11 +64,11 @@ export default async function handler(req, res) {
 
     // Сверка переписывает счётчики всех клиентов, поэтому только администратор.
     const profileRes = await fetch(
-      `${supabaseUrl}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(user.id)}`,
+      `${supabaseUrl}/rest/v1/profiles?select=role,is_approved&id=eq.${encodeURIComponent(user.id)}`,
       { headers },
     )
     const [profile] = profileRes.ok ? await profileRes.json() : []
-    if (profile?.role !== 'admin') return res.status(403).json({ error: 'Недостаточно прав' })
+    if (!isAdmin(profile)) return res.status(403).json({ error: 'Недостаточно прав' })
 
     if (req.body?.clientId !== undefined) {
       clientId = String(req.body.clientId)

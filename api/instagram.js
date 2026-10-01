@@ -13,6 +13,7 @@ import { buildLedger } from '../server/ledger.js'
 import { GRAPH, collect, fetchFeed } from '../server/igMedia.js'
 import { computeSync, rowIssues, feedStart } from '../server/syncEngine.js'
 import { contentWindow, planContentSync } from '../server/contentSync.js'
+import { isAdmin, isStaff } from '../server/authz.js'
 
 async function getJson(url) {
   const res = await fetch(url)
@@ -44,16 +45,18 @@ export default async function handler(req, res) {
 
   // Права проверяем не одинаково для всех действий. Перечисление аккаунтов —
   // это обход всех бизнес-портфолио агентства, он остаётся за администратором.
-  // Статистику по одному аккаунту смотрит любой вошедший: её открывают из
-  // карточки клиента, в том числе сотрудники со своих телефонов. Проверка
-  // сверки с КП тоже админская: она читает план и ленту всех клиентов подряд.
-  if (action === 'accounts' || action === 'preview') {
-    const profileRes = await fetch(
-      `${supabaseUrl}/rest/v1/profiles?select=role&id=eq.${encodeURIComponent(user.id)}`,
-      { headers: sbHeaders },
-    )
-    const [profile] = profileRes.ok ? await profileRes.json() : []
-    if (profile?.role !== 'admin') return res.status(403).json({ error: 'Недостаточно прав' })
+  // Статистику по одному аккаунту смотрит любой сотрудник: её открывают из
+  // карточки клиента, в том числе со своих телефонов. Проверка сверки с КП
+  // тоже админская: она читает план и ленту всех клиентов подряд. Вошедший,
+  // но не одобренный — не сотрудник и не получает ничего (server/authz.js).
+  const profileRes = await fetch(
+    `${supabaseUrl}/rest/v1/profiles?select=role,is_approved&id=eq.${encodeURIComponent(user.id)}`,
+    { headers: sbHeaders },
+  )
+  const [profile] = profileRes.ok ? await profileRes.json() : []
+  if (!isStaff(profile)) return res.status(403).json({ error: 'Недостаточно прав' })
+  if ((action === 'accounts' || action === 'preview') && !isAdmin(profile)) {
+    return res.status(403).json({ error: 'Недостаточно прав' })
   }
 
   /* ─────────────────────────── Список аккаунтов ─────────────────────────── */

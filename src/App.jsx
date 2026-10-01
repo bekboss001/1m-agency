@@ -5,6 +5,7 @@ import { ThemeProvider } from './lib/ThemeContext'
 import { useProfile } from './lib/useProfile'
 import LoginPage from './pages/LoginPage'
 import DashboardLayout from './components/DashboardLayout'
+import AccessGate from './components/AccessGate'
 import HomePage from './pages/HomePage'
 import ClientsPage from './pages/ClientsPage'
 import ContentPage from './pages/ContentPage'
@@ -77,7 +78,7 @@ export default function App() {
     <ThemeProvider>
       <Routes>
         <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/" />} />
-        <Route path="/" element={session ? <DashboardLayout session={session} /> : <Navigate to="/login" />}>
+        <Route path="/" element={session ? <AccessGate><DashboardLayout session={session} /></AccessGate> : <Navigate to="/login" />}>
           <Route index element={<Responsive mobile={MobileHome} desktop={ScreenTable} />} />
           <Route path="client/:id" element={<MobileClientCard />} />
           <Route path="clients"  element={<GuardedRoute perm="clients"><Responsive mobile={MobileClients} desktop={ClientsPage} /></GuardedRoute>} />
