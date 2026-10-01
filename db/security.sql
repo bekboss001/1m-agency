@@ -280,6 +280,24 @@ create policy avatars_delete_own on storage.objects
   for delete to authenticated
   using (bucket_id = 'avatars' and public.is_staff() and (storage.foldername(name))[1] = auth.uid()::text);
 
+
+/* ── 9. Представления — по правам читающего ─────────────────────────────── */
+--
+-- Представление по умолчанию читает таблицы с правами владельца, то есть в
+-- обход RLS: clients_dashboard отдавал таблицу клиентов любому вошедшему.
+-- security_invoker заставляет его подчиняться тем же правилам, что и сами
+-- таблицы. Анониму представления не нужны вовсе.
+
+do $$
+declare v record;
+begin
+  for v in select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public' and c.relkind = 'v' loop
+    execute format('alter view public.%I set (security_invoker = on)', v.relname);
+    execute format('revoke all on public.%I from anon', v.relname);
+  end loop;
+end $$;
+
 commit;
 
 
@@ -295,9 +313,10 @@ select 'таблица без RLS' as what, c.relname::text as name
 from pg_class c join pg_namespace n on n.oid = c.relnamespace
 where n.nspname = 'public' and c.relkind = 'r' and not c.relrowsecurity
 union all
-select 'представление', c.relname::text
+select 'представление в обход RLS', c.relname::text
 from pg_class c join pg_namespace n on n.oid = c.relnamespace
-where n.nspname = 'public' and c.relkind in ('v', 'm')
+where n.nspname = 'public' and (c.relkind = 'm'
+  or (c.relkind = 'v' and not coalesce(c.reloptions @> array['security_invoker=on'], false)))
 union all
 select 'функция в обход RLS', p.proname::text
 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
