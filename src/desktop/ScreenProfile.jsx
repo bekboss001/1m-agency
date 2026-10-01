@@ -21,7 +21,8 @@ import {
 } from '../lib/staffKpi'
 import { useStaffProfile } from '../lib/useStaffProfile'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
-import { Icon, LimeButton, Input, Badge } from './ui'
+import { Icon, LimeButton, Input, Badge, Toggle } from './ui'
+import { usePush, forgetPushDevice, PUSH_PREFS } from '../lib/usePush'
 
 const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
@@ -466,10 +467,13 @@ export default function ScreenProfile() {
           </div>
         )}
 
+        {own && <PushPanel />}
+
         {own && (
           <button
             onClick={async () => {
               if (!window.confirm('Выйти из аккаунта?')) return
+              await forgetPushDevice()
               await supabase.auth.signOut()
               navigate('/login')
             }}
@@ -515,6 +519,55 @@ function Panel({ title, subtitle, action, accent, children }) {
       {subtitle && <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.mut2, marginBottom: 12, lineHeight: 1.5 }}>{subtitle}</div>}
       {children}
     </div>
+  )
+}
+
+// Push в этом браузере. Настройки «о чём присылать» общие для всех устройств
+// человека, включение — у каждого браузера своё.
+function PushPanel() {
+  const p = usePush()
+  const [done, setDone] = useState(null)
+
+  const note = p.support === 'unsupported'
+    ? 'Этот браузер не умеет push-уведомления.'
+    : p.permission === 'denied'
+      ? 'Уведомления запрещены для сайта. Разрешите их в настройках браузера (значок замка у адреса) и обновите страницу.'
+      : 'Приходят только вам: о ваших съёмках и клиентах, которых пора снимать. На телефоне включаются отдельно, в профиле приложения.'
+
+  return (
+    <Panel title="Уведомления" subtitle={note}>
+      <div style={{ display: 'flex', flexDirection: 'column', fontFamily: GROTESK }}>
+        <Row first>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: D.t2 }}>В этом браузере</span>
+          <span style={{ fontSize: 12, color: D.mut2 }}>{p.loading ? 'проверяем…' : p.on ? 'включены' : 'выключены'}</span>
+          {p.support === 'ok' && p.permission !== 'denied' && !p.loading && (
+            <Toggle on={p.on} onChange={async v => { setDone(null); await (v ? p.enable() : p.disable()) }} />
+          )}
+        </Row>
+        {p.on && PUSH_PREFS.map(pref => (
+          <Row key={pref.key}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: D.t2 }}>{pref.label}</span>
+              <span style={{ display: 'block', fontSize: 11.5, color: D.mut2, marginTop: 2 }}>{pref.hint}</span>
+            </span>
+            <Toggle on={p.prefs[pref.key]} onChange={v => p.setPref(pref.key, v)} />
+          </Row>
+        ))}
+        {p.on && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingTop: 12 }}>
+            <button
+              disabled={p.busy}
+              onClick={async () => { setDone(null); if (await p.test()) setDone('Отправили — уведомление появится через пару секунд.') }}
+              style={{ height: 30, padding: '0 14px', borderRadius: 8, border: 'none', background: D.ctrl, color: D.t2, fontFamily: GROTESK, fontSize: 12.5, fontWeight: 700, opacity: p.busy ? 0.6 : 1 }}
+            >
+              Проверить
+            </button>
+            {done && <span style={{ fontSize: 12, color: D.lime }}>{done}</span>}
+          </div>
+        )}
+        {p.error && <div style={{ paddingTop: 10, fontSize: 12, color: D.err, lineHeight: 1.5 }}>{p.error}</div>}
+      </div>
+    </Panel>
   )
 }
 

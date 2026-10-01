@@ -94,3 +94,36 @@ self.addEventListener('fetch', e => {
 self.addEventListener('message', e => {
   if (e.data === 'skip-waiting') self.skipWaiting()
 })
+
+// Push-уведомление (server/push.js). Показать его обязательно: iOS и Chrome
+// отзывают подписку у сайта, который принял push и ничего не показал.
+self.addEventListener('push', e => {
+  let d = {}
+  try { d = e.data ? e.data.json() : {} } catch { d = { body: e.data ? e.data.text() : '' } }
+  e.waitUntil(self.registration.showNotification(d.title || '1M Agency', {
+    body: d.body || '',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    // Одинаковый tag заменяет прежнее уведомление, а не копит стопку.
+    tag: d.tag || undefined,
+    renotify: Boolean(d.tag),
+    data: { url: d.url || '/' },
+  }))
+})
+
+// Нажатие ведёт туда, о чём уведомление: в открытое окно приложения, если
+// оно есть, иначе в новое.
+self.addEventListener('notificationclick', e => {
+  e.notification.close()
+  const url = new URL(e.notification.data?.url || '/', self.location.origin).href
+  e.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    const win = wins.find(w => new URL(w.url).origin === self.location.origin)
+    if (win) {
+      await win.focus()
+      try { await win.navigate(url) } catch { /* окно без контроля worker — хватит фокуса */ }
+      return
+    }
+    await self.clients.openWindow(url)
+  })())
+})

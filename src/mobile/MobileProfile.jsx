@@ -25,6 +25,7 @@ import {
 } from '../lib/staffKpi'
 import { useStaffProfile } from '../lib/useStaffProfile'
 import { useTheme } from '../lib/ThemeContext'
+import { usePush, forgetPushDevice, PUSH_PREFS } from '../lib/usePush'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, SectionTitle } from './ui'
 
 const COLLAPSED_CLIENTS = 5
@@ -567,6 +568,8 @@ export default function MobileProfile() {
         </div>
       )}
 
+      {own && <Notifications flash={flash} />}
+
       {own && <Settings navigate={navigate} can={can} isAdmin={isAdmin} />}
 
       {/* Единственный выход из приложения: в меню разделов его намеренно нет —
@@ -577,6 +580,7 @@ export default function MobileProfile() {
           onClick={async () => {
             const ok = window.confirm('Выйти из приложения?\n\nЧтобы вернуться, понадобится почта и пароль.')
             if (!ok) return
+            await forgetPushDevice()
             await supabase.auth.signOut()
             navigate('/login')
           }}
@@ -786,6 +790,86 @@ function Settings({ navigate, can, isAdmin }) {
         ))}
       </div>
     </div>
+  )
+}
+
+// Push на этом устройстве. Включает каждый сам: браузер всё равно спросит
+// разрешение, и спрашивать его без нажатия человека нельзя.
+function Notifications({ flash }) {
+  const p = usePush()
+
+  const note = p.support === 'ios-install'
+    ? 'На iPhone уведомления приходят только в приложении с экрана «Домой». Откройте сайт в Safari → «Поделиться» → «На экран „Домой“», запустите приложение оттуда и включите здесь.'
+    : p.support === 'unsupported'
+      ? 'Этот браузер не умеет push-уведомления. Откройте приложение в Chrome или Safari.'
+      : p.permission === 'denied'
+        ? 'Уведомления запрещены для приложения. Разрешите их в настройках телефона и вернитесь сюда.'
+        : null
+
+  return (
+    <div>
+      <SectionTitle>УВЕДОМЛЕНИЯ</SectionTitle>
+      <div style={{ background: T.surface, borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ ...rowStyle(true), gap: 12 }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', font: `500 13.5px ${SANS}`, color: T.text }}>На этом устройстве</span>
+            <span style={{ display: 'block', marginTop: 3, font: `400 11.5px/1.4 ${SANS}`, color: T.muted }}>
+              {p.loading ? 'Проверяем…' : p.on ? 'Включены' : 'Выключены'}
+            </span>
+          </span>
+          {p.support === 'ok' && p.permission !== 'denied' && !p.loading && (
+            <PushSwitch
+              on={p.on}
+              disabled={p.busy}
+              onChange={async v => {
+                const ok = await (v ? p.enable() : p.disable())
+                if (ok) flash(v ? 'Уведомления включены' : 'Уведомления выключены')
+              }}
+            />
+          )}
+        </div>
+
+        {p.on && PUSH_PREFS.map(pref => (
+          <div key={pref.key} style={{ ...rowStyle(false), gap: 12 }}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', font: `500 13.5px ${SANS}`, color: T.text }}>{pref.label}</span>
+              <span style={{ display: 'block', marginTop: 3, font: `400 11.5px/1.4 ${SANS}`, color: T.muted }}>{pref.hint}</span>
+            </span>
+            <PushSwitch on={p.prefs[pref.key]} disabled={p.busy} onChange={v => p.setPref(pref.key, v)} />
+          </div>
+        ))}
+
+        {p.on && (
+          <MoreButton onClick={async () => { if (await p.test()) flash('Отправили пробное уведомление') }}>
+            ПРОВЕРИТЬ
+          </MoreButton>
+        )}
+      </div>
+      {(p.error || note) && (
+        <div style={{ marginTop: 8, font: `400 11px/1.5 ${SANS}`, color: p.error ? T.hot : T.faint }}>
+          {p.error || note}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PushSwitch({ on, onChange, disabled }) {
+  return (
+    <button
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      style={{
+        width: 46, height: 28, borderRadius: 14, border: 'none', flex: 'none', padding: 3,
+        background: on ? T.accent : T.track, opacity: disabled ? 0.6 : 1,
+        display: 'flex', justifyContent: on ? 'flex-end' : 'flex-start',
+        transition: 'background 140ms ease',
+      }}
+    >
+      <span style={{ width: 22, height: 22, borderRadius: '50%', display: 'block', background: on ? T.onAccent : T.faint }} />
+    </button>
   )
 }
 

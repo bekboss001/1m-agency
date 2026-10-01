@@ -16,7 +16,9 @@
 // Все даты — строки 'YYYY-MM-DD' по Астане. Арифметика через UTC, чтобы
 // браузер в другом поясе не сдвигал дни.
 
-import { duties, hasPostDays } from './packages'
+// С расширением: этот файл импортирует и сервер (server/push.js), а Node без
+// него модуль не найдёт.
+import { duties, hasPostDays } from './packages.js'
 
 // Съёмки не было дольше этого — пора снимать.
 export const SHOOT_GAP_DAYS = 6

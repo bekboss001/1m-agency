@@ -14,6 +14,7 @@ import GlassBackdrop from '../mobile/GlassBackdrop'
 import InstallHint from '../mobile/InstallHint'
 import MobileMenu, { MenuButton, visibleSections, tabSections } from '../mobile/MobileMenu'
 import { today } from '../lib/tz'
+import { forgetPushDevice } from '../lib/usePush'
 
 const DISP = "'Anton', 'Arial Narrow', sans-serif"
 const SANS = "'Space Grotesk', system-ui, sans-serif"
@@ -80,6 +81,7 @@ export default function DashboardLayout({ session }) {
   }, [isAdmin])
 
   async function handleLogout() {
+    await forgetPushDevice()
     await supabase.auth.signOut()
     navigate('/login')
   }

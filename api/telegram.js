@@ -20,6 +20,7 @@ import { sendMessage, editMessageText, answerCallback, yesNoKeyboard, parseCallb
 import { planStateRow, PLAN_COLUMNS } from '../src/lib/postPlan.js'
 import { fetchFeed, fetchStories } from '../server/igMedia.js'
 import { storiesPlan, packageLabel } from '../src/lib/packages.js'
+import { pushTick } from '../server/push.js'
 
 const SHOOT_FIELDS = 'id,shoot_date,time_start,location,status,' +
   'client:client_id(name),operator:operator_id(name),smm:smm_id(name)'
@@ -345,14 +346,24 @@ async function tick(token, rest, now = Date.now()) {
     stories = { error: e.message }
   }
 
+  // Личные push-уведомления — тоже мимо тумблеров бота: их включает каждый
+  // сам в профиле (server/push.js).
+  let push = null
+  try {
+    push = await pushTick(rest, now)
+  } catch (e) {
+    console.error('push:', e)
+    push = { error: e.message }
+  }
+
   const settings = Object.fromEntries(
     ((await rest('GET', 'app_settings?select=key,value')) || []).map(r => [r.key, r.value]))
   if (settings.integration_tg === false) {
-    return { skipped: 'интеграция Telegram выключена в настройках', stories }
+    return { skipped: 'интеграция Telegram выключена в настройках', stories, push }
   }
 
   const chats = await rest('GET', 'telegram_chats?select=chat_id&is_active=is.true')
-  if (!chats?.length) return { skipped: 'бот ещё не добавлен ни в один чат', stories }
+  if (!chats?.length) return { skipped: 'бот ещё не добавлен ни в один чат', stories, push }
 
   const clock = astanaClock(now)
   const jobs = dueFixed(now)
@@ -364,7 +375,7 @@ async function tick(token, rest, now = Date.now()) {
     `&shoot_date=lte.${addDays(clock.date, 3)}&status=neq.cancelled&order=shoot_date,time_start`)
   jobs.push(...dueShoots(now, shootRows))
 
-  const stats = { date: clock.date, time: clock.hhmm, sent: [], quiet: [], failed: [], stories }
+  const stats = { date: clock.date, time: clock.hhmm, sent: [], quiet: [], failed: [], stories, push }
 
   for (const job of jobs) {
     if (settings[SWITCH[job.kind]] === false) {
