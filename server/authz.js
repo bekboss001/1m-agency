@@ -10,4 +10,7 @@
 
 export const isAdmin = p => p?.is_approved === true && p.role === 'admin'
 
+// Клиент кабинета: одобренный, привязан к карточке клиента.
+export const isClient = p => p?.is_approved === true && p.role === 'client' && Boolean(p.client_id)
+
 export const isStaff = p => p?.is_approved === true && Boolean(p.role) && p.role !== 'client' && p.role !== 'pending'

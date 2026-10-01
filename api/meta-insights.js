@@ -7,7 +7,7 @@
 // параметры которых валидируются ниже. Записать что-либо в рекламный кабинет
 // через эту функцию нельзя.
 
-import { isAdmin } from '../server/authz.js'
+import { isAdmin, isClient } from '../server/authz.js'
 
 const GRAPH = 'https://graph.facebook.com/v19.0'
 const FIELDS = 'reach,impressions,clicks,ctr,spend,actions,cost_per_action_type'
@@ -51,15 +51,32 @@ export default async function handler(req, res) {
   if (!userRes.ok) return res.status(401).json({ error: 'Сессия недействительна' })
   const user = await userRes.json()
 
-  // Та же проверка роли, что и на самой странице «Таргет».
+  // Кто зовёт: администратор (страница «Таргет») или клиент (свой кабинет).
   const profileRes = await fetch(
-    `${supabaseUrl}/rest/v1/profiles?select=role,is_approved&id=eq.${encodeURIComponent(user.id)}`,
+    `${supabaseUrl}/rest/v1/profiles?select=role,is_approved,client_id&id=eq.${encodeURIComponent(user.id)}`,
     { headers: sbHeaders },
   )
   const [profile] = profileRes.ok ? await profileRes.json() : []
-  if (!isAdmin(profile)) return res.status(403).json({ error: 'Недостаточно прав' })
+  const asClient = isClient(profile)
+  if (!isAdmin(profile) && !asClient) return res.status(403).json({ error: 'Недостаточно прав' })
 
-  const { accountId, datePreset, since, until } = req.body || {}
+  const { datePreset, since, until } = req.body || {}
+  let { accountId } = req.body || {}
+
+  // Клиенту кабинет не доверяем из запроса: берём из его карточки сами,
+  // сервисным ключом — саму таблицу клиентов ему читать нельзя. Так он
+  // видит только свою рекламу, что бы ни прислал.
+  if (asClient) {
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    if (!serviceKey) return res.status(500).json({ error: 'Сервер не сконфигурирован: нет SUPABASE_SERVICE_ROLE_KEY' })
+    const ownRes = await fetch(
+      `${supabaseUrl}/rest/v1/clients?select=meta_account_id&id=eq.${encodeURIComponent(profile.client_id)}`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` } },
+    )
+    const [own] = ownRes.ok ? await ownRes.json() : []
+    if (!own?.meta_account_id) return res.status(404).json({ error: 'Реклама для вашего аккаунта не подключена' })
+    accountId = own.meta_account_id
+  }
   // Мобильному экрану кампании не нужны, зато нужен ряд по дням для спарклайна;
   // десктопному — наоборот. Оба флага только включают/выключают наши же запросы.
   const withCampaigns = req.body?.withCampaigns !== false
@@ -100,13 +117,16 @@ export default async function handler(req, res) {
 
   // Токен видит все кабинеты бизнес-менеджера, а приложению нужны только те,
   // что привязаны к клиентам — иначе любой админ мог бы вытащить чужую статистику.
-  const clientRes = await fetch(
-    `${supabaseUrl}/rest/v1/clients?select=id&meta_account_id=eq.${encodeURIComponent(accountId)}&limit=1`,
-    { headers: sbHeaders },
-  )
-  const [client] = clientRes.ok ? await clientRes.json() : []
-  if (!client) {
-    return res.status(403).json({ error: 'Рекламный кабинет не привязан ни к одному клиенту' })
+  // Кабинет клиента уже взят из его же карточки.
+  if (!asClient) {
+    const clientRes = await fetch(
+      `${supabaseUrl}/rest/v1/clients?select=id&meta_account_id=eq.${encodeURIComponent(accountId)}&limit=1`,
+      { headers: sbHeaders },
+    )
+    const [client] = clientRes.ok ? await clientRes.json() : []
+    if (!client) {
+      return res.status(403).json({ error: 'Рекламный кабинет не привязан ни к одному клиенту' })
+    }
   }
 
   const base = `${GRAPH}/act_${accountId}`

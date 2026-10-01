@@ -16,6 +16,7 @@ import { planStateRow } from '../lib/postPlan'
 import { planWindow, windowTitle, lastDayOf } from '../lib/planWindow'
 import { packageLabel, storiesPlan } from '../lib/packages'
 import DebtRow from './DebtRow'
+import { fetchAccess, createInvite, revokeInvite, disconnectPerson } from '../lib/clientPortal'
 
 // Склонение: 1 съёмка, 2 съёмки, 5 съёмок.
 function plural(n, one, few, many) {
@@ -249,9 +250,92 @@ export default function MobileClientCard() {
             )}
           </div>
         </div>
+
+        {profile?.role === 'admin' && <ClientAccess clientId={client.id} flash={flash} />}
       </div>
 
       <Toast text={toast} />
+    </div>
+  )
+}
+
+// Кто из клиента входит в его кабинет — только администратору. Ссылка видна
+// один раз, сразу после создания: в базе от неё остаётся только хэш.
+function ClientAccess({ clientId, flash }) {
+  const [state, setState] = useState(null)
+  const [link, setLink] = useState(null)
+
+  const load = useCallback(() => fetchAccess(clientId).then(setState), [clientId])
+  useEffect(() => { setLink(null); load() }, [load])
+
+  const run = async (fn, after) => {
+    const r = await fn()
+    if (r.error) { flash(r.error.toUpperCase()); return }
+    after?.(r)
+    load()
+  }
+
+  const ddmm = iso => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`
+  const row = { display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderTop: `1px solid ${T.hair}` }
+
+  return (
+    <div>
+      <SectionTitle>ДОСТУП КЛИЕНТА</SectionTitle>
+      <div style={{ background: T.surface, border: `1px solid ${T.hair}`, borderRadius: 16, overflow: 'hidden' }}>
+        <div style={{ padding: '12px 14px', color: T.muted, font: `400 12px/1.5 ${SANS}` }}>
+          Кабинет только для просмотра: контент-план, съёмки, пакет и реклама. Ссылка одноразовая, живёт 7 дней.
+        </div>
+        {(state?.people || []).map(p => (
+          <div key={p.id} style={row}>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', font: `600 13.5px ${SANS}`, color: T.text }}>{p.full_name || p.email}</span>
+              <span style={{ display: 'block', marginTop: 2, color: T.muted, ...mono(500, 9.5, '.06em') }}>{(p.email || '').toUpperCase()}</span>
+            </span>
+            <button
+              onClick={() => window.confirm(`Отключить ${p.full_name || p.email}?`) && run(() => disconnectPerson(p.id), () => flash('ОТКЛЮЧЁН'))}
+              style={{ minHeight: 32, padding: '0 10px', borderRadius: 10, border: 'none', background: T.surface2, color: T.hot, ...mono(600, 10, '.06em') }}
+            >
+              ОТКЛЮЧИТЬ
+            </button>
+          </div>
+        ))}
+        {(state?.invites || []).map(i => (
+          <div key={i.id} style={row}>
+            <span style={{ flex: 1, color: T.muted, font: `400 12px ${SANS}` }}>Ссылка до {ddmm(i.expires_at)}</span>
+            <button
+              onClick={() => run(() => revokeInvite(i.id), () => flash('ССЫЛКА ОТОЗВАНА'))}
+              style={{ minHeight: 32, padding: '0 10px', borderRadius: 10, border: 'none', background: 'none', color: T.muted, ...mono(600, 10, '.06em') }}
+            >
+              ОТОЗВАТЬ
+            </button>
+          </div>
+        ))}
+        <div style={{ ...row, flexDirection: 'column', alignItems: 'stretch' }}>
+          {link ? (
+            <>
+              <div style={{ font: `500 12px/1.4 ${SANS}`, color: T.text2, wordBreak: 'break-all' }}>{link}</div>
+              <button
+                onClick={async () => {
+                  // На телефоне удобнее сразу открыть «Поделиться», если он есть.
+                  if (navigator.share) { try { await navigator.share({ title: 'Кабинет клиента 1M', url: link }); return } catch { /* закрыли */ } }
+                  navigator.clipboard?.writeText(link).then(() => flash('ССЫЛКА СКОПИРОВАНА'))
+                }}
+                style={{ minHeight: 44, borderRadius: 12, border: 'none', background: T.accent, color: T.onAccent, ...mono(700, 11.5, '.06em') }}
+              >
+                ОТПРАВИТЬ ССЫЛКУ
+              </button>
+              <div style={{ color: T.faint, font: `400 11px/1.4 ${SANS}` }}>Видно только сейчас — потом можно создать новую.</div>
+            </>
+          ) : (
+            <button
+              onClick={() => run(() => createInvite(clientId), r => setLink(r.link))}
+              style={{ minHeight: 44, borderRadius: 12, border: 'none', background: T.accent, color: T.onAccent, ...mono(700, 11.5, '.06em') }}
+            >
+              ПРИГЛАСИТЬ В КАБИНЕТ
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

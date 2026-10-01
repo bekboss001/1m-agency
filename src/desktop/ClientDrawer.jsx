@@ -19,6 +19,8 @@ import { issueText } from '../lib/syncIssues'
 import { BRIEF_GROUPS, BRIEF_KEYS } from '../../server/briefFields.js'
 import { PACKAGE_KEYS, PACKAGES, packageLabel, postsLabel, postsOffPackage, storiesPlan }
   from '../lib/packages'
+import { useProfile } from '../lib/useProfile'
+import { fetchAccess, createInvite, revokeInvite, disconnectPerson } from '../lib/clientPortal'
 
 const MONTHS = ['январь', 'февраль', 'март', 'апрель', 'май', 'июнь', 'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 
@@ -242,6 +244,8 @@ export default function ClientDrawer({ client, smms, ops, onPatch, onClose, onAr
               </select>
             </Row>
           </Section>
+
+          <AccessSection clientId={client.id} />
 
           <BriefSection client={client} onPatch={onPatch} />
 
@@ -587,6 +591,88 @@ function StatsSection({ client }) {
           <OrganicBlock accountId={client.igId} since={since} until={until} days={days} plan={client.total} />
         </>
       )}
+    </Section>
+  )
+}
+
+// Кто из клиента входит в его кабинет. Только администратор: приглашение —
+// это ключ к данным клиента. Ссылка видна один раз, сразу после создания:
+// в базе от неё остаётся только хэш.
+function AccessSection({ clientId }) {
+  const { profile } = useProfile()
+  const isAdmin = profile?.role === 'admin'
+  const [state, setState] = useState(null)
+  const [link, setLink] = useState(null)
+  const [copied, setCopied] = useState(false)
+  const [err, setErr] = useState(null)
+
+  const load = () => fetchAccess(clientId).then(setState)
+  useEffect(() => { if (isAdmin) { setLink(null); load() } }, [clientId, isAdmin]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!isAdmin) return null
+
+  const run = async (fn, after) => {
+    setErr(null)
+    const r = await fn()
+    if (r.error) { setErr(r.error); return }
+    after?.(r)
+    load()
+  }
+
+  return (
+    <Section
+      title="Доступ клиента"
+      subtitle="Кабинет, где клиент видит свой контент-план, съёмки, выполнение пакета и рекламу. Только просмотр. Ссылка-приглашение одноразовая и живёт 7 дней."
+    >
+      {state?.error && <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.err }}>{state.error}</div>}
+
+      {(state?.people || []).map(p => (
+        <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: GROTESK }}>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: D.t2 }}>{p.full_name || p.email}</span>
+            <span style={{ display: 'block', fontSize: 11.5, color: D.mut2 }}>{p.email} · с {dm(p.created_at.slice(0, 10))}</span>
+          </span>
+          <button
+            onClick={() => window.confirm(`Отключить ${p.full_name || p.email} от кабинета?`) && run(() => disconnectPerson(p.id))}
+            style={{ height: 30, padding: '0 12px', borderRadius: 8, border: 'none', background: D.input3, color: D.t4, fontFamily: GROTESK, fontSize: 12 }}
+          >
+            Отключить
+          </button>
+        </div>
+      ))}
+      {state && !state.people.length && (
+        <div style={{ fontFamily: GROTESK, fontSize: 12.5, color: D.mut2 }}>Пока никто из клиента не подключён.</div>
+      )}
+
+      {(state?.invites || []).map(i => (
+        <div key={i.id} style={{ display: 'flex', alignItems: 'center', gap: 10, fontFamily: GROTESK }}>
+          <span style={{ flex: 1, fontSize: 12, color: D.mut2 }}>Ссылка от {dm(i.created_at.slice(0, 10))}, действует до {dm(i.expires_at.slice(0, 10))}</span>
+          <button
+            onClick={() => run(() => revokeInvite(i.id))}
+            style={{ height: 28, padding: '0 10px', borderRadius: 8, border: 'none', background: 'transparent', color: D.mut2, fontFamily: GROTESK, fontSize: 12 }}
+          >
+            Отозвать
+          </button>
+        </div>
+      ))}
+
+      {link ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input readOnly value={link} onFocus={e => e.target.select()} style={field} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <LimeButton onClick={() => navigator.clipboard?.writeText(link).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })}>
+              {copied ? 'Скопировано' : 'Скопировать ссылку'}
+            </LimeButton>
+            <span style={{ fontFamily: GROTESK, fontSize: 11.5, color: D.mut2, lineHeight: 1.4 }}>
+              Видно только сейчас. Отправьте клиенту в WhatsApp или Telegram.
+            </span>
+          </div>
+        </div>
+      ) : (
+        <LimeButton onClick={() => run(() => createInvite(clientId), r => setLink(r.link))}>Пригласить в кабинет</LimeButton>
+      )}
+
+      {err && <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.err }}>{err}</div>}
     </Section>
   )
 }

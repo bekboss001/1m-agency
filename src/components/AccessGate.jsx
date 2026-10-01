@@ -1,18 +1,40 @@
-// Пропускает в рабочее приложение только сотрудников.
+// Кого куда пускать после входа.
+//
+//   сотрудник      — рабочее приложение;
+//   клиент         — свой кабинет (src/client/ClientPortal.jsx);
+//   не одобренный  — экран «Заявка на рассмотрении».
 //
 // Права решает база (db/security.sql): до одобрения человек не прочитает ни
 // одной рабочей строки. Этот экран — не защита, а объяснение: без него
 // не одобренный пользователь видел бы пустые разделы и думал, что всё
 // сломалось.
 
+import { useEffect, useState } from 'react'
 import { useProfile } from '../lib/useProfile'
 import { supabase } from '../lib/supabase'
 import { forgetPushDevice } from '../lib/usePush'
+import { pendingInvite, acceptInvite, forgetInvite } from '../lib/clientPortal'
+import ClientPortal from '../client/ClientPortal'
 
 export default function AccessGate({ children }) {
   const { profile, loading } = useProfile()
+  const approved = profile?.is_approved === true
+  const [accepting, setAccepting] = useState(false)
 
-  if (loading) {
+  // Клиент подтвердил почту, когда страница приглашения была уже закрыта:
+  // ссылка запомнена в браузере, принимаем её при первом входе.
+  useEffect(() => {
+    if (loading || !profile || approved) return
+    const token = pendingInvite()
+    if (!token) return
+    setAccepting(true)
+    acceptInvite(token).then(r => {
+      if (r.error) { forgetInvite(); setAccepting(false); return }
+      window.location.reload()
+    })
+  }, [loading, profile, approved])
+
+  if (loading || accepting) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg)' }}>
         <div className="spinner" style={{ width: 32, height: 32 }} />
@@ -20,16 +42,13 @@ export default function AccessGate({ children }) {
     )
   }
 
-  const approved = profile?.is_approved === true
-  if (approved && profile.role !== 'client' && profile.role !== 'pending') return children
+  if (approved && profile.role === 'client') return <ClientPortal />
+  if (approved && profile.role !== 'pending') return children
 
-  const isClient = approved && profile?.role === 'client'
   return (
     <Notice
-      title={isClient ? 'Кабинет клиента готовится' : 'Заявка на рассмотрении'}
-      text={isClient
-        ? 'Ваш доступ подтверждён. Кабинет с контент-планом, съёмками и отчётами откроется здесь совсем скоро.'
-        : 'Аккаунт создан. Доступ к приложению откроется, как только администратор агентства подтвердит заявку.'}
+      title="Заявка на рассмотрении"
+      text="Аккаунт создан. Доступ к приложению откроется, как только администратор агентства подтвердит заявку. Если вы клиент агентства — откройте ссылку-приглашение, которую вам прислали."
     />
   )
 }
