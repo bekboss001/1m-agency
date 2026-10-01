@@ -10,7 +10,8 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { logAction } from '../lib/auditLog'
 import { T, SANS, OSW, mono, useToast, Toast, Sheet, EmptyState } from './ui'
-import { botStatus, botConnect, botTest, botStateText } from '../lib/telegramBot'
+import { botStatus, botConnect, botTest, botStateText, saveChatTopics } from '../lib/telegramBot'
+import { TOPICS, chatTopics } from '../lib/tgTopics'
 
 // Что рассылает бот. Те же ключи, что в десктопных настройках: тумблер один
 // на оба экрана, иначе включённое на телефоне выглядело бы выключенным на
@@ -455,6 +456,18 @@ function BotTab({ flash }) {
         </div>
       </div>
 
+      {chats.length > 0 && (
+        <div style={card}>
+          <div style={{ color: T.muted, ...mono(500, 9.5, '.12em') }}>КУДА — ТЕМЫ КАЖДОГО ЧАТА</div>
+          {chats.map(c => (
+            <ChatTopicsRow key={c.chat_id} chat={c} flash={flash} />
+          ))}
+          <div style={{ font: `400 11.5px/1.45 ${SANS}`, color: T.muted }}>
+            Бот пишет в чат и отвечает там на команды только своих тем. Таргет — только по запросу: /target и кнопка на экране «Таргет».
+          </div>
+        </div>
+      )}
+
       <div style={card}>
         <div style={{ color: T.muted, ...mono(500, 9.5, '.12em') }}>ЧТО РАССЫЛАТЬ</div>
         {BOT_NOTIF.map(([key, name, desc]) => (
@@ -478,6 +491,42 @@ function BotTab({ flash }) {
           </div>
           <Switch on={on} onChange={v => put('integration_tg', v)} />
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ChatTopicsRow({ chat, flash }) {
+  const [topics, setTopics] = useState(() => chatTopics(chat))
+
+  async function flip(key) {
+    const before = topics
+    const next = before.includes(key) ? before.filter(k => k !== key) : [...before, key]
+    setTopics(next)
+    const { error } = await saveChatTopics(chat.chat_id, next)
+    if (error) { setTopics(before); flash('НЕ СОХРАНИЛОСЬ') }
+  }
+
+  return (
+    <div>
+      <div style={{ font: `600 13.5px ${SANS}`, color: T.text, marginBottom: 8 }}>{chat.title}</div>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {TOPICS.map(t => {
+          const on = topics.includes(t.key)
+          return (
+            <button
+              key={t.key}
+              onClick={() => flip(t.key)}
+              style={{
+                minHeight: 34, padding: '0 12px', borderRadius: 10, border: 'none',
+                background: on ? T.accent : T.surface2, color: on ? T.onAccent : T.text2,
+                ...mono(on ? 700 : 500, 10.5, '.06em'),
+              }}
+            >
+              {t.label.toUpperCase()}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

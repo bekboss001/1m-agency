@@ -11,6 +11,8 @@ import { supabase } from '../lib/supabase'
 import { today, parseYmd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, Pill, LimeButton, Divider } from './ui'
+import { extractAds, adsTotal, targetReportText } from '../lib/targetReport'
+import { sendToTelegram, chatsFor } from '../lib/telegramBot'
 
 const PERIODS = [
   ['yesterday', 'Вчера'],
@@ -18,12 +20,6 @@ const PERIODS = [
   ['last_7d', '7 дней'],
   ['last_30d', '30 дней'],
   ['this_month', 'Этот месяц'],
-]
-
-const MESSAGING_TYPES = [
-  'onsite_conversion.messaging_conversation_started_7d',
-  'onsite_conversion.total_messaging_connection',
-  'omni_initiated_checkout',
 ]
 
 const OBJECTIVE = {
@@ -38,27 +34,7 @@ const money = n => (n === null || n === undefined || isNaN(n) ? '—' : '$' + Ma
 const compact = n => (n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(Math.round(n)))
 const dmy = s => (s ? s.slice(8, 10) + '.' + s.slice(5, 7) : '')
 
-function pickAction(actions, types) {
-  if (!Array.isArray(actions)) return 0
-  const hit = actions.find(a => types.includes(a.action_type))
-  return hit ? parseFloat(hit.value) || 0 : 0
-}
-
-function extract(stats) {
-  if (!stats) return null
-  const spend = parseFloat(stats.spend) || 0
-  const messaging = pickAction(stats.actions, MESSAGING_TYPES)
-  return {
-    spend,
-    reach: parseFloat(stats.reach) || 0,
-    clicks: parseFloat(stats.clicks) || 0,
-    ctr: parseFloat(stats.ctr) || 0,
-    impressions: parseFloat(stats.impressions) || 0,
-    messaging,
-    cpm: messaging > 0 ? spend / messaging : null,
-    cpl: pickAction(stats.cost_per_action_type, ['lead', 'offsite_conversion.fb_pixel_lead']) || null,
-  }
-}
+const extract = extractAds
 
 function addDays(iso, n) {
   const d = parseYmd(iso)
@@ -139,16 +115,7 @@ export default function ScreenTarget() {
 
   useEffect(() => { load() }, [load])
 
-  const total = useMemo(() => {
-    const acc = { spend: 0, reach: 0, clicks: 0, messaging: 0 }
-    for (const r of rows) {
-      if (!r.m) continue
-      acc.spend += r.m.spend; acc.reach += r.m.reach
-      acc.clicks += r.m.clicks; acc.messaging += r.m.messaging
-    }
-    acc.cpm = acc.messaging > 0 ? acc.spend / acc.messaging : null
-    return acc
-  }, [rows])
+  const total = useMemo(() => adsTotal(rows.map(r => r.m)), [rows])
 
   const series = useMemo(() => {
     const by = new Map()
@@ -186,35 +153,11 @@ export default function ScreenTarget() {
       } catch { return r }
     }))
 
-    const out = [`ТАРГЕТ · ${periodLabel} · ${new Date().toLocaleDateString('ru-RU')}`, '']
-    let n = 0
-    for (const r of withCamps) {
-      const act = (r.campaigns || [])
-        .map(c => ({ c, m: extract(c.insights?.data?.[0]) }))
-        .filter(x => x.m && (x.m.impressions > 0 || x.m.spend > 0))
-        .sort((a, b) => b.m.spend - a.m.spend)
-
-      if (act.length === 0) { n += 1; out.push(`${n}. ${r.client.name} — нет активных кампаний за период`, ''); continue }
-
-      for (const { c, m } of act) {
-        n += 1
-        out.push(
-          `${n}. ${r.client.name} — ${c.name}`,
-          `Кол-во переписок: ${num(m.messaging)}`,
-          `Цена за переписку: ${m.cpm ? '$' + m.cpm.toFixed(2) : '—'}`,
-          `Клики (все): ${num(m.clicks)}`,
-          `CTR (все): ${m.ctr ? m.ctr.toFixed(2) + '%' : '—'}`,
-          `Охват: ${num(m.reach)}`,
-          `Сумма затрат: $${m.spend.toFixed(2)}`,
-          '',
-        )
-      }
-    }
-    out.push('—', `ИТОГО ЗА ${periodLabel}`, `Переписок: ${num(total.messaging)}`,
-      `Цена за переписку: ${total.cpm ? '$' + total.cpm.toFixed(2) : '—'}`,
-      `Затрачено: $${total.spend.toFixed(2)}`)
-
-    setExportBody(out.join('\n'))
+    setExportBody(targetReportText({
+      rows: withCamps.map(r => ({ name: r.client.name, m: r.m, campaigns: r.campaigns })),
+      periodLabel,
+      dateLabel: new Date().toLocaleDateString('ru-RU'),
+    }))
     setExporting(false)
   }
 
@@ -555,6 +498,29 @@ function Campaigns({ rows }) {
 
 function ExportModal({ body, loading, onClose }) {
   const [copied, setCopied] = useState(false)
+  // Чаты, где включён таргет. Не грузим, пока не нужны: окно экспорта
+  // открывают и просто чтобы скопировать.
+  const [tg, setTg] = useState(null)
+  const [chatId, setChatId] = useState('')
+  const [sending, setSending] = useState(false)
+  const [note, setNote] = useState(null)
+
+  useEffect(() => {
+    chatsFor('target').then(r => {
+      setTg(r)
+      if (r.chats?.length) setChatId(String(r.chats[0].chat_id))
+    })
+  }, [])
+
+  async function send() {
+    setSending(true); setNote(null)
+    const r = await sendToTelegram(Number(chatId), body, 'target')
+    setSending(false)
+    setNote(r.error ? { bad: true, text: r.error } : { text: 'Отправлено в Telegram' })
+  }
+
+  const chats = tg?.chats || []
+
   return (
     <div
       onClick={onClose}
@@ -587,7 +553,35 @@ function ExportModal({ body, loading, onClose }) {
           )}
         </div>
 
-        <div style={{ padding: '14px 20px', boxShadow: `inset 0 1px 0 ${D.b2}`, flex: 'none', display: 'flex', justifyContent: 'flex-end' }}>
+        <div style={{ padding: '14px 20px', boxShadow: `inset 0 1px 0 ${D.b2}`, flex: 'none', display: 'flex', alignItems: 'center', gap: 10, fontFamily: GROTESK }}>
+          {tg === null ? null : chats.length === 0 ? (
+            <span style={{ flex: 1, fontSize: 12, color: D.mut2, lineHeight: 1.5 }}>
+              {tg.error || 'Отправить в Telegram можно в чат, где включён «Таргет»: Настройки → Телеграм-бот.'}
+            </span>
+          ) : (
+            <>
+              {chats.length > 1 && (
+                <select
+                  value={chatId}
+                  onChange={e => setChatId(e.target.value)}
+                  style={{ height: 36, padding: '0 10px', borderRadius: 9, border: 'none', outline: 'none', background: D.ctrl, color: D.t3, fontFamily: GROTESK, fontSize: 13 }}
+                >
+                  {chats.map(c => <option key={c.chat_id} value={String(c.chat_id)}>{c.title}</option>)}
+                </select>
+              )}
+              <button
+                onClick={send}
+                disabled={loading || sending || !body}
+                style={{
+                  height: 36, padding: '0 14px', borderRadius: 9, border: 'none', background: D.input3,
+                  color: D.t2, fontSize: 13, fontWeight: 700, opacity: loading || sending ? 0.5 : 1,
+                }}
+              >
+                {sending ? 'Отправляем…' : chats.length > 1 ? 'В Telegram' : `В Telegram · ${chats[0].title}`}
+              </button>
+              <span style={{ flex: 1, fontSize: 12, color: note?.bad ? D.err : D.okSoft }}>{note?.text}</span>
+            </>
+          )}
           <LimeButton
             onClick={() => {
               navigator.clipboard?.writeText(body).then(() => {

@@ -53,36 +53,38 @@ const TUE_FRI_SUN = [2, 5, 0]
 //   stories  — сводка сторис: сколько вышло с 09:00 против нормы клиента;
 //   deadline — вечерняя проверка, что посты дня вышли.
 // `needs` — условие, которое проверяется по базе уже перед отправкой.
+// `topic` — тема (src/lib/tgTopics.js): задание уходит только в те чаты, где
+// она включена.
 export const JOBS = [
   {
-    key: 'digest', at: '09:00', days: EVERY_DAY, kind: 'digest',
+    key: 'digest', at: '09:00', days: EVERY_DAY, kind: 'digest', topic: 'digest',
   },
   {
-    key: 'stories_post', at: '10:30', days: EXCEPT_WED, kind: 'ask',
+    key: 'stories_post', at: '10:30', days: EXCEPT_WED, kind: 'ask', topic: 'stories',
     title: 'Выложить сторис', question: 'Сторис на сегодня выложили?',
   },
   {
     // Первый отчёт по сторис — сразу с напоминанием «выложили?». К 10:30 видно,
     // кто ещё не начал: считается с 09:00, значит за спиной полтора часа.
-    key: 'stories_count', at: '10:30', days: EXCEPT_WED, kind: 'stories',
+    key: 'stories_count', at: '10:30', days: EXCEPT_WED, kind: 'stories', topic: 'stories',
     label: 'первый отчёт',
   },
   {
     // Контрольный: к полудню норма должна быть закрыта.
-    key: 'stories_check', at: '12:00', days: EXCEPT_WED, kind: 'stories',
+    key: 'stories_check', at: '12:00', days: EXCEPT_WED, kind: 'stories', topic: 'stories',
     label: 'контрольный',
   },
   {
-    key: 'stories_approve', at: '14:00', days: EXCEPT_WED, kind: 'ask',
+    key: 'stories_approve', at: '14:00', days: EXCEPT_WED, kind: 'ask', topic: 'stories',
     title: 'Сдать сторис на согласование', question: 'Сторис сдали на согласование?',
   },
   {
     // Срок — 17:00, напоминание в 16:00: в 17:00 напоминать уже поздно.
-    key: 'posts_approve', at: '16:00', days: MON_THU_SAT, kind: 'ask',
+    key: 'posts_approve', at: '16:00', days: MON_THU_SAT, kind: 'ask', topic: 'posts',
     title: 'Сдать посты на согласование до 17:00', question: 'Посты сдали на согласование?',
   },
   {
-    key: 'approve_tomorrow', at: '18:00', days: EVERY_DAY, kind: 'ask',
+    key: 'approve_tomorrow', at: '18:00', days: EVERY_DAY, kind: 'ask', topic: 'shoots',
     title: 'Согласовать съёмки и сценарии на завтра',
     question: 'Съёмки и сценарии на завтра согласованы?',
     needs: 'shoots_tomorrow',
@@ -90,10 +92,10 @@ export const JOBS = [
   {
     // Сводка выкладки за день. В 18:30, а не в 20:00 вместе с дедлайном:
     // в половине седьмого пост ещё успевают выложить, а в восемь уже нет.
-    key: 'posted', at: '18:30', days: TUE_FRI_SUN, kind: 'posted',
+    key: 'posted', at: '18:30', days: TUE_FRI_SUN, kind: 'posted', topic: 'posts',
   },
   {
-    key: 'deadline', at: '20:00', days: EVERY_DAY, kind: 'deadline',
+    key: 'deadline', at: '20:00', days: EVERY_DAY, kind: 'deadline', topic: 'posts',
   },
 ]
 
@@ -185,7 +187,7 @@ export function dueShoots(now = Date.now(), shoots = [], grace = GRACE_MINUTES) 
       : astanaMs(s.shoot_date, NO_TIME_REMIND_AT) - 24 * 3600e3
     const late = now - remindAt
     if (late >= 0 && late <= grace * 60e3) {
-      out.push({ key: `shoot:${s.id}`, kind: 'shoot', runOn: s.shoot_date, shoot: s })
+      out.push({ key: `shoot:${s.id}`, kind: 'shoot', topic: 'shoots', runOn: s.shoot_date, shoot: s })
     }
   }
   return out

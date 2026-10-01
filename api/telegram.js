@@ -15,12 +15,14 @@
 import { astanaClock, dueFixed, dueShoots, storiesWindow, storiesRecordDue, JOBS, SHOOT_LEAD_HOURS, STORIES_START }
   from '../server/tgSchedule.js'
 import * as F from '../server/tgFormat.js'
-import { sendMessage, editMessageText, answerCallback, yesNoKeyboard, parseCallback, tg }
+import { sendMessage, editMessageText, answerCallback, yesNoKeyboard, parseCallback, tg, esc }
   from '../server/telegram.js'
 import { planStateRow, PLAN_COLUMNS } from '../src/lib/postPlan.js'
 import { fetchFeed, fetchStories } from '../server/igMedia.js'
 import { storiesPlan, packageLabel } from '../src/lib/packages.js'
 import { pushTick } from '../server/push.js'
+import { chatHas, topicLabel } from '../src/lib/tgTopics.js'
+import { parseTargetArgs, buildTargetReport, reportMessages } from '../server/targetReport.js'
 
 const SHOOT_FIELDS = 'id,shoot_date,time_start,location,status,' +
   'client:client_id(name),operator:operator_id(name),smm:smm_id(name)'
@@ -43,6 +45,18 @@ const COMMANDS = {
   posted: 'posted', выложено: 'posted', выложили: 'posted',
   stories: 'stories', сторис: 'stories', сториз: 'stories',
   ask: 'ask', вопрос: 'ask',
+  target: 'target', таргет: 'target', реклама: 'target',
+}
+
+// Тема, к которой относится команда. Чат отвечает только на команды своих
+// тем (src/lib/tgTopics.js); /start, /help и /ask — везде.
+const COMMAND_TOPIC = {
+  today: 'digest',
+  shoots: 'shoots',
+  plan: 'posts',
+  posted: 'posts',
+  stories: 'stories',
+  target: 'target',
 }
 
 // Какой тумблер в «Настройках» отвечает за какой вид рассылки.
@@ -153,6 +167,7 @@ export default async function handler(req, res) {
           { command: 'plan', description: 'План и долг по клиентам' },
           { command: 'posted', description: 'Кто выложил пост сегодня' },
           { command: 'stories', description: 'Сколько сторис вышло с 09:00' },
+          { command: 'target', description: 'Отчёт по таргету: /target 7 имя' },
           { command: 'ask', description: 'Задать чату вопрос' },
           { command: 'help', description: 'Что я умею' },
         ],
@@ -171,6 +186,24 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, sent })
     }
 
+    // Готовый текст отчёта из приложения (экспорт на экране «Таргет»): в чат
+    // уходит ровно то, что админ видит перед отправкой. Тема проверяется и
+    // здесь — чат, где таргет выключен, его не получит и по кнопке.
+    if (action === 'send') {
+      const { chatId, text, topic } = req.body || {}
+      if (!/^-?\d{1,20}$/.test(String(chatId ?? ''))) return res.status(400).json({ error: 'Не выбран чат' })
+      if (typeof text !== 'string' || !text.trim()) return res.status(400).json({ error: 'Пустой отчёт' })
+      if (text.length > 60000) return res.status(400).json({ error: 'Отчёт слишком длинный' })
+      const [chat] = await rest('GET', `telegram_chats?select=chat_id,title,topics,is_active&chat_id=eq.${chatId}`)
+      if (!chat?.is_active) return res.status(404).json({ error: 'Бот не состоит в этом чате' })
+      if (!chatHas(chat, topic)) {
+        return res.status(403).json({ error: `В чате «${chat.title}» не включён «${topicLabel(topic)}»` })
+      }
+      const parts = reportMessages(text)
+      for (const part of parts) await sendMessage(token, chat.chat_id, part)
+      return res.status(200).json({ ok: true, chat: chat.title, messages: parts.length })
+    }
+
     return res.status(200).json(await status(token, rest))
   } catch (e) {
     console.error('telegram admin:', e)
@@ -184,7 +217,7 @@ async function status(token, rest) {
   const [me, hook, chats] = await Promise.all([
     tg(token, 'getMe', {}).catch(e => ({ error: e.message })),
     tg(token, 'getWebhookInfo', {}).catch(e => ({ error: e.message })),
-    rest('GET', 'telegram_chats?select=chat_id,title,is_active&order=added_at'),
+    rest('GET', 'telegram_chats?select=chat_id,title,is_active,topics&order=added_at'),
   ])
   return {
     bot: me?.username ? `@${me.username}` : null,
@@ -253,6 +286,19 @@ async function handleMessage(msg, token, rest) {
     return ask(token, rest, chatId, arg)
   }
 
+  // Команда чужой для этого чата темы. Чат, который бот ещё не запомнил,
+  // живёт по умолчанию — всё, кроме таргета: расходы на рекламу не уходят
+  // туда, где их явно не включили, даже по прямой просьбе.
+  const topic = COMMAND_TOPIC[cmd]
+  const [chat] = await rest('GET', `telegram_chats?select=chat_id,topics,is_active&chat_id=eq.${chatId}`)
+  const allowed = cmd === 'target' ? Boolean(chat?.is_active) && chatHas(chat, topic) : chatHas(chat, topic)
+  if (!allowed) {
+    return sendMessage(token, chatId,
+      `«${topicLabel(topic)}» в этом чате не включён. Владелец включает его в приложении: Настройки → Телеграм-бот.`)
+  }
+
+  if (cmd === 'target') return sendTarget(token, rest, chatId, arg)
+
   const day = astanaClock().date
 
   if (cmd === 'today') {
@@ -276,6 +322,27 @@ async function handleMessage(msg, token, rest) {
   if (cmd === 'posted') return sendMessage(token, chatId, await buildPosted(rest, day))
 
   if (cmd === 'stories') return sendMessage(token, chatId, await buildStories(rest))
+}
+
+/* ══ Таргет по запросу ═══════════════════════════════════════════════ */
+
+async function sendTarget(token, rest, chatId, arg) {
+  const metaToken = (process.env.META_ACCESS_TOKEN || '').trim().replace(/^["']|["']$/g, '')
+  if (!metaToken) return sendMessage(token, chatId, 'Отчёт по таргету недоступен: на сервере не задан токен Meta.')
+
+  const clients = await rest('GET', 'clients?select=id,name,meta_account_id&is_active=is.true&order=number')
+  const parsed = parseTargetArgs(arg, clients || [])
+  if (parsed.error) return sendMessage(token, chatId, esc(parsed.error))
+  if (!parsed.clients.length) return sendMessage(token, chatId, 'Ни у одного клиента не подключён рекламный кабинет.')
+
+  // Кабинетов может быть полтора десятка, и отчёт собирается несколько
+  // секунд. «Печатает…» показывает, что команда услышана.
+  await tg(token, 'sendChatAction', { chat_id: chatId, action: 'typing' }).catch(() => {})
+
+  const text = await buildTargetReport({ metaToken, clients: parsed.clients, preset: parsed.preset })
+  let last = null
+  for (const part of reportMessages(text)) last = await sendMessage(token, chatId, part)
+  return last
 }
 
 async function handleCallback(q, token, rest) {
@@ -362,7 +429,7 @@ async function tick(token, rest, now = Date.now()) {
     return { skipped: 'интеграция Telegram выключена в настройках', stories, push }
   }
 
-  const chats = await rest('GET', 'telegram_chats?select=chat_id&is_active=is.true')
+  const chats = await rest('GET', 'telegram_chats?select=chat_id,topics&is_active=is.true')
   if (!chats?.length) return { skipped: 'бот ещё не добавлен ни в один чат', stories, push }
 
   const clock = astanaClock(now)
@@ -384,6 +451,10 @@ async function tick(token, rest, now = Date.now()) {
     }
 
     for (const chat of chats) {
+      // Тема задания в этом чате выключена — сюда не пишем, и в журнал
+      // ничего не заносим: включат тему — заработает со следующего раза.
+      if (!chatHas(chat, job.topic)) continue
+
       // Занимаем пару (задание, дата) до отправки. Тик приходит каждые
       // несколько минут, и без этого одно напоминание ушло бы десяток раз.
       //

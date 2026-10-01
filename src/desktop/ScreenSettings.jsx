@@ -5,7 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { ymd } from '../lib/tz'
 import { D, ARCHIVO, GROTESK, NUM } from './tokens'
 import { Icon, LimeButton, Toggle, SectionCard } from './ui'
-import { botStatus, botConnect, botTest, botStateText } from '../lib/telegramBot'
+import { botStatus, botConnect, botTest, botStateText, saveChatTopics } from '../lib/telegramBot'
+import { TOPICS, chatTopics } from '../lib/tgTopics'
 import {
   fetchSettings, saveSetting, fetchRoles, fetchUsers, fetchRequests,
   setUserRole, approveUser, rejectUser, fetchAuditLog, fetchTeamLoad,
@@ -896,12 +897,68 @@ function TelegramCard({ settings, put }) {
         )}
       </div>
 
+      {chats.length > 0 && <ChatTopics chats={chats} />}
+
       <div style={{ marginTop: 14, fontFamily: GROTESK, fontSize: 11.5, color: D.quiet, lineHeight: 1.6 }}>
         Чтобы бот начал писать в чат, добавьте его в этот чат — он запомнит его сам.
-        Что именно рассылать, включается во вкладке «Общие».
+        Что рассылать вообще, включается во вкладке «Общие», а куда именно — темами у каждого чата выше.
         Разовый вопрос команде задаётся прямо в чате: <code>/ask Все выложили сторис?</code>
       </div>
     </SectionCard>
+  )
+}
+
+// Темы каждого чата: что бот туда пишет и на какие команды отвечает. Таргет
+// по умолчанию выключен — расходы на рекламу видны только там, где их
+// включили явно.
+function ChatTopics({ chats }) {
+  const [topics, setTopics] = useState(() => Object.fromEntries(chats.map(c => [c.chat_id, chatTopics(c)])))
+  const [err, setErr] = useState(null)
+
+  // Список чатов приходит новым массивом на каждый рендер карточки, поэтому
+  // сверяемся по содержимому, а не по ссылке — иначе эффект крутился бы вечно.
+  const sig = chats.map(c => `${c.chat_id}:${chatTopics(c).join(',')}`).join('|')
+  useEffect(() => {
+    setTopics(Object.fromEntries(chats.map(c => [c.chat_id, chatTopics(c)])))
+  }, [sig]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function flip(chatId, key) {
+    const before = topics[chatId]
+    const next = before.includes(key) ? before.filter(k => k !== key) : [...before, key]
+    setTopics(t => ({ ...t, [chatId]: next }))
+    setErr(null)
+    const { error } = await saveChatTopics(chatId, next)
+    if (error) { setTopics(t => ({ ...t, [chatId]: before })); setErr(error) }
+  }
+
+  return (
+    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12, fontFamily: GROTESK }}>
+      {chats.map(c => (
+        <div key={c.chat_id}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: D.t2, marginBottom: 7 }}>{c.title}</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {TOPICS.map(t => {
+              const on = (topics[c.chat_id] || []).includes(t.key)
+              return (
+                <button
+                  key={t.key}
+                  title={t.hint}
+                  onClick={() => flip(c.chat_id, t.key)}
+                  style={{
+                    height: 30, padding: '0 12px', borderRadius: 8, border: 'none',
+                    background: on ? D.lime : D.input3, color: on ? D.onLime : D.t4,
+                    fontFamily: GROTESK, fontSize: 12, fontWeight: on ? 700 : 500,
+                  }}
+                >
+                  {t.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      ))}
+      {err && <div style={{ fontSize: 12, color: D.err }}>Не сохранилось: {err}</div>}
+    </div>
   )
 }
 

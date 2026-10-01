@@ -5,8 +5,9 @@
 // сервера и в браузер не попадает.
 
 import { supabase } from './supabase'
+import { chatHas } from './tgTopics'
 
-async function callBot(action) {
+async function callBot(action, extra = {}) {
   const { data: { session } } = await supabase.auth.getSession()
   if (!session) return { error: 'Сессия не найдена, войдите заново' }
 
@@ -14,7 +15,7 @@ async function callBot(action) {
     const r = await fetch('/api/telegram', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-      body: JSON.stringify({ action }),
+      body: JSON.stringify({ action, ...extra }),
     })
     const data = await r.json().catch(() => null)
     if (!r.ok) return { error: data?.error || `Сервер ответил ${r.status}` }
@@ -32,6 +33,22 @@ export const botConnect = () => callBot('connect')
 
 /** Отправить проверочное сообщение во все подключённые чаты. */
 export const botTest = () => callBot('test')
+
+/** Чаты, куда можно отправить отчёт этой темы: подключённые и с темой включённой. */
+export async function chatsFor(topic) {
+  const s = await botStatus()
+  if (s.error) return { error: s.error, chats: [] }
+  return { chats: (s.chats || []).filter(c => c.is_active && chatHas(c, topic)) }
+}
+
+/** Отправить готовый текст отчёта в чат. Сервер проверит, что тема в чате включена. */
+export const sendToTelegram = (chatId, text, topic) => callBot('send', { chatId, text, topic })
+
+/** Сохранить темы чата. */
+export async function saveChatTopics(chatId, topics) {
+  const { error } = await supabase.from('telegram_chats').update({ topics }).eq('chat_id', chatId)
+  return { error: error?.message || null }
+}
 
 // Короткая строка состояния для карточки настроек.
 export function botStateText(s) {

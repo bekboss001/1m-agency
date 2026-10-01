@@ -9,6 +9,8 @@ import { supabase } from '../lib/supabase'
 import { ymd } from '../lib/tz'
 import { todayDate, addDays } from './todayTasks'
 import { streamAi } from '../lib/streamAi'
+import { extractAds, adsTotal, targetReportText } from '../lib/targetReport'
+import { sendToTelegram, chatsFor } from '../lib/telegramBot'
 import {
   T, SANS, OSW, MONO, mono, useToast, Toast, Sheet, SheetRow, ClientSelector, SectionTitle,
 } from './ui'
@@ -35,38 +37,11 @@ const QUICK_RANGES = [
   ['КВАРТАЛ', () => ({ since: ymd(addDays(todayDate(), -89)), until: ymd(todayDate()) })],
 ]
 
-const MESSAGING_TYPES = [
-  'onsite_conversion.messaging_conversation_started_7d',
-  'onsite_conversion.total_messaging_connection',
-  'omni_initiated_checkout',
-]
-
 const num = n => (n === null || n === undefined || isNaN(n) ? '—' : Math.round(n).toLocaleString('ru-RU'))
 const money = n => (n === null || n === undefined || isNaN(n) ? '—' : '$' + Math.round(n).toLocaleString('ru-RU'))
 const compact = n => (n >= 1000 ? (n / 1000).toFixed(1) + 'K' : String(Math.round(n)))
 
-function pickAction(actions, types) {
-  if (!Array.isArray(actions)) return 0
-  const hit = actions.find(a => types.includes(a.action_type))
-  return hit ? parseFloat(hit.value) || 0 : 0
-}
-
-function extract(stats) {
-  if (!stats) return null
-  const spend = parseFloat(stats.spend) || 0
-  const messaging = pickAction(stats.actions, MESSAGING_TYPES)
-  return {
-    spend,
-    reach: parseFloat(stats.reach) || 0,
-    clicks: parseFloat(stats.clicks) || 0,
-    ctr: parseFloat(stats.ctr) || 0,
-    impressions: parseFloat(stats.impressions) || 0,
-    messaging,
-    // Цена за переписку: Meta её не отдаёт готовой, считаем из расхода.
-    cpm: messaging > 0 ? spend / messaging : null,
-    cpl: pickAction(stats.cost_per_action_type, ['lead', 'offsite_conversion.fb_pixel_lead']) || null,
-  }
-}
+const extract = extractAds
 
 // Цели кампаний Meta приходят машинными кодами.
 const OBJECTIVE = {
@@ -174,20 +149,7 @@ export default function MobileTarget() {
   useEffect(() => { load() }, [load])
 
   // Свод по выбранному срезу.
-  const total = useMemo(() => {
-    const acc = { spend: 0, reach: 0, clicks: 0, messaging: 0 }
-    for (const r of rows) {
-      if (!r.m) continue
-      acc.spend += r.m.spend
-      acc.reach += r.m.reach
-      acc.clicks += r.m.clicks
-      acc.messaging += r.m.messaging
-    }
-    // Считаем по сумме, а не как среднее из строк: средняя цена по клиентам
-    // и общая цена за переписку — разные числа, нужна вторая.
-    acc.cpm = acc.messaging > 0 ? acc.spend / acc.messaging : null
-    return acc
-  }, [rows])
+  const total = useMemo(() => adsTotal(rows.map(r => r.m)), [rows])
 
   // Спарклайн: суммируем ряды по датам, чтобы «все клиенты» тоже были кривой,
   // а не набором столбиков из ниоткуда.
@@ -287,46 +249,11 @@ export default function MobileTarget() {
       }
     }))
 
-    const out = [`ТАРГЕТ · ${periodLabel} · ${new Date().toLocaleDateString('ru-RU')}`, '']
-    let n = 0
-
-    for (const r of withCamps) {
-      // Кампании без единого показа за период только засоряют отчёт.
-      const active = (r.campaigns || [])
-        .map(c => ({ c, m: extract(c.insights?.data?.[0]) }))
-        .filter(x => x.m && (x.m.impressions > 0 || x.m.spend > 0))
-        .sort((a, b) => b.m.spend - a.m.spend)
-
-      if (active.length === 0) {
-        n += 1
-        out.push(`${n}. ${r.client.name} — нет активных кампаний за период`, '')
-        continue
-      }
-
-      for (const { c, m } of active) {
-        n += 1
-        out.push(
-          `${n}. ${r.client.name} — ${c.name}`,
-          `Кол-во переписок: ${num(m.messaging)}`,
-          `Цена за переписку: ${m.cpm ? '$' + m.cpm.toFixed(2) : '—'}`,
-          `Клики (все): ${num(m.clicks)}`,
-          `CTR (все): ${m.ctr ? m.ctr.toFixed(2) + '%' : '—'}`,
-          `Охват: ${num(m.reach)}`,
-          `Сумма затрат: $${m.spend.toFixed(2)}`,
-          '',
-        )
-      }
-    }
-
-    out.push(
-      '—',
-      `ИТОГО ЗА ${periodLabel}`,
-      `Переписок: ${num(total.messaging)}`,
-      `Цена за переписку: ${total.cpm ? '$' + total.cpm.toFixed(2) : '—'}`,
-      `Затрачено: $${total.spend.toFixed(2)}`,
-    )
-
-    setExportBody(out.join('\n'))
+    setExportBody(targetReportText({
+      rows: withCamps.map(r => ({ name: r.client.name, m: r.m, campaigns: r.campaigns })),
+      periodLabel,
+      dateLabel: new Date().toLocaleDateString('ru-RU'),
+    }))
     setExporting(false)
   }
 
@@ -764,6 +691,7 @@ export default function MobileTarget() {
             >
               СКОПИРОВАТЬ
             </button>
+            {exportOpen && exportBody && <TgSend body={exportBody} flash={flash} />}
           </div>
         )}
       </Sheet>
@@ -788,4 +716,43 @@ export default function MobileTarget() {
       <Toast text={toast} />
     </div>
   )
+}
+
+// Отправка выгрузки в Telegram — в чаты, где владелец включил «Таргет». По
+// кнопке на каждый чат: их обычно один-два, и выбор в одно касание проще
+// списка с подтверждением.
+function TgSend({ body, flash }) {
+  const [tg, setTg] = useState(null)
+  const [sending, setSending] = useState(null)
+
+  useEffect(() => { chatsFor('target').then(setTg) }, [])
+
+  if (!tg) return null
+  if (!tg.chats.length) {
+    return (
+      <div style={{ font: `400 11.5px/1.5 ${SANS}`, color: T.muted }}>
+        {tg.error || 'Отправить в Telegram можно в чат, где включён «Таргет»: Настройки → Бот.'}
+      </div>
+    )
+  }
+
+  return tg.chats.map(c => (
+    <button
+      key={c.chat_id}
+      disabled={sending !== null}
+      onClick={async () => {
+        setSending(c.chat_id)
+        const r = await sendToTelegram(c.chat_id, body, 'target')
+        setSending(null)
+        flash(r.error ? r.error.toUpperCase() : 'ОТПРАВЛЕНО В TELEGRAM')
+      }}
+      style={{
+        minHeight: 48, borderRadius: 13, border: `1px solid ${T.hair}`,
+        background: T.surface2, color: T.text, opacity: sending !== null ? 0.6 : 1,
+        ...mono(700, 11.5, '.06em'),
+      }}
+    >
+      {sending === c.chat_id ? 'ОТПРАВЛЯЕМ…' : `В TELEGRAM · ${(c.title || '').toUpperCase()}`}
+    </button>
+  ))
 }
