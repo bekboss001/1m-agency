@@ -112,7 +112,7 @@
 .ct .debt .segs{flex:0 1 auto;min-width:0}
 .ct .debt-l{flex:none;font-size:11px;font-weight:700;color:var(--amber);white-space:nowrap}
 .ct .debt-l b{font-weight:800}
-.ct .done-mark{display:inline-flex;align-items:center;gap:3px}
+.ct .done-mark{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:700;line-height:12px}
 .ct .meta{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11px;font-weight:700;color:var(--mut);line-height:1.5}
 .ct .meta span{white-space:nowrap}
 .ct .t4{display:flex;align-items:center;justify-content:space-between;gap:8px}
@@ -194,4 +194,5 @@
 .ct.small .board{overflow:visible}
 .ct.small .lwrap{min-height:400px}
 
+@media (max-width:1439px){.ct .hintline{display:none}}
 @media (prefers-reduced-motion:reduce){.ct *{animation:none!important;transition:none!important}}

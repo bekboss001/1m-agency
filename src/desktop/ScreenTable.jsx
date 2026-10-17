@@ -20,7 +20,7 @@ import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import {
   boardRow, criteria, matcher, sorter, summary, avatars,
-  lastText, lastTone, contractText, contractTone, postsWord,
+  lastText, lastTone, contractText, contractShort, contractTone, postsWord,
 } from '../lib/clientBoard'
 import './table.css'
 
@@ -394,7 +394,7 @@ export default function ScreenTable() {
               className="board" ref={boardRef}
               style={{
                 gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
-                gridAutoRows: small ? 'minmax(186px, auto)' : `${grid.rowH}px`,
+                gridAutoRows: `minmax(${small ? 186 : grid.rowH}px, auto)`,
               }}
             >
               {shown.map(r => (
@@ -539,14 +539,14 @@ function Tile({ r, av, dim, cur, bump, canAdd, showAdd, onOpen, onAdd, onSetPlan
       </div>
       <Segments r={r} onSet={onSetPlan} />
       <DebtRow r={r} onSet={onSetDebt} />
+      {r.debt > 0 && r.debtOpen === 0 && (
+        <span className="c-lime done-mark" title={`Долг прошлого периода закрыт: ${r.debt} из ${r.debt}`}>
+          <Check size={12} strokeWidth={3} aria-hidden="true" />долг закрыт
+        </span>
+      )}
       <div className="meta">
         <span className={lastTone(r) && `c-${lastTone(r)}`}>{lastText(r)}</span>
         <span className={contractTone(r) && `c-${contractTone(r)}`}>{contractText(r)}</span>
-        {r.debt > 0 && r.debtOpen === 0 && (
-          <span className="c-lime done-mark" title={`Долг прошлого периода закрыт: ${r.debt} из ${r.debt}`}>
-            <Check size={12} strokeWidth={3} aria-hidden="true" />долг закрыт
-          </span>
-        )}
       </div>
       <div className="t4">
         <div className="avs">
@@ -597,7 +597,7 @@ function ListRow({ r, av, dim, cur, canAdd, showAdd, onOpen, onAdd }) {
         {r.debt === 0 ? '–' : `${r.debtDone}/${r.debt}`}
       </span>
       <span className={lastTone(r) && `c-${lastTone(r)}`} style={{ fontWeight: 700 }}>{lastText(r)}</span>
-      <span className={contractTone(r) && `c-${contractTone(r)}`} style={{ fontWeight: 700 }}>{contractText(r)}</span>
+      <span className={contractTone(r) && `c-${contractTone(r)}`} style={{ fontWeight: 700 }}>{contractShort(r)}</span>
       <span className="avs">
         <Avatar a={av[c.smmId]} role="smm" />
         <Avatar a={av[c.operatorId]} role="op" />

@@ -121,6 +121,12 @@ export function contractText(r) {
   if (r.contractLeft === null) return 'нет договора'
   return `договор до ${longDate(r.c.end)}${r.contractLeft <= 14 ? ` · ${r.contractLeft} дн.` : ''}`
 }
+/** Коротко для колонки списка: «до 17.11». */
+export function contractShort(r) {
+  if (r.expired) return 'истёк'
+  if (r.contractLeft === null) return '–'
+  return `до ${dm(r.c.end)}`
+}
 export function contractTone(r) {
   if (r.expired || (r.contractLeft !== null && r.contractLeft <= 3)) return 'red'
   if (r.contractLeft !== null && r.contractLeft <= 7) return 'amber'
