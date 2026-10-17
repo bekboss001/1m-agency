@@ -9,6 +9,7 @@ import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { STATUS, dm, longDate, lastTone, contractTone } from '../lib/clientBoard'
+import { isAlone, storiesPlan } from '../lib/packages'
 import { Avatar, Segments, DebtRow, Count } from './boardParts'
 
 // Монограмма в цвете клиента. Цвет из карточки, если он задан как #rrggbb.
@@ -91,7 +92,7 @@ export default function ClientPanel({
             <span className={`pill p-${r.pillTone}`}>{r.pillFull}</span>
           </div>
           <Segments r={r} large onSet={onSetPlan} />
-          <DebtRow r={r} large onSet={onSetDebt} />
+          <DebtRow r={r} large onSet={onSetDebt} keepClosed />
           <div className="key">
             <span><i className="bg-lime" />Вышло</span>
             <span><i style={{ background: '#26262C' }} />Впереди</span>
@@ -115,6 +116,11 @@ export default function ClientPanel({
             onChange={v => onPatch(c.id, { smmId: v })} />
           <PersonRow label="Оператор" role="op" a={av[c.operatorId]} value={c.operatorId} people={ops} canEdit={canEdit}
             onChange={v => onPatch(c.id, { operatorId: v })} />
+          {isAlone({ smm_id: c.smmId, operator_id: c.operatorId }) && (
+            <span className="c-mut" style={{ fontSize: 12, fontWeight: 600 }}>
+              На проекте один человек: {storiesPlan(c.pkg) === null ? 'все посты' : 'и посты, и сторис'} засчитываются ему.
+            </span>
+          )}
         </div>
 
         <div className="sec">

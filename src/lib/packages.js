@@ -14,8 +14,9 @@
 // считает и не объявляет невыложившим, а ставит прочерк.
 //
 // solo — проект ведёт один человек, и посты, и сторис. В Standart и Ultra
-// работа поделена: сторис делает SMM, рилсы и посты — оператор. От этого
-// зависит, кому засчитывается KPI.
+// работа поделена: сторис делает SMM, рилсы и посты — оператор. Но если на
+// таком проекте назначен кто-то один, он тоже делает всё. От этого зависит,
+// кому засчитывается KPI.
 //
 // postDays — посты выходят в Instagram по вторникам, пятницам и воскресеньям,
 // и KPI «Выкладка в срок» проверяет эти дни. У TikTok свой ритм и своя лента,
@@ -70,6 +71,11 @@ export function postsOffPackage(key, total) {
  * человек, и тот, кто назначен, отвечает за всё. Если там назначены двое,
  * засчитывается обоим.
  *
+ * Если на Standart или Ultra назначен только один — только СММ или только
+ * оператор, — он тоже делает и посты, и сторис. Строки замеров сторис хранят
+ * тех, кто был назначен в тот день, поэтому прошлые дни считаются по тогдашнему
+ * составу.
+ *
  * @param row  { package, smm_id, operator_id } — строка клиента или замера
  * @returns { stories, posts, any }
  */
@@ -78,9 +84,12 @@ export function duties(row, employeeId) {
   const op = Boolean(employeeId) && row?.operator_id === employeeId
   const hasStories = storiesPlan(row?.package) !== null
   if (!smm && !op) return { stories: false, posts: false, any: false }
-  if (of(row?.package).solo) return { stories: hasStories, posts: true, any: true }
+  if (of(row?.package).solo || isAlone(row)) return { stories: hasStories, posts: true, any: true }
   return { stories: smm && hasStories, posts: op, any: true }
 }
+
+/** На проекте назначен кто-то один: только СММ или только оператор. */
+export const isAlone = row => Boolean(row?.smm_id) !== Boolean(row?.operator_id)
 
 /** Та же зона ответственности словами: «СТОРИС», «ПОСТЫ», «ВСЁ». */
 export function dutyLabel(d) {

@@ -9,7 +9,7 @@
 // что была: donePatch и patchClient из data.js, с оптимистичным обновлением.
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
-import { Plus, X, LayoutGrid, List, Search } from 'lucide-react'
+import { Plus, X, LayoutGrid, List, Search, Check } from 'lucide-react'
 import { today } from '../lib/tz'
 import { fetchClients, fetchEmployees, patchClient, createClient, donePatch } from './data'
 import ClientDrawer from './ClientDrawer'
@@ -542,6 +542,11 @@ function Tile({ r, av, dim, cur, bump, canAdd, showAdd, onOpen, onAdd, onSetPlan
       <div className="meta">
         <span className={lastTone(r) && `c-${lastTone(r)}`}>{lastText(r)}</span>
         <span className={contractTone(r) && `c-${contractTone(r)}`}>{contractText(r)}</span>
+        {r.debt > 0 && r.debtOpen === 0 && (
+          <span className="c-lime done-mark" title={`Долг прошлого периода закрыт: ${r.debt} из ${r.debt}`}>
+            <Check size={12} strokeWidth={3} aria-hidden="true" />долг закрыт
+          </span>
+        )}
       </div>
       <div className="t4">
         <div className="avs">

@@ -20,17 +20,17 @@ export function Avatar({ a, role, small }) {
 // Полоса квадратиков: закрашены вышедшие. С onSet каждый квадратик — кнопка,
 // клик ставит число как на прежней карточке: «поставить j», а клик по
 // последнему закрашенному снимает его.
-function SegBar({ count, filled, tone, large, onSet, label }) {
+function SegBar({ count, filled, tone, large, onSet, label, style }) {
   const cls = `segs${large ? ' lg' : ''}${tone ? ` ${tone}` : ''}${onSet ? ' click' : ''}`
   if (!onSet) {
     return (
-      <div className={cls} aria-hidden="true">
+      <div className={cls} style={style} aria-hidden="true">
         {Array.from({ length: count }, (_, i) => <span key={i} className={i < filled ? 'on' : ''} />)}
       </div>
     )
   }
   return (
-    <div className={cls} role="group" aria-label={label}>
+    <div className={cls} style={style} role="group" aria-label={label}>
       {Array.from({ length: count }, (_, i) => {
         const j = i + 1
         return (
@@ -53,12 +53,25 @@ export function Segments({ r, large, onSet }) {
 
 // Долг прошлого периода — такая же полоса, только жёлтая. Считается вверх:
 // сколько долга уже погашено. Публикации сначала гасят долг, потом идут в план.
-export function DebtRow({ r, large, onSet }) {
+//
+// Квадратики того же размера, что у плана: полоса занимает долю ширины
+// debt/plan. Иначе один пост долга растягивался на всю строку и выглядел как
+// десять.
+//
+// На плитке закрытый долг не показывается (keepClosed=false): там остаётся
+// только пометка. В карточке полоса остаётся, чтобы его можно было поправить.
+export function DebtRow({ r, large, onSet, keepClosed }) {
   if (!r.debt) return null
+  if (r.debtOpen === 0 && !keepClosed) return null
+  const gap = large ? 4 : 2
+  const share = Math.min(r.debt / Math.max(r.plan, 1), 1)
   return (
     <div className="debt" title={`Долг с прошлого периода: погашено ${r.debtDone} из ${r.debt}`}>
-      <span className="debt-l">долг <b>{r.debtDone}</b>/{r.debt}</span>
-      <SegBar count={r.debt} filled={r.debtDone} tone="dbt" large={large} onSet={onSet} label="Погашено долга" />
+      <SegBar
+        count={r.debt} filled={r.debtDone} tone="dbt" large={large} onSet={onSet} label="Погашено долга"
+        style={{ width: `calc(${share} * (100% + ${gap}px) - ${gap}px)` }}
+      />
+      <span className="debt-l">{r.debtOpen === 0 ? 'долг закрыт' : <>долг <b>{r.debtDone}</b>/{r.debt}</>}</span>
     </div>
   )
 }

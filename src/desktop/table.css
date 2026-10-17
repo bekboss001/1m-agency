@@ -109,9 +109,10 @@
 .ct .segs.dbt button:hover{background:rgba(255,180,67,.35)}
 .ct .segs.dbt button.on:hover{background:#FFC870}
 .ct .debt{display:flex;align-items:center;gap:8px}
-.ct .debt .segs{flex:1;min-width:0}
+.ct .debt .segs{flex:0 1 auto;min-width:0}
 .ct .debt-l{flex:none;font-size:11px;font-weight:700;color:var(--amber);white-space:nowrap}
 .ct .debt-l b{font-weight:800}
+.ct .done-mark{display:inline-flex;align-items:center;gap:3px}
 .ct .meta{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11px;font-weight:700;color:var(--mut);line-height:1.5}
 .ct .meta span{white-space:nowrap}
 .ct .t4{display:flex;align-items:center;justify-content:space-between;gap:8px}
