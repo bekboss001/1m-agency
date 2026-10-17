@@ -8,8 +8,8 @@
 import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, X, ChevronLeft, ChevronRight } from 'lucide-react'
-import { STATUS, dm, lastTone, contractText, contractTone } from '../lib/clientBoard'
-import { Avatar, Segments, Count } from './boardParts'
+import { STATUS, dm, longDate, lastTone, contractTone } from '../lib/clientBoard'
+import { Avatar, Segments, DebtRow, Count } from './boardParts'
 
 // Монограмма в цвете клиента. Цвет из карточки, если он задан как #rrggbb.
 function monoStyle(color) {
@@ -25,7 +25,7 @@ function mono(name) {
 export default function ClientPanel({
   r, av, smms, ops, pos, count, filtered, bump,
   canEdit, canAdd, isAdmin, undoCount,
-  onStep, onClose, onAdd, onUndo, onPatch, onOpenFull,
+  onStep, onClose, onAdd, onUndo, onPatch, onSetPlan, onSetDebt, onOpenFull,
 }) {
   const navigate = useNavigate()
   const panelRef = useRef(null)
@@ -54,7 +54,7 @@ export default function ClientPanel({
     ['До конца периода', leftTxt, r.left !== null && r.left <= 3 ? 'c-red' : r.left !== null && r.left <= 7 ? 'c-amber' : ''],
     ['Нужно в день', r.perDay || '–', ''],
     ['Темп к графику', lagTxt, lagCls],
-    ['Долг прошлого периода', r.debt === 0 ? 'нет' : r.debtOpen > 0 ? `${r.debtOpen} из ${r.debt}` : 'закрыт', r.debtOpen > 0 ? 'c-amber' : ''],
+    ['Долг прошлого периода', r.debt === 0 ? 'нет' : `погашено ${r.debtDone} из ${r.debt}`, r.debtOpen > 0 ? 'c-amber' : ''],
     ['Последний пост', r.silent === null ? 'не было' : r.silent === 0 ? 'сегодня' : r.silent === 1 ? 'вчера' : `${r.silent} дн. назад`, lastTone(r) && `c-${lastTone(r)}`],
   ]
 
@@ -90,11 +90,13 @@ export default function ClientPanel({
             <Count r={r} bump={bump} />
             <span className={`pill p-${r.pillTone}`}>{r.pillFull}</span>
           </div>
-          <Segments r={r} large />
+          <Segments r={r} large onSet={onSetPlan} />
+          <DebtRow r={r} large onSet={onSetDebt} />
           <div className="key">
             <span><i className="bg-lime" />Вышло</span>
-            <span><i style={{ background: 'repeating-linear-gradient(135deg,rgba(255,106,94,.85) 0 3px,rgba(255,106,94,.22) 3px 6px)' }} />Должно было выйти к сегодня</span>
             <span><i style={{ background: '#26262C' }} />Впереди</span>
+            {r.debt > 0 && <span><i className="bg-amber" />Погашено долга</span>}
+            {onSetPlan && <span>Клик по квадратику — поправить число</span>}
           </div>
         </div>
 
@@ -124,7 +126,7 @@ export default function ClientPanel({
           <div className="line-row">
             <span>Договор</span>
             <span className={contractTone(r) && `c-${contractTone(r)}`} style={{ fontWeight: 800 }}>
-              {r.expired ? 'истёк, нужно продлить' : contractText(r)}
+              {r.expired ? `истёк ${longDate(r.c.end)}, нужно продлить` : r.contractLeft === null ? 'не указан' : `до ${longDate(r.c.end)} · ${r.contractLeft} дн.`}
             </span>
           </div>
         </div>

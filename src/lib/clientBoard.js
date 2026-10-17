@@ -24,7 +24,16 @@ export const STATUS_ORDER = ['hot', 'behind', 'ok', 'closed']
 
 /** Число с одним знаком после запятой: «0,3». */
 export const f1 = n => (Math.round(n * 10) / 10).toString().replace('.', ',')
-const minus = n => `−${n}`
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+
+/** «пост», «поста», «постов» для числа. */
+export function postsWord(n) {
+  const a = Math.abs(n) % 100
+  const b = a % 10
+  if (b === 1 && a !== 11) return 'пост'
+  if (b >= 2 && b <= 4 && (a < 12 || a > 14)) return 'поста'
+  return 'постов'
+}
 
 /**
  * Строка доски для одного клиента.
@@ -77,8 +86,8 @@ export function boardRow(c, todayIso) {
   else if (lag === null) {
     pill = silent === null ? 'нет данных' : `${silent} дн. тишины`
     pillFull = silent === null ? 'Нет даты договора и последнего поста' : `Нет постов ${silent} дн.`
-  } else if (lagR <= -1) { pill = minus(-lagR); pillFull = `Отстаёт на ${-lagR} от графика` }
-  else if (lagR >= 1) { pill = `+${lagR}`; pillTone = 'lime'; pillFull = `Опережает график на ${lagR}` }
+  } else if (lagR <= -1) { pill = `отстаёт на ${-lagR}`; pillFull = `Отстаёт от графика на ${-lagR} ${postsWord(-lagR)}` }
+  else if (lagR >= 1) { pill = `впереди на ${lagR}`; pillTone = 'lime'; pillFull = `Опережает график на ${lagR} ${postsWord(lagR)}` }
   else { pill = 'в графике'; pillTone = 'lime'; pillFull = 'Идёт по графику' }
 
   return {
@@ -96,6 +105,8 @@ export function boardRow(c, todayIso) {
 
 /** '2026-10-24' → '24.10' */
 export const dm = iso => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}` : '')
+/** '2026-10-24' → '24 октября' */
+export const longDate = iso => (iso ? `${Number(iso.slice(8, 10))} ${MONTHS_GEN[Number(iso.slice(5, 7)) - 1]}` : '')
 
 export function lastText(r) {
   if (r.silent === null) return 'постов не было'
@@ -108,17 +119,12 @@ export const lastTone = r => (r.silent === null ? '' : r.silent >= 4 ? 'red' : r
 export function contractText(r) {
   if (r.expired) return 'договор истёк'
   if (r.contractLeft === null) return 'нет договора'
-  return `до ${dm(r.c.end)}${r.contractLeft <= 7 ? ` · ${r.contractLeft} дн.` : ''}`
+  return `договор до ${longDate(r.c.end)}${r.contractLeft <= 14 ? ` · ${r.contractLeft} дн.` : ''}`
 }
 export function contractTone(r) {
   if (r.expired || (r.contractLeft !== null && r.contractLeft <= 3)) return 'red'
   if (r.contractLeft !== null && r.contractLeft <= 7) return 'amber'
   return ''
-}
-
-export function debtText(r) {
-  if (r.debt === 0) return ''
-  return r.debtOpen > 0 ? `долг ${r.debtOpen} из ${r.debt}` : 'долг закрыт'
 }
 
 /* ────────────────────────────── Критерии ────────────────────────────── */

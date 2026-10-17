@@ -98,8 +98,20 @@
 .ct .segs.lg{gap:4px;height:14px}
 .ct .segs span{flex:1;min-width:0;height:100%;border-radius:2px;background:var(--off)}
 .ct .segs span.on{background:var(--lime)}
-.ct .segs span.miss-red{background:repeating-linear-gradient(135deg,rgba(255,106,94,.85) 0 3px,rgba(255,106,94,.22) 3px 6px)}
-.ct .segs span.miss-amber{background:repeating-linear-gradient(135deg,rgba(255,180,67,.85) 0 3px,rgba(255,180,67,.22) 3px 6px)}
+.ct .segs.click{height:12px}
+.ct .segs.lg.click{height:16px}
+.ct .segs button{flex:1;min-width:0;height:100%;padding:0;border:0;border-radius:2px;background:var(--off);transition:background .12s ease}
+.ct .segs button.on{background:var(--lime)}
+.ct .segs button:hover{background:#4A4A52}
+.ct .segs button.on:hover{background:#E6FF80}
+.ct .segs.dbt span,.ct .segs.dbt button{background:var(--amber-bg)}
+.ct .segs.dbt span.on,.ct .segs.dbt button.on{background:var(--amber)}
+.ct .segs.dbt button:hover{background:rgba(255,180,67,.35)}
+.ct .segs.dbt button.on:hover{background:#FFC870}
+.ct .debt{display:flex;align-items:center;gap:8px}
+.ct .debt .segs{flex:1;min-width:0}
+.ct .debt-l{flex:none;font-size:11px;font-weight:700;color:var(--amber);white-space:nowrap}
+.ct .debt-l b{font-weight:800}
 .ct .meta{display:flex;flex-wrap:wrap;gap:2px 10px;font-size:11px;font-weight:700;color:var(--mut);line-height:1.5}
 .ct .meta span{white-space:nowrap}
 .ct .t4{display:flex;align-items:center;justify-content:space-between;gap:8px}

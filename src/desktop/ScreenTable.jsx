@@ -14,13 +14,13 @@ import { today } from '../lib/tz'
 import { fetchClients, fetchEmployees, patchClient, createClient, donePatch } from './data'
 import ClientDrawer from './ClientDrawer'
 import ClientPanel from './ClientPanel'
-import { Avatar, Segments, Count } from './boardParts'
+import { Avatar, Segments, DebtRow, Count } from './boardParts'
 import { SYNC_EVENT } from '../lib/instagram'
 import { useProfile } from '../lib/useProfile'
 import { useMediaQuery } from '../lib/useMediaQuery'
 import {
   boardRow, criteria, matcher, sorter, summary, avatars,
-  lastText, lastTone, contractText, contractTone, debtText,
+  lastText, lastTone, contractText, contractTone, postsWord,
 } from '../lib/clientBoard'
 import './table.css'
 
@@ -157,6 +157,16 @@ export default function ScreenTable() {
     apply(id, stack[stack.length - 1])
   }, [undo, apply])
 
+  // Квадратик плана j: «в план периода засчитано j». Само «выпущено» больше на
+  // погашенный долг и меньше на аванс — так же считала прежняя карточка.
+  const setPlan = useCallback((c, j) => {
+    const p = rows.find(r => r.c.id === c.id)?.p
+    if (p) apply(c.id, donePatch(c, Math.max(0, p.debt + j - p.advance)))
+  }, [rows, apply])
+  // Квадратик долга j: погашено j. Публикации сначала гасят долг, поэтому
+  // «выпущено» при этом ровно j.
+  const setDebt = useCallback((c, j) => apply(c.id, donePatch(c, j)), [apply])
+
   const canAdd = c => canEdit && (isAuto(c) || rows.find(r => r.c.id === c.id)?.p.left > 0)
 
   async function addClient() {
@@ -277,7 +287,7 @@ export default function ScreenTable() {
       const w = el.clientWidth
       const cols = w >= 1040 ? 5 : w >= 800 ? 4 : w >= 590 ? 3 : w >= 400 ? 2 : 1
       const rowsN = Math.max(Math.ceil(total / cols), 1)
-      const rowH = Math.max((el.clientHeight - 4 - 10 * (rowsN - 1)) / rowsN, 150)
+      const rowH = Math.max((el.clientHeight - 4 - 10 * (rowsN - 1)) / rowsN, 168)
       setGrid(g => (g.cols === cols && Math.abs(g.rowH - rowH) < 0.5 ? g : { cols, rowH }))
     }
     measure()
@@ -384,7 +394,7 @@ export default function ScreenTable() {
               className="board" ref={boardRef}
               style={{
                 gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
-                gridAutoRows: small ? 'minmax(176px, auto)' : `${grid.rowH}px`,
+                gridAutoRows: small ? 'minmax(186px, auto)' : `${grid.rowH}px`,
               }}
             >
               {shown.map(r => (
@@ -393,6 +403,8 @@ export default function ScreenTable() {
                   dim={!matchedIds.has(r.c.id)} cur={curId === r.c.id} bump={bumped === r.c.id}
                   canAdd={canAdd(r.c)} showAdd={canEdit}
                   onOpen={() => openPanel(r.c.id)} onAdd={() => addPost(r.c)}
+                  onSetPlan={canEdit ? j => setPlan(r.c, j) : null}
+                  onSetDebt={canEdit ? j => setDebt(r.c, j) : null}
                 />
               ))}
             </div>
@@ -411,6 +423,8 @@ export default function ScreenTable() {
           onStep={step} onClose={closePanel}
           onAdd={() => addPost(openRow.c)} onUndo={() => undoPost(openId)}
           onPatch={apply}
+          onSetPlan={canEdit ? j => setPlan(openRow.c, j) : null}
+          onSetDebt={canEdit ? j => setDebt(openRow.c, j) : null}
           onOpenFull={() => setFullId(openId)}
         />
       )}
@@ -500,11 +514,9 @@ function Seg({ label, value, onChange, options }) {
   )
 }
 
-function Tile({ r, av, dim, cur, bump, canAdd, showAdd, onOpen, onAdd }) {
+function Tile({ r, av, dim, cur, bump, canAdd, showAdd, onOpen, onAdd, onSetPlan, onSetDebt }) {
   const c = r.c
-  const rt1 = r.status === 'closed'
-    ? 'всё вышло'
-    : `осталось ${r.remaining}${r.left !== null && r.left >= 0 ? ` · ${r.left} дн.` : ''}`
+  const rt1 = r.status === 'closed' ? 'всё вышло' : `осталось ${r.remaining} ${postsWord(r.remaining)}`
   return (
     <article
       className={`tile${r.status === 'hot' ? ' hot' : ''}${dim ? ' dim' : ''}${cur ? ' cur' : ''}`}
@@ -525,11 +537,11 @@ function Tile({ r, av, dim, cur, bump, canAdd, showAdd, onOpen, onAdd }) {
           <div>{r.perDay ? `${r.perDay} в день` : ''}</div>
         </div>
       </div>
-      <Segments r={r} />
+      <Segments r={r} onSet={onSetPlan} />
+      <DebtRow r={r} onSet={onSetDebt} />
       <div className="meta">
         <span className={lastTone(r) && `c-${lastTone(r)}`}>{lastText(r)}</span>
         <span className={contractTone(r) && `c-${contractTone(r)}`}>{contractText(r)}</span>
-        {r.debtOpen > 0 && <span className="c-amber">{debtText(r)}</span>}
       </div>
       <div className="t4">
         <div className="avs">
@@ -577,7 +589,7 @@ function ListRow({ r, av, dim, cur, canAdd, showAdd, onOpen, onAdd }) {
       <span><span className={`pill p-${r.pillTone}`} title={r.pillFull}>{r.pill}</span></span>
       <span style={{ fontWeight: 700 }}>{r.perDay || '–'}</span>
       <span className={r.debtOpen > 0 ? 'c-amber' : 'c-mut'} style={{ fontWeight: 700 }}>
-        {r.debt === 0 ? '–' : r.debtOpen > 0 ? `${r.debtOpen} из ${r.debt}` : 'закрыт'}
+        {r.debt === 0 ? '–' : `${r.debtDone}/${r.debt}`}
       </span>
       <span className={lastTone(r) && `c-${lastTone(r)}`} style={{ fontWeight: 700 }}>{lastText(r)}</span>
       <span className={contractTone(r) && `c-${contractTone(r)}`} style={{ fontWeight: 700 }}>{contractText(r)}</span>
