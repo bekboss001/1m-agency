@@ -279,6 +279,11 @@ export default function ScreenTable() {
   // Высота строки делится так, чтобы поместились все клиенты: число строк
   // считается от всех, а не от показанных, поэтому «Только они» плитки не
   // растягивает.
+  //
+  // Эта высота — минимум плитки (min-height), а строки сетки min-content: если
+  // содержимому мало места, плитка вырастает и поле прокручивается. С
+  // minmax(высота, auto) строка росла бы только за счёт свободного места, а в
+  // заполненном поле его нет, и низ плитки обрезался.
   const total = rows.length
   useEffect(() => {
     const el = boardRef.current
@@ -394,13 +399,14 @@ export default function ScreenTable() {
               className="board" ref={boardRef}
               style={{
                 gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
-                gridAutoRows: `minmax(${small ? 186 : grid.rowH}px, auto)`,
+                gridAutoRows: 'min-content',
               }}
             >
               {shown.map(r => (
                 <Tile
                   key={r.c.id} r={r} av={av}
                   dim={!matchedIds.has(r.c.id)} cur={curId === r.c.id} bump={bumped === r.c.id}
+                  minH={small ? 186 : grid.rowH}
                   canAdd={canAdd(r.c)} showAdd={canEdit}
                   onOpen={() => openPanel(r.c.id)} onAdd={() => addPost(r.c)}
                   onSetPlan={canEdit ? j => setPlan(r.c, j) : null}
@@ -514,13 +520,14 @@ function Seg({ label, value, onChange, options }) {
   )
 }
 
-function Tile({ r, av, dim, cur, bump, canAdd, showAdd, onOpen, onAdd, onSetPlan, onSetDebt }) {
+function Tile({ r, av, dim, cur, bump, minH, canAdd, showAdd, onOpen, onAdd, onSetPlan, onSetDebt }) {
   const c = r.c
   const rt1 = r.status === 'closed' ? 'всё вышло' : `осталось ${r.remaining} ${postsWord(r.remaining)}`
   return (
     <article
       className={`tile${r.status === 'hot' ? ' hot' : ''}${dim ? ' dim' : ''}${cur ? ' cur' : ''}`}
       data-id={c.id}
+      style={{ minHeight: minH }}
       tabIndex={dim ? -1 : cur ? 0 : -1}
       aria-label={`${c.name}: ${r.doneMain} из ${r.plan}, ${r.pillFull}`}
       onClick={() => { if (!dim) onOpen() }}

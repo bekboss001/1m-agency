@@ -76,7 +76,7 @@
 
 /* плитки */
 .ct .board{flex:1;min-height:0;overflow-y:auto;display:grid;gap:10px;align-content:start;padding:2px}
-.ct .tile{position:relative;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 13px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-width:0;min-height:0;overflow:hidden;cursor:pointer;transition:opacity .2s ease,border-color .15s ease}
+.ct .tile{position:relative;background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:12px 13px;display:flex;flex-direction:column;justify-content:space-between;gap:6px;min-width:0;overflow:hidden;cursor:pointer;transition:opacity .2s ease,border-color .15s ease}
 .ct .tile:hover{border-color:#3A3A42}
 .ct .tile.hot{border-color:var(--red-line)}
 .ct .tile.dim{opacity:.22}
