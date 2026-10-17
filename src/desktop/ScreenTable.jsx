@@ -1,49 +1,74 @@
-// Экран «Таблица» — доска клиентов.
+// Экран «Таблица» — все клиенты на одном экране.
 //
-// Сознательно не сетка-таблица: два самых частых действия (плюс к выпущенным
-// и дата выкладки) должны делаться одним кликом прямо на карточке, поэтому
-// каждая карточка несёт свои контролы, а не строку с ячейками.
+// Эталон — design/clients-reference.html. Слева критерии, справа поле плиток,
+// которое делит свою высоту на всех клиентов, чтобы их было видно без
+// прокрутки. Фильтр по умолчанию не убирает плитки, а приглушает лишние:
+// клиенты остаются на своих местах, и глаз их не теряет.
+//
+// Расчёты темпа, статуса и сводки — в lib/clientBoard.js. Запись в базу та же,
+// что была: donePatch и patchClient из data.js, с оптимистичным обновлением.
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { today, parseYmd } from '../lib/tz'
-import { D, ARCHIVO, GROTESK, NUM } from './tokens'
-import { Icon, Pill, LimeButton, Badge, Divider } from './ui'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { Plus, X, LayoutGrid, List, Search } from 'lucide-react'
+import { today } from '../lib/tz'
 import { fetchClients, fetchEmployees, patchClient, createClient, donePatch } from './data'
 import ClientDrawer from './ClientDrawer'
-import { planState } from '../lib/postPlan'
+import ClientPanel from './ClientPanel'
+import { Avatar, Segments, Count } from './boardParts'
 import { SYNC_EVENT } from '../lib/instagram'
+import { useProfile } from '../lib/useProfile'
+import { useMediaQuery } from '../lib/useMediaQuery'
+import {
+  boardRow, criteria, matcher, sorter, summary, avatars,
+  lastText, lastTone, contractText, contractTone, debtText,
+} from '../lib/clientBoard'
+import './table.css'
 
-const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
+const UI_KEY = '1m-clients-ui'
+const UI_DEFAULT = { view: 'grid', mode: 'dim', sort: 'urgency' }
 
-const dayDiff = iso => (iso ? Math.round((parseYmd(iso) - parseYmd(today())) / 86400000) : null)
-const dm = iso => (iso ? `${String(parseYmd(iso).getDate()).padStart(2, '0')}.${String(parseYmd(iso).getMonth() + 1).padStart(2, '0')}` : '')
-
-function plural(n, one, few, many) {
-  const a = Math.abs(n)
-  if (a % 10 === 1 && a % 100 !== 11) return one
-  if (a % 10 >= 2 && a % 10 <= 4 && (a % 100 < 12 || a % 100 > 14)) return few
-  return many
+function loadUi() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(UI_KEY) || '{}')
+    return { ...UI_DEFAULT, ...saved }
+  } catch { return UI_DEFAULT }
 }
 
+// Клиента ведёт сверка: тогда «+» пишет поправку, а не число.
+const isAuto = c => Boolean(c.igId) && c.carry !== null
+
 export default function ScreenTable() {
+  const { profile } = useProfile()
+  const canEdit = !profile || (profile.role !== 'client' && profile.role !== 'pending')
+  const isAdmin = profile?.role === 'admin'
+  const small = useMediaQuery('(max-width: 899px), (max-height: 599px)')
+
   const [clients, setClients] = useState([])
   const [employees, setEmployees] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const [ui, setUi] = useState(loadUi)
+  const [sel, setSel] = useState({})
   const [query, setQuery] = useState('')
-  const [smmFilter, setSmmFilter] = useState('all')
-  const [opFilter, setOpFilter] = useState('all')
-  const [rowsMode, setRowsMode] = useState('all')
-  // ?client=id открывает панель клиента сразу: так сюда ведёт профиль, а на
-  // компьютере карточка клиента — это она, а не экран телефона.
+  const [cur, setCur] = useState(null)
+  // ?client=id открывает карточку сразу: так сюда ведёт профиль.
   const [openId, setOpenId] = useState(() =>
     typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('client'))
+  const [fullId, setFullId] = useState(null)
+  const [bumped, setBumped] = useState(null)
+  const [undo, setUndo] = useState({})
+  const [grid, setGrid] = useState({ cols: 5, rowH: 150 })
+
+  const searchRef = useRef(null)
+  const boardRef = useRef(null)
+  const focusNext = useRef(false)
 
   useEffect(() => {
     Promise.all([fetchClients(), fetchEmployees()]).then(([c, e]) => {
       setClients(c.data)
       setEmployees(e.data)
+      if (c.error) flash(c.error.message)
       setLoading(false)
     })
     // Сверка при открытии приложения могла закончиться уже после загрузки.
@@ -52,11 +77,26 @@ export default function ScreenTable() {
     return () => window.removeEventListener(SYNC_EVENT, reload)
   }, [])
 
+  function flash(msg) {
+    setError(msg)
+    setTimeout(() => setError(null), 4000)
+  }
+
+  function setUiKey(k, v) {
+    setUi(prev => {
+      const next = { ...prev, [k]: v }
+      try { localStorage.setItem(UI_KEY, JSON.stringify(next)) } catch { /* без хранилища просто не запомним */ }
+      return next
+    })
+  }
+
   const smms = useMemo(() => employees.filter(e => e.role === 'smm'), [employees])
   const ops = useMemo(() => employees.filter(e => e.role === 'operator'), [employees])
+  const av = useMemo(() => avatars(employees), [employees])
+  const names = useMemo(() => Object.fromEntries(employees.map(e => [e.id, e.name])), [employees])
 
-  // Оптимистично: правка карточки — самое частое действие на экране, ждать
-  // ответ сервера здесь нельзя. При ошибке возвращаем прежнее значение.
+  // Оптимистично: ждать ответ сервера на самом частом действии нельзя.
+  // При ошибке возвращаем прежнее значение.
   const apply = useCallback(async (id, patch) => {
     let prev = null
     setClients(cs => cs.map(c => {
@@ -64,409 +104,496 @@ export default function ScreenTable() {
       prev = c
       return { ...c, ...patch }
     }))
-
-    const { error } = await patchClient(id, patch)
-    if (error) {
+    const { error: err } = await patchClient(id, patch)
+    if (err) {
       setClients(cs => cs.map(c => (c.id === id && prev ? prev : c)))
-      setError(error.message)
-      setTimeout(() => setError(null), 4000)
+      flash(`Не сохранилось: ${err.message}`)
     }
+    return err
   }, [])
 
-  // Поиск и селекты применяются всегда; срез — отдельно, чтобы счётчики
-  // на пилюлях считались от результата без учёта самого среза.
-  const base = useMemo(() => clients.filter(c => {
-    if (query && !c.name.toLowerCase().includes(query.toLowerCase())) return false
-    if (smmFilter === 'none' ? c.smmId : smmFilter !== 'all' && c.smmId !== smmFilter) return false
-    if (opFilter === 'none' ? c.operatorId : opFilter !== 'all' && c.operatorId !== opFilter) return false
-    return true
-  }), [clients, query, smmFilter, opFilter])
+  /* ─────────────────────────── Вычисления ─────────────────────────── */
 
-  const counts = useMemo(() => ({
-    all: base.length,
-    open: base.filter(c => planState(c).left > 0).length,
-    soon: base.filter(c => c.end && dayDiff(c.end) <= 14).length,
-  }), [base])
+  const day = today()
+  const rows = useMemo(() => clients.map(c => boardRow(c, day)), [clients, day])
+  const groups = useMemo(() => criteria(smms, ops), [smms, ops])
+  const match = useMemo(() => matcher(groups, sel, query, names), [groups, sel, query, names])
+  const matched = useMemo(() => rows.filter(match), [rows, match])
+  const matchedIds = useMemo(() => new Set(matched.map(r => r.c.id)), [matched])
+  const sorted = useMemo(() => rows.slice().sort(sorter(ui.sort)), [rows, ui.sort])
+  const shown = ui.mode === 'hide' ? sorted.filter(r => matchedIds.has(r.c.id)) : sorted
+  const ordered = useMemo(() => shown.filter(r => matchedIds.has(r.c.id)).map(r => r.c.id), [shown, matchedIds])
+  const sum = useMemo(() => summary(rows), [rows])
+  const anyFilter = Object.values(sel).some(Boolean) || Boolean(query.trim())
 
-  const visible = useMemo(() => {
-    if (rowsMode === 'open') return base.filter(c => planState(c).left > 0)
-    if (rowsMode === 'soon') return base.filter(c => c.end && dayDiff(c.end) <= 14)
-    return base
-  }, [base, rowsMode])
+  // Счётчик пункта считается без фильтра его же группы.
+  const counts = useMemo(() => {
+    const out = {}
+    for (const g of groups) {
+      const base = rows.filter(matcher(groups, sel, query, names, g.g))
+      out[g.g] = Object.fromEntries(g.items.map(it => [it.key, base.filter(it.test).length]))
+    }
+    return out
+  }, [groups, rows, sel, query, names])
 
-  const sumDone = visible.reduce((s, c) => s + c.done, 0)
-  const sumLeft = visible.reduce((s, c) => s + planState(c).left, 0)
-  const expiring = clients.filter(c => c.end && dayDiff(c.end) <= 14).length
+  const curId = cur && ordered.includes(cur) ? cur : ordered[0] || null
 
-  const t = parseYmd(today())
-  const subtitle = `${t.getDate()} ${MONTHS_GEN[t.getMonth()]} · ${clients.length} ${plural(clients.length, 'активный', 'активных', 'активных')} · ${expiring} ${plural(expiring, 'договор истекает', 'договора истекает', 'договоров истекает')}`
+  /* ──────────────────────────── Действия ──────────────────────────── */
+
+  const addPost = useCallback(async c => {
+    const patch = donePatch(c, c.done + 1)
+    const before = Object.fromEntries(Object.keys(patch).map(k => [k, c[k]]))
+    setUndo(u => ({ ...u, [c.id]: [...(u[c.id] || []), before] }))
+    setBumped(c.id)
+    setTimeout(() => setBumped(b => (b === c.id ? null : b)), 500)
+    const err = await apply(c.id, patch)
+    if (err) setUndo(u => ({ ...u, [c.id]: (u[c.id] || []).slice(0, -1) }))
+  }, [apply])
+
+  const undoPost = useCallback(id => {
+    const stack = undo[id] || []
+    if (!stack.length) return
+    setUndo(u => ({ ...u, [id]: stack.slice(0, -1) }))
+    apply(id, stack[stack.length - 1])
+  }, [undo, apply])
+
+  const canAdd = c => canEdit && (isAuto(c) || rows.find(r => r.c.id === c.id)?.p.left > 0)
 
   async function addClient() {
-    const draft = { name: 'Новый клиент', total: 12, out: today() }
-    const { data, error: err } = await createClient(draft)
-    if (err) { setError(err.message); setTimeout(() => setError(null), 4000); return }
+    const { data, error: err } = await createClient({ name: 'Новый клиент', total: 12, out: today() })
+    if (err) { flash(err.message); return }
     setClients(cs => [...cs, data])
+    setFullId(data.id)
   }
 
+  function toggle(g, key) {
+    setSel(s => ({ ...s, [g]: s[g] === key ? null : key }))
+  }
+
+  function resetAll() {
+    setSel({})
+    setQuery('')
+  }
+
+  function openPanel(id) {
+    setCur(id)
+    setOpenId(id)
+  }
+
+  function closePanel() {
+    setOpenId(null)
+    focusNext.current = true
+  }
+
+  // Листание в карточке: в пределах фильтра и порядка, если клиент в фильтре.
+  const navList = openId && ordered.includes(openId) ? ordered : sorted.map(r => r.c.id)
+  function step(dir) {
+    const i = navList.indexOf(openId) + dir
+    if (i >= 0 && i < navList.length) { setOpenId(navList[i]); setCur(navList[i]) }
+  }
+
+  /* ──────────────────────────── Клавиатура ─────────────────────────── */
+
+  const keyRef = useRef(null)
+  keyRef.current = e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (fullId) return   // открыта полная карточка — у неё свои клавиши
+    const t = e.target
+    const tag = t?.tagName
+    if (tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || t?.isContentEditable) {
+      if (t === searchRef.current) {
+        if (e.key === 'Escape') t.blur()
+        if (e.key === 'Enter' || e.key === 'ArrowDown') {
+          e.preventDefault()
+          t.blur()
+          focusNext.current = true
+          setCur(curId)
+        }
+      }
+      return
+    }
+    const key = e.key
+    if (openId) {
+      if (key === 'Escape') { e.preventDefault(); closePanel() }
+      else if (key === 'ArrowRight' || key === 'ArrowDown') { e.preventDefault(); step(1) }
+      else if (key === 'ArrowLeft' || key === 'ArrowUp') { e.preventDefault(); step(-1) }
+      else if (key === '+' || key === '=') {
+        const c = clients.find(x => x.id === openId)
+        if (c && canAdd(c)) addPost(c)
+      }
+      return
+    }
+    if (key === '/') { e.preventDefault(); searchRef.current?.focus(); return }
+    if (key === 'Escape') { if (anyFilter) resetAll(); return }
+    if (!ordered.length) return
+
+    const cols = ui.view === 'list' ? 1 : grid.cols
+    let d = 0
+    if (key === 'ArrowRight') d = 1
+    else if (key === 'ArrowLeft') d = -1
+    else if (key === 'ArrowDown') d = cols
+    else if (key === 'ArrowUp') d = -cols
+    if (d) {
+      e.preventDefault()
+      // В режиме подсветки между подходящими стоят приглушённые плитки, и
+      // «вниз на строку» по сетке не попадало бы в подходящего клиента.
+      if (ui.mode === 'dim' && anyFilter) d = d > 0 ? 1 : -1
+      const i = Math.min(Math.max(ordered.indexOf(curId) + d, 0), ordered.length - 1)
+      focusNext.current = true
+      setCur(ordered[i])
+      return
+    }
+    if (key === 'Enter' && curId) { e.preventDefault(); openPanel(curId); return }
+    if ((key === '+' || key === '=') && curId) {
+      const c = clients.find(x => x.id === curId)
+      if (c && canAdd(c)) addPost(c)
+    }
+  }
+
+  useEffect(() => {
+    const h = e => keyRef.current(e)
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [])
+
+  // Фокус за выбранной плиткой — после стрелок и после закрытия карточки.
+  useEffect(() => {
+    if (!focusNext.current || openId) return
+    focusNext.current = false
+    const el = boardRef.current?.querySelector(`[data-id="${curId}"]`)
+    el?.focus()
+  })
+
+  /* ───────────────────────────── Размер поля ───────────────────────── */
+
+  // Высота строки делится так, чтобы поместились все клиенты: число строк
+  // считается от всех, а не от показанных, поэтому «Только они» плитки не
+  // растягивает.
+  const total = rows.length
+  useEffect(() => {
+    const el = boardRef.current
+    if (!el || ui.view !== 'grid') return
+    const measure = () => {
+      const w = el.clientWidth
+      const cols = w >= 1040 ? 5 : w >= 800 ? 4 : w >= 590 ? 3 : w >= 400 ? 2 : 1
+      const rowsN = Math.max(Math.ceil(total / cols), 1)
+      const rowH = Math.max((el.clientHeight - 4 - 10 * (rowsN - 1)) / rowsN, 150)
+      setGrid(g => (g.cols === cols && Math.abs(g.rowH - rowH) < 0.5 ? g : { cols, rowH }))
+    }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ui.view, total, loading, matched.length === 0])
+
+  /* ───────────────────────────── Разметка ──────────────────────────── */
+
+  const openRow = openId ? rows.find(r => r.c.id === openId) : null
+
   return (
-    <div style={{ height: '100%', overflowY: 'auto' }}>
-      <div style={{ padding: '22px 26px 0' }}>
-        <h1 style={{ margin: 0, fontFamily: ARCHIVO, fontWeight: 800, fontSize: 26, letterSpacing: '-0.02em', color: D.t1 }}>
-          Клиенты
-        </h1>
-        <div style={{ fontFamily: GROTESK, fontSize: 12, color: D.mut2, marginTop: 5 }}>{subtitle}</div>
+    <div className={`ct${small ? ' small' : ''}`}>
+      <div className="body">
+        <aside className="side" aria-label="Критерии">
+          <Pulse sum={sum} />
+          <div className="crits">
+            {groups.map(g => (
+              <div className="crit" key={g.g}>
+                <h3>{g.title}</h3>
+                {g.items.map(it => {
+                  const n = counts[g.g]?.[it.key] ?? 0
+                  const on = sel[g.g] === it.key
+                  return (
+                    <button
+                      type="button" key={it.key}
+                      className={`ci${n === 0 && !on ? ' zero' : ''}`}
+                      aria-pressed={on}
+                      onClick={() => toggle(g.g, it.key)}
+                    >
+                      {g.people ? <Avatar a={av[it.key]} role={g.people} small /> : <span className={`dot bg-${it.tone}`} />}
+                      <span className="l">{it.label}</span>
+                      <em>{n}</em>
+                    </button>
+                  )
+                })}
+              </div>
+            ))}
+          </div>
+        </aside>
+
+        <section className="main" aria-label="Клиенты">
+          <div className="toolbar">
+            <h1>Клиенты <span>{anyFilter ? `${matched.length} из ${total}` : total}</span></h1>
+            <label className="search">
+              <Search size={15} aria-hidden="true" />
+              <input
+                ref={searchRef}
+                type="search"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                aria-label="Найти клиента"
+                placeholder="Клиент или сотрудник"
+                autoComplete="off"
+              />
+              <span className="kbd" aria-hidden="true">/</span>
+            </label>
+            <ActiveFilters groups={groups} sel={sel} query={query} onToggle={toggle} onClearQuery={() => setQuery('')} onReset={resetAll} />
+            <div className="tools">
+              <Seg label="Что делать с остальными" value={ui.mode} onChange={v => setUiKey('mode', v)}
+                options={[['dim', 'Подсветить'], ['hide', 'Только они']]} />
+              <Seg label="Порядок" value={ui.sort} onChange={v => setUiKey('sort', v)}
+                options={[['urgency', 'Срочность'], ['contract', 'Договор'], ['name', 'А-Я']]} />
+              <Seg label="Вид" value={ui.view} onChange={v => setUiKey('view', v)}
+                options={[['grid', <LayoutGrid size={15} aria-hidden="true" />, 'Плитки'], ['list', <List size={15} aria-hidden="true" />, 'Список']]} />
+              {canEdit && (
+                <button type="button" className="btn-lime" onClick={addClient}>
+                  <Plus size={15} strokeWidth={2.8} aria-hidden="true" />Клиент
+                </button>
+              )}
+            </div>
+          </div>
+
+          {error && <div className="toast" role="alert">{error}</div>}
+
+          {loading ? (
+            <div className="empty"><span>Загрузка…</span></div>
+          ) : matched.length === 0 ? (
+            <div className="empty">
+              <strong>Никого не нашли</strong>
+              <span>Под эти критерии не подходит ни один клиент</span>
+              <button type="button" className="btn-lime" onClick={resetAll}>Сбросить фильтры</button>
+            </div>
+          ) : ui.view === 'list' ? (
+            <div className="lwrap" ref={boardRef}>
+              <div className="ltable" style={{ gridTemplateRows: `auto repeat(${shown.length}, minmax(30px, 1fr))` }}>
+                <div className="lrow h">
+                  <span>Клиент</span><span>Выпуск</span><span>Темп</span><span>В день</span><span>Долг</span>
+                  <span>Последний пост</span><span>Договор</span><span>Команда</span><span />
+                </div>
+                {shown.map(r => (
+                  <ListRow
+                    key={r.c.id} r={r} av={av}
+                    dim={!matchedIds.has(r.c.id)} cur={curId === r.c.id}
+                    canAdd={canAdd(r.c)} showAdd={canEdit}
+                    onOpen={() => openPanel(r.c.id)} onAdd={() => addPost(r.c)}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div
+              className="board" ref={boardRef}
+              style={{
+                gridTemplateColumns: `repeat(${grid.cols}, minmax(0, 1fr))`,
+                gridAutoRows: small ? 'minmax(176px, auto)' : `${grid.rowH}px`,
+              }}
+            >
+              {shown.map(r => (
+                <Tile
+                  key={r.c.id} r={r} av={av}
+                  dim={!matchedIds.has(r.c.id)} cur={curId === r.c.id} bump={bumped === r.c.id}
+                  canAdd={canAdd(r.c)} showAdd={canEdit}
+                  onOpen={() => openPanel(r.c.id)} onAdd={() => addPost(r.c)}
+                />
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
-      {/* Фильтры */}
-      <div style={{ padding: '18px 26px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ height: 36, padding: '0 12px', borderRadius: 9, background: D.ctrl, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name="search" size={14} color={D.mut} />
-          <input
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Поиск"
-            style={{ width: 128, border: 'none', outline: 'none', background: 'transparent', fontFamily: GROTESK, fontSize: 13, color: D.t3 }}
-          />
-        </div>
-
-        <Divider />
-
-        <Pill active={rowsMode === 'all'} count={counts.all} onClick={() => setRowsMode('all')}>Все</Pill>
-        <Pill active={rowsMode === 'open'} count={counts.open} onClick={() => setRowsMode('open')}>Есть остаток</Pill>
-        <Pill active={rowsMode === 'soon'} count={counts.soon} onClick={() => setRowsMode('soon')}>Договор истекает</Pill>
-
-        <PersonSelect value={smmFilter} onChange={setSmmFilter} people={smms} label="СММ" />
-        <PersonSelect value={opFilter} onChange={setOpFilter} people={ops} label="Оператор" />
-
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 18 }}>
-          <Sum value={sumDone} label="выпущено" />
-          <Sum value={sumLeft} label="осталось" color={D.warn} />
-          <LimeButton onClick={addClient}>+ Клиент</LimeButton>
-        </div>
-      </div>
-
-      {error && (
-        <div style={{
-          margin: '0 26px 12px', padding: '10px 14px', borderRadius: 9,
-          background: D.errBg, color: D.err, fontFamily: GROTESK, fontSize: 12.5,
-        }}>
-          {error}
-        </div>
+      {openRow && (
+        <ClientPanel
+          r={openRow} av={av} smms={smms} ops={ops}
+          pos={navList.indexOf(openId)} count={navList.length}
+          filtered={anyFilter && ordered.includes(openId)}
+          bump={bumped === openId}
+          canEdit={canEdit} canAdd={canAdd(openRow.c)} isAdmin={isAdmin}
+          undoCount={(undo[openId] || []).length}
+          onStep={step} onClose={closePanel}
+          onAdd={() => addPost(openRow.c)} onUndo={() => undoPost(openId)}
+          onPatch={apply}
+          onOpenFull={() => setFullId(openId)}
+        />
       )}
 
-      {/* Карточки */}
-      <div style={{
-        padding: '0 26px 26px',
-        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(292px, 1fr))', gap: 12,
-      }}>
-        {loading ? (
-          <div style={{ fontFamily: GROTESK, fontSize: 13, color: D.mut2 }}>Загрузка…</div>
-        ) : visible.length === 0 ? (
-          <div style={{ fontFamily: GROTESK, fontSize: 13, color: D.mut2 }}>Никого не нашлось</div>
-        ) : (
-          visible.map(c => (
-            <ClientCard key={c.id} c={c} smms={smms} ops={ops} onPatch={apply} onOpen={() => setOpenId(c.id)} />
-          ))
-        )}
-      </div>
-
+      {/* Полная карточка: параметры, бриф, Instagram, доступ клиента, история.
+          Прежняя панель целиком — всё, что правилось раньше, правится и сейчас. */}
       <ClientDrawer
-        client={clients.find(c => c.id === openId) || null}
+        client={clients.find(c => c.id === fullId) || null}
         smms={smms}
         ops={ops}
         onPatch={apply}
-        onClose={() => setOpenId(null)}
-        onArchived={id => { setClients(cs => cs.filter(x => x.id !== id)); setOpenId(null) }}
+        onClose={() => setFullId(null)}
+        onArchived={id => {
+          setClients(cs => cs.filter(x => x.id !== id))
+          setFullId(null)
+          setOpenId(null)
+        }}
       />
     </div>
   )
 }
 
-function Sum({ value, label, color = D.white }) {
+/* ─────────────────────────────── Части ─────────────────────────────── */
+
+function Pulse({ sum }) {
+  const pct = n => (sum.total > 0 ? Math.min(n / sum.total * 100, 100) : 0)
   return (
-    <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
-      <span style={{ fontFamily: ARCHIVO, fontWeight: 800, fontSize: 17, color, ...NUM }}>{value}</span>
-      <span style={{ fontFamily: GROTESK, fontSize: 11, color: D.mut2 }}>{label}</span>
+    <div className="pulse">
+      <span className="lbl">Выпуск по периодам</span>
+      <div className="big"><b>{sum.done}</b><span>из {sum.total}</span></div>
+      <div className="meter" title={`Белая метка: где должны быть сегодня (${Math.round(sum.expected)})`}>
+        <i style={{ width: `${pct(sum.done)}%` }} />
+        <u style={{ left: `calc(${pct(sum.expected)}% - 1px)` }} />
+      </div>
+      <div className="sub">
+        <span>осталось {sum.left}</span>
+        <span className={sum.behind > 0 ? 'c-amber' : 'c-lime'}>
+          {sum.behind > 0 ? `−${sum.behind} от графика` : 'в графике'}
+        </span>
+      </div>
     </div>
   )
 }
 
-function PersonSelect({ value, onChange, people, label }) {
-  return (
-    <div style={{ position: 'relative', display: 'inline-flex' }}>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        style={{
-          height: 36, appearance: 'none', WebkitAppearance: 'none',
-          padding: '0 28px 0 12px', borderRadius: 9, border: 'none', outline: 'none',
-          background: D.ctrl, color: D.t3, fontFamily: GROTESK, fontSize: 13, cursor: 'pointer',
-        }}
-      >
-        <option value="all">{label}: все</option>
-        {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        <option value="none">Не назначен</option>
-      </select>
-      <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', color: D.mut }}>
-        <Icon name="chevron" size={12} />
-      </span>
-    </div>
-  )
-}
-
-function ClientCard({ c, smms, ops, onPatch, onOpen }) {
-  const [hover, setHover] = useState(false)
-  const plan = planState(c)
-  const left = plan.left
-  // Клиента ведёт сверка. Править счётчик всё равно можно: правка запоминается
-  // поправкой, и следующий прогон считает уже от неё.
-  const auto = Boolean(c.igId) && c.carry !== null
-
-  // Квадратик под номером j означает «в план месяца засчитано j». Само
-  // «выпущено» больше на непогашенный долг и меньше на аванс: публикации
-  // сперва гасят долг, а аванс засчитан в план заранее.
-  const setPlanDone = j => donePatch(c, Math.max(0, plan.debt + j - plan.advance))
-  const endDays = dayDiff(c.end)
-  const outDays = c.out ? -dayDiff(c.out) : null   // сколько дней назад выкладывали
-
-  // Приоритет бейджа сверху вниз, как в хендоффе.
-  let badge = null
-  if (endDays !== null && endDays < 0) badge = { text: 'ДОГОВОР ИСТЁК', color: D.err, bg: D.errBg }
-  else if (plan.closed) badge = { text: 'ПЛАН ЗАКРЫТ', color: D.okLime, bg: D.okBgLime }
-  else if (endDays !== null && endDays <= 14) badge = { text: `ДО ${dm(c.end)}`, color: D.warn, bg: D.warnBg }
-  else if (outDays !== null && outDays >= 4) badge = { text: `НЕ ВЫКЛАДЫВАЛИ ${outDays} ДН.`, color: D.alert, bg: D.alertBg }
-
-  let ago = null
-  if (outDays !== null) {
-    if (outDays <= 0) ago = { text: 'сегодня', color: D.lime }
-    else if (outDays === 1) ago = { text: 'вчера', color: D.mut2 }
-    else ago = { text: `${outDays} дн.`, color: outDays >= 4 ? D.alert : D.mut2 }
+function ActiveFilters({ groups, sel, query, onToggle, onClearQuery, onReset }) {
+  const chips = []
+  for (const g of groups) {
+    if (!sel[g.g]) continue
+    const it = g.items.find(x => x.key === sel[g.g])
+    if (!it) continue
+    chips.push(
+      <button type="button" className="af" key={g.g} onClick={() => onToggle(g.g, it.key)} aria-label={`Убрать фильтр ${it.label}`}>
+        {g.people ? `${g.title}: ` : ''}{it.label}<X size={13} strokeWidth={2.6} aria-hidden="true" />
+      </button>,
+    )
   }
-
-  const endColor = endDays === null ? D.mut2 : endDays < 0 ? D.err : endDays <= 14 ? D.warn : D.mut2
-  const endText = endDays === null ? '' : endDays < 0 ? 'истёк' : `до ${dm(c.end)}`
-
+  if (query.trim()) {
+    chips.push(
+      <button type="button" className="af" key="q" onClick={onClearQuery} aria-label="Очистить поиск">
+        «{query.trim()}»<X size={13} strokeWidth={2.6} aria-hidden="true" />
+      </button>,
+    )
+  }
+  if (chips.length > 1) {
+    chips.push(<button type="button" className="af" key="reset" onClick={onReset}>Сбросить всё</button>)
+  }
   return (
-    <div
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        borderRadius: 14, background: hover ? D.cardHover : D.card,
-        padding: '14px 15px 13px', display: 'flex', flexDirection: 'column', gap: 12,
-        boxShadow: `inset 0 0 0 1px ${D.b4}, inset 3px 0 0 0 ${c.color}`,
-        transition: 'background 120ms ease',
-      }}
-    >
-      {/* Шапка. Кликабельно только имя: пипсы, «+» и селекты рядом — свои
-          действия, и общий клик по карточке перехватывал бы их. */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button
-          onClick={onOpen}
-          title="Открыть карточку клиента"
-          style={{
-            flex: 1, minWidth: 0, textAlign: 'left', padding: 0, border: 'none', background: 'none',
-            fontFamily: ARCHIVO, fontWeight: 800, fontSize: 15.5,
-            letterSpacing: '-0.01em', color: hover ? D.white : D.t2,
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-            transition: 'color 120ms ease',
-          }}
-        >
-          {c.name}
-        </button>
-        {badge && <Badge color={badge.color} bg={badge.bg}>{badge.text}</Badge>}
-      </div>
-
-      {/* План месяца. Число постов в месяц не меняется от долга: долг идёт
-          отдельной строкой ниже, и публикации сначала гасят его. */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flex: 'none' }}>
-          <span style={{
-            fontFamily: ARCHIVO, fontWeight: 900, fontSize: 34, lineHeight: 0.9,
-            letterSpacing: '-0.03em', color: plan.closed ? D.lime : D.white, ...NUM,
-          }}>
-            {plan.planDone}
-          </span>
-          <span style={{ fontFamily: ARCHIVO, fontWeight: 700, fontSize: 15, color: D.quiet2, ...NUM }}>
-            /{plan.plan}
-          </span>
-          {plan.extra > 0 && (
-            <span
-              title={`Сверх плана: ${plan.extra} уйдёт авансом в следующий период`}
-              style={{ marginLeft: 4, fontFamily: GROTESK, fontSize: 11, fontWeight: 700, color: D.okLime, ...NUM }}
-            >
-              +{plan.extra}
-            </span>
-          )}
-        </div>
-
-        <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 3, alignContent: 'flex-end' }}>
-          {Array.from({ length: plan.plan }, (_, i) => i + 1).map(j => (
-            <button
-              key={j}
-              title={auto
-                ? `Поставить ${j}: сверка запомнит правку и продолжит считать с неё`
-                : `Поставить ${j} из ${plan.plan}`}
-              onClick={() => onPatch(c.id, setPlanDone(j === plan.planDone ? j - 1 : j))}
-              style={{
-                width: 9, height: 9, borderRadius: 3, border: 'none', padding: 0,
-                background: j <= plan.planDone ? '#e8e8e8' : '#242424',
-                cursor: 'pointer',
-              }}
-            />
-          ))}
-        </div>
-
-        <PlusButton
-          onClick={() => onPatch(c.id, donePatch(c, c.done + 1))}
-          disabled={!auto && c.done >= plan.due}
-        />
-      </div>
-
-      {plan.debt > 0 && (
-        <DebtRow done={plan.debtDone} total={plan.debt} />
+    <div className="active">
+      {chips.length ? chips : (
+        <span className="hintline">
+          Критерий слева подсветит нужных ·
+          <span className="kbd">←</span><span className="kbd">→</span><span className="kbd">↑</span><span className="kbd">↓</span> по клиентам ·
+          <span className="kbd">Enter</span> открыть · <span className="kbd">+</span> пост · <span className="kbd">/</span> поиск
+        </span>
       )}
+    </div>
+  )
+}
 
-      {/* Дата выкладки */}
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div style={{
-          flex: 1, minWidth: 0, height: 32, borderRadius: 9, background: D.input,
-          padding: '0 4px 0 10px', display: 'flex', alignItems: 'center', gap: 7,
-        }}>
-          <Icon name="calendar" size={12} color={D.mut2} stroke={1.7} />
-          <input
-            type="date"
-            value={c.out || ''}
-            onChange={e => onPatch(c.id, { out: e.target.value })}
-            style={{
-              flex: 1, minWidth: 0, border: 'none', outline: 'none', background: 'transparent',
-              fontFamily: GROTESK, fontSize: 12.5, color: D.t3, colorScheme: 'dark',
-            }}
-          />
-          {ago && (
-            <span style={{ fontFamily: GROTESK, fontSize: 10.5, color: ago.color, flex: 'none', paddingRight: 4 }}>
-              {ago.text}
-            </span>
-          )}
-        </div>
-        <TodayButton onClick={() => onPatch(c.id, { out: today() })} />
+function Seg({ label, value, onChange, options }) {
+  return (
+    <div className="segc" role="group" aria-label={label}>
+      {options.map(([k, text, aria]) => (
+        <button type="button" key={k} aria-pressed={value === k} aria-label={aria} onClick={() => onChange(k)}>{text}</button>
+      ))}
+    </div>
+  )
+}
+
+function Tile({ r, av, dim, cur, bump, canAdd, showAdd, onOpen, onAdd }) {
+  const c = r.c
+  const rt1 = r.status === 'closed'
+    ? 'всё вышло'
+    : `осталось ${r.remaining}${r.left !== null && r.left >= 0 ? ` · ${r.left} дн.` : ''}`
+  return (
+    <article
+      className={`tile${r.status === 'hot' ? ' hot' : ''}${dim ? ' dim' : ''}${cur ? ' cur' : ''}`}
+      data-id={c.id}
+      tabIndex={dim ? -1 : cur ? 0 : -1}
+      aria-label={`${c.name}: ${r.doneMain} из ${r.plan}, ${r.pillFull}`}
+      onClick={() => { if (!dim) onOpen() }}
+    >
+      <div className="t1">
+        <span className={`dot bg-${r.tone}`} />
+        <button type="button" className="name" tabIndex={-1} onClick={e => { e.stopPropagation(); onOpen() }}>{c.name}</button>
+        <span className={`pill p-${r.pillTone}`} title={r.pillFull}>{r.pill}</span>
       </div>
-
-      {/* Подвал */}
-      <div style={{
-        paddingTop: 11, boxShadow: `inset 0 1px 0 ${D.b3}`,
-        display: 'flex', alignItems: 'center', gap: 8,
-      }}>
-        <MiniSelect
-          value={c.smmId}
-          onChange={v => onPatch(c.id, { smmId: v })}
-          people={smms}
-          empty="Нет СММ"
-        />
-        <MiniSelect
-          value={c.operatorId}
-          onChange={v => onPatch(c.id, { operatorId: v })}
-          people={ops}
-          empty="Нет опер."
-        />
-        {endText && (
-          <span style={{ flex: '0 0 auto', fontFamily: GROTESK, fontSize: 11, color: endColor }}>
-            {endText}
-          </span>
+      <div className="t2">
+        <Count r={r} bump={bump} />
+        <div className="rt">
+          <div>{rt1}</div>
+          <div>{r.perDay ? `${r.perDay} в день` : ''}</div>
+        </div>
+      </div>
+      <Segments r={r} />
+      <div className="meta">
+        <span className={lastTone(r) && `c-${lastTone(r)}`}>{lastText(r)}</span>
+        <span className={contractTone(r) && `c-${contractTone(r)}`}>{contractText(r)}</span>
+        {r.debtOpen > 0 && <span className="c-amber">{debtText(r)}</span>}
+      </div>
+      <div className="t4">
+        <div className="avs">
+          <Avatar a={av[c.smmId]} role="smm" />
+          <Avatar a={av[c.operatorId]} role="op" />
+        </div>
+        {showAdd && (
+          <button
+            type="button" className="add" tabIndex={-1}
+            disabled={!canAdd}
+            aria-label={`Пост вышел: ${c.name}`}
+            title={canAdd ? 'Пост вышел сегодня' : 'План периода выполнен'}
+            onClick={e => { e.stopPropagation(); onAdd() }}
+          >
+            <Plus size={16} strokeWidth={2.8} aria-hidden="true" />
+          </button>
         )}
       </div>
-    </div>
+    </article>
   )
 }
 
-// Долг прошлого периода: отдельная строка красных квадратиков. Закрашенный
-// квадратик это уже погашенный пост долга.
-function DebtRow({ done, total }) {
+function ListRow({ r, av, dim, cur, canAdd, showAdd, onOpen, onAdd }) {
+  const c = r.c
+  const pct = r.plan > 0 ? Math.min(r.done / r.plan * 100, 100) : 0
+  const mark = r.expected === null || r.plan === 0 ? null : Math.min(r.expected / r.plan * 100, 100)
   return (
     <div
-      title={`Долг с прошлого периода: погашено ${done} из ${total}`}
-      style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: -4 }}
+      className={`lrow${dim ? ' dim' : ''}${cur ? ' cur' : ''}`}
+      data-id={c.id}
+      tabIndex={dim ? -1 : cur ? 0 : -1}
+      onClick={() => { if (!dim) onOpen() }}
     >
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: 3, flex: 'none', minWidth: 52 }}>
-        <span style={{ fontFamily: ARCHIVO, fontWeight: 800, fontSize: 15, color: done >= total ? D.lime : D.err, ...NUM }}>
-          {done}
-        </span>
-        <span style={{ fontFamily: ARCHIVO, fontWeight: 700, fontSize: 12, color: D.quiet2, ...NUM }}>
-          /{total}
-        </span>
-        <span style={{ marginLeft: 4, fontFamily: GROTESK, fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', color: D.err }}>
-          ДОЛГ
-        </span>
+      <div className="ln">
+        <span className={`dot bg-${r.tone}`} />
+        <button type="button" className="name" tabIndex={-1} onClick={e => { e.stopPropagation(); onOpen() }}>{c.name}</button>
       </div>
-      <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-        {Array.from({ length: total }, (_, i) => (
-          <span
-            key={i}
-            style={{
-              width: 9, height: 9, borderRadius: 3,
-              background: i < done ? D.err : D.errBg,
-              boxShadow: i < done ? 'none' : `inset 0 0 0 1px ${D.err}66`,
-            }}
-          />
-        ))}
+      <div className="lp">
+        <b>{r.doneMain}<span>/{r.plan}</span></b>
+        <div className="lbar">
+          <i style={{ width: `${pct}%` }} />
+          {mark !== null && <u style={{ left: `calc(${mark}% - 1px)` }} />}
+        </div>
       </div>
+      <span><span className={`pill p-${r.pillTone}`} title={r.pillFull}>{r.pill}</span></span>
+      <span style={{ fontWeight: 700 }}>{r.perDay || '–'}</span>
+      <span className={r.debtOpen > 0 ? 'c-amber' : 'c-mut'} style={{ fontWeight: 700 }}>
+        {r.debt === 0 ? '–' : r.debtOpen > 0 ? `${r.debtOpen} из ${r.debt}` : 'закрыт'}
+      </span>
+      <span className={lastTone(r) && `c-${lastTone(r)}`} style={{ fontWeight: 700 }}>{lastText(r)}</span>
+      <span className={contractTone(r) && `c-${contractTone(r)}`} style={{ fontWeight: 700 }}>{contractText(r)}</span>
+      <span className="avs">
+        <Avatar a={av[c.smmId]} role="smm" />
+        <Avatar a={av[c.operatorId]} role="op" />
+      </span>
+      {showAdd ? (
+        <button
+          type="button" className="add" tabIndex={-1} disabled={!canAdd}
+          aria-label={`Пост вышел: ${c.name}`}
+          onClick={e => { e.stopPropagation(); onAdd() }}
+        >
+          <Plus size={15} strokeWidth={2.8} aria-hidden="true" />
+        </button>
+      ) : <span />}
     </div>
-  )
-}
-
-function PlusButton({ onClick, disabled }) {
-  const [h, setH] = useState(false)
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title="Плюс один выпущенный, дата выкладки — сегодня"
-      onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
-      style={{
-        width: 30, height: 30, flex: 'none', borderRadius: 9, border: 'none',
-        background: disabled ? D.input3 : h ? D.limeHover : D.lime,
-        color: disabled ? D.off : D.onLime,
-        fontSize: 17, fontWeight: 700, lineHeight: 1,
-        transition: 'background 120ms ease',
-      }}
-    >
-      +
-    </button>
-  )
-}
-
-function TodayButton({ onClick }) {
-  const [h, setH] = useState(false)
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setH(true)}
-      onMouseLeave={() => setH(false)}
-      style={{
-        height: 32, padding: '0 11px', flex: 'none', borderRadius: 9, border: 'none',
-        background: h ? D.limeBgHover : D.limeBg, color: D.lime,
-        fontFamily: GROTESK, fontSize: 11.5, fontWeight: 700,
-        transition: 'background 120ms ease',
-      }}
-    >
-      Сегодня
-    </button>
-  )
-}
-
-function MiniSelect({ value, onChange, people, empty }) {
-  return (
-    <select
-      value={value || ''}
-      onChange={e => onChange(e.target.value)}
-      style={{
-        height: 26, flex: '1 1 0', minWidth: 0, borderRadius: 7, border: 'none', outline: 'none',
-        padding: '0 6px', background: D.input, cursor: 'pointer',
-        color: value ? D.t3 : D.mut, fontFamily: GROTESK, fontSize: 11.5,
-      }}
-    >
-      <option value="">{empty}</option>
-      {people.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-    </select>
   )
 }
